@@ -8,6 +8,7 @@ import {
   type CaptionStyle,
   type Clip,
   type Project,
+  type AudioClip,
   type TextStyle,
   type Track,
   type VideoClip,
@@ -55,9 +56,34 @@ export const addVideoClip = (
     return { ...track, clips: [...track.clips, clip] };
   });
 
+/** Agrega música o un efecto de sonido en la pista indicada, desde el frame `from`. */
+export const addAudioClip = (
+  project: Project,
+  media: { src: string; name: string; durationInFrames: number },
+  trackId: string,
+  from: number,
+): Project =>
+  mapTracks(project, (track) => {
+    if (track.id !== trackId) return track;
+    const clip: AudioClip = {
+      id: newId(),
+      kind: "audio",
+      src: media.src,
+      name: media.name,
+      from: Math.max(0, Math.round(from)),
+      durationInFrames: media.durationInFrames,
+      trimStart: 0,
+      sourceDurationInFrames: media.durationInFrames,
+      volume: trackId === "A1" ? 0.25 : 0.8, // música baja por defecto para no tapar la voz
+      fadeIn: 0,
+      fadeOut: trackId === "A1" ? 15 : 0,
+    };
+    return { ...track, clips: [...track.clips, clip] };
+  });
+
 export const addTextClip = (
   project: Project,
-  opts: { text: string; from: number; durationInFrames: number; style?: Partial<TextStyle> },
+  opts: { text: string; from: number; durationInFrames: number; style?: Partial<TextStyle>; id?: string },
   trackId = "T1",
 ): Project =>
   mapTracks(project, (track) => {
@@ -67,7 +93,7 @@ export const addTextClip = (
       clips: [
         ...track.clips,
         {
-          id: newId(),
+          id: opts.id ?? newId(),
           kind: "text",
           text: opts.text,
           from: opts.from,
@@ -84,8 +110,23 @@ export const updateClip = (project: Project, clipId: string, patch: Partial<Clip
     clips: track.clips.map((c) => (c.id === clipId ? ({ ...c, ...patch } as Clip) : c)),
   }));
 
-export const moveClip = (project: Project, clipId: string, from: number): Project =>
-  updateClip(project, clipId, { from: Math.max(0, Math.round(from)) });
+/** Mueve un clip en el tiempo y, opcionalmente, a otra pista del mismo tipo (ej. A1 → A2). */
+export const moveClip = (project: Project, clipId: string, from: number, toTrackId?: string): Project => {
+  const found = findClip(project, clipId);
+  if (!found) return project;
+  const moved = { ...found.clip, from: Math.max(0, Math.round(from)) } as Clip;
+  const target = project.tracks.find((t) => t.id === toTrackId);
+  if (!target || target.id === found.track.id || target.kind !== found.track.kind) {
+    return updateClip(project, clipId, { from: moved.from });
+  }
+  return mapTracks(project, (t) =>
+    t.id === found.track.id
+      ? { ...t, clips: t.clips.filter((c) => c.id !== clipId) }
+      : t.id === target.id
+        ? { ...t, clips: [...t.clips, moved] }
+        : t,
+  );
+};
 
 export const deleteClip = (project: Project, clipId: string): Project =>
   mapTracks(project, (track) => ({
@@ -120,7 +161,9 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       if (offset <= 0 || offset >= c.durationInFrames) return [c];
       const left = { ...c, durationInFrames: offset };
       const right = { ...c, id: newId(), from: frame, durationInFrames: c.durationInFrames - offset };
-      if (right.kind === "video") right.trimStart = (c as VideoClip).trimStart + offset;
+      if (right.kind === "video" || right.kind === "audio") right.trimStart = (c as VideoClip | AudioClip).trimStart + offset;
+      if (left.kind === "audio") left.fadeOut = 0; // el fade queda solo al final real del clip
+      if (right.kind === "audio") right.fadeIn = 0;
       return [left, right as Clip];
     }),
   }));
@@ -138,15 +181,15 @@ export const trimClip = (
   const d = Math.round(deltaFrames);
   if (edge === "end") {
     let duration = Math.max(1, c.durationInFrames + d);
-    if (c.kind === "video") duration = Math.min(duration, c.sourceDurationInFrames - c.trimStart);
+    if (c.kind === "video" || c.kind === "audio") duration = Math.min(duration, c.sourceDurationInFrames - c.trimStart);
     return updateClip(project, clipId, { durationInFrames: duration });
   }
   // start: positivo recorta, negativo extiende hacia atrás
   let delta = Math.min(d, c.durationInFrames - 1);
   delta = Math.max(delta, -c.from);
-  if (c.kind === "video") delta = Math.max(delta, -c.trimStart);
+  if (c.kind === "video" || c.kind === "audio") delta = Math.max(delta, -c.trimStart);
   const patch: Partial<Clip> = { from: c.from + delta, durationInFrames: c.durationInFrames - delta };
-  if (c.kind === "video") (patch as Partial<VideoClip>).trimStart = c.trimStart + delta;
+  if (c.kind === "video" || c.kind === "audio") (patch as Partial<VideoClip>).trimStart = c.trimStart + delta;
   return updateClip(project, clipId, patch);
 };
 

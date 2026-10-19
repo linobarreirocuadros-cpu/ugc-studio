@@ -40,7 +40,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
   height: 100%;
   display: grid;
   grid-template-columns: 240px 1fr 260px;
-  grid-template-rows: 44px auto minmax(0, 1fr) 260px;
+  grid-template-rows: 44px auto minmax(0, 1fr) 320px;
   grid-template-areas:
     "top top top"
     "status status status"
@@ -125,8 +125,8 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .shortcuts b { color: var(--text); margin-bottom: 4px; }
 
 .timeline-area { grid-area: timeline; background: var(--panel); min-width: 0; }
-.timeline { display: flex; height: 100%; }
-.timeline-headers { flex-shrink: 0; border-right: 1px solid var(--border); }
+.timeline { display: flex; align-items: flex-start; height: 100%; overflow-y: auto; } /* nombres y pistas se desplazan juntos */
+.timeline-headers { flex-shrink: 0; border-right: 1px solid var(--border); position: sticky; left: 0; }
 .ruler-spacer, .ruler { height: 24px; border-bottom: 1px solid var(--border); }
 .track-header {
   display: flex;
@@ -136,7 +136,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
   background: var(--panel-2);
   font-weight: 600;
 }
-.timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
+.timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; min-width: 0; }
 .ruler { position: relative; cursor: text; background: #1f1f1f; }
 .tick {
   position: absolute;
@@ -194,3 +194,21 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .track-caption .clip { font-size: 11px; }
 .bin-item.missing video { opacity: 0.3; }
 .bin-missing { color: #ff9a9a; font-size: 11px; margin-top: 2px; }
+
+/* Pestañas del panel izquierdo */
+.tabs { display: flex; gap: 2px; }
+.tabs button { background: transparent; border-color: transparent; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; font-weight: 600; padding: 4px 6px; }
+.tabs button.active { color: var(--text); border-bottom: 2px solid var(--accent); border-radius: 0; }
+
+/* Audio */
+.bin-audio { width: 40px; height: 60px; display: flex; align-items: center; justify-content: center; background: #1f3a2a; color: #7fe0a6; border-radius: 3px; font-size: 22px; }
+.clip-audio { background: #2f8a5a; }
+.track-audio .clip { top: 8px; bottom: 8px; }
+.track-header { font-size: 11px; text-align: center; padding: 0 4px; }
+
+/* Foley */
+.foley-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+.foley-folder-name { width: 100%; text-align: left; background: transparent; border-color: transparent; padding: 4px 2px; }
+.foley-file { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 16px; border-radius: 4px; cursor: pointer; }
+.foley-file:hover, .foley-file.playing { background: var(--panel-2); }
+.foley-play { padding: 0 6px; font-size: 10px; }

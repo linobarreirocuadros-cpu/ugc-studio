@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { AbsoluteFill, OffthreadVideo, Sequence, interpolate, useCurrentFrame } from "remotion";
-import type { CaptionClip, Project, TextClip, VideoClip } from "../project/types";
+import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import type { AudioClip, CaptionClip, Project, TextClip, VideoClip } from "../project/types";
+import { cssFont, ensureFont, fontWeightFor } from "./fonts";
 
 // Convierte rutas relativas (/media/x.mp4) en absolutas para el render en el servidor.
 // `preview` = true en el Player de la app: usa proxies livianos para reproducir fluido.
@@ -51,8 +52,29 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean }
   );
 };
 
+const AudioLayer: React.FC<{ clip: AudioClip; base?: string }> = ({ clip, base }) => {
+  // Si la canción dura más que el video, el fade out se hace donde termina el video
+  const { durationInFrames: videoEnd } = useVideoConfig();
+  const d = Math.min(clip.durationInFrames, videoEnd - clip.from);
+  return (
+  <Audio
+    src={resolveSrc(clip.src, base)}
+    startFrom={clip.trimStart}
+    pauseWhenBuffering
+    // Fade in / fade out: el volumen sube al inicio y baja al final del clip
+    volume={(f) => {
+      const fadeIn = clip.fadeIn > 0 ? interpolate(f, [0, clip.fadeIn], [0, 1], { extrapolateRight: "clamp" }) : 1;
+      const fadeOut =
+        clip.fadeOut > 0 ? interpolate(f, [d - clip.fadeOut, d], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+      return clip.volume * Math.min(fadeIn, fadeOut);
+    }}
+  />
+  );
+};
+
 const TextLayer: React.FC<{ clip: TextClip }> = ({ clip }) => {
   const s = clip.style;
+  ensureFont(s.fontFamily);
   return (
     <AbsoluteFill style={{ alignItems: "center" }}>
       <div
@@ -62,9 +84,9 @@ const TextLayer: React.FC<{ clip: TextClip }> = ({ clip }) => {
           transform: "translateY(-50%)",
           maxWidth: "85%",
           textAlign: "center",
-          fontFamily: s.fontFamily,
+          fontFamily: cssFont(s.fontFamily),
           fontSize: s.fontSize,
-          fontWeight: 800,
+          fontWeight: fontWeightFor(s.fontFamily, 800),
           lineHeight: 1.15,
           color: s.color,
           background: s.background ?? undefined,
@@ -83,6 +105,7 @@ const STROKE = "0 0 2px #000, 0 0 2px #000, 3px 3px 0 #000, -3px 3px 0 #000, 3px
 const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
   const frame = useCurrentFrame();
   const s = clip.style;
+  ensureFont(s.fontFamily);
   const activeIndex = clip.words.findIndex((w) => frame >= w.start && frame < w.end);
   // Pequeño "pop" al aparecer el bloque
   const pop = interpolate(frame, [0, 4], [0.85, 1], { extrapolateRight: "clamp" });
@@ -100,9 +123,9 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
           transform: `translateY(-50%) scale(${pop})`,
           maxWidth: "88%",
           textAlign: "center",
-          fontFamily: s.fontFamily,
+          fontFamily: cssFont(s.fontFamily),
           fontSize: s.preset === "palabra" ? s.fontSize * 1.25 : s.fontSize,
-          fontWeight: 900,
+          fontWeight: fontWeightFor(s.fontFamily, 900),
           lineHeight: 1.1,
           color: s.color,
           textTransform: s.uppercase ? "uppercase" : "none",
@@ -147,6 +170,8 @@ export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaB
           {clip.kind === "video" ? (
             // key: al reconectar el archivo se reinicia el estado de error
             <VideoLayer key={`${clip.src}|${clip.proxySrc}`} clip={clip} base={mediaBaseUrl} preview={preview} />
+          ) : clip.kind === "audio" ? (
+            <AudioLayer clip={clip} base={mediaBaseUrl} />
           ) : clip.kind === "text" ? (
             <TextLayer clip={clip} />
           ) : (

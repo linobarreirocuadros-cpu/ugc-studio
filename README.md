@@ -26,4 +26,7 @@ Tus videos importados y exportaciones se guardan en la carpeta **`UGC Studio`** 
 carpeta de usuario (ej. `C:\Users\TuNombre\UGC Studio` o `/Users/TuNombre/UGC Studio`).
 Así, al descargar una versión nueva del programa, no pierdes nada.
 
+**Foley:** copia tus efectos de sonido a las carpetas de `UGC Studio/Foley` (Whoosh, Impactos,
+Pops y clicks…) y aparecen en la pestaña **Foley** del editor.
+
 Ver `ROADMAP.md` para lo que viene y `PROGRESS.md` para el estado actual.

@@ -6,7 +6,9 @@ type Drag = {
   clipId: string;
   mode: "move" | "trim-start" | "trim-end";
   startX: number;
+  startY: number;
   dx: number;
+  dy: number;
 };
 
 type Props = {
@@ -16,11 +18,11 @@ type Props = {
   pxPerFrame: number;
   onSeek: (frame: number) => void;
   onSelect: (clipId: string | null) => void;
-  onMove: (clipId: string, from: number) => void;
+  onMove: (clipId: string, from: number, trackId: string) => void;
   onTrim: (clipId: string, edge: "start" | "end", delta: number) => void;
 };
 
-const HEADER_W = 56;
+const HEADER_W = 76;
 const TRACK_H = 56;
 const SNAP_PX = 8;
 
@@ -33,7 +35,9 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
   };
   const scrollRef = useRef<HTMLDivElement>(null);
   const duration = getProjectDuration(project);
-  const width = (duration + project.fps * 10) * pxPerFrame;
+  // Ancho: hasta el último clip (aunque sea una canción más larga que el video) + 10 s de margen
+  const lastEnd = project.tracks.flatMap((t) => t.clips).reduce((end, c) => Math.max(end, c.from + c.durationInFrames), duration);
+  const width = (lastEnd + project.fps * 10) * pxPerFrame;
 
   // Puntos de "imán": bordes de todos los clips y el cabezal de reproducción.
   const snapPoints = (excludeId: string) => {
@@ -59,7 +63,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
     if (!drag) return;
     const onMoveEvt = (e: MouseEvent) => {
       const d = dragRef.current;
-      if (d) setDrag({ ...d, dx: e.clientX - d.startX });
+      if (d) setDrag({ ...d, dx: e.clientX - d.startX, dy: e.clientY - d.startY });
     };
     const onUp = () => {
       if (dragRef.current) commitDrag(dragRef.current);
@@ -75,6 +79,14 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
   }, [drag?.clipId, drag?.mode]);
 
   const findClip = (id: string) => project.tracks.flatMap((t) => t.clips).find((c) => c.id === id);
+  const displayed = [...project.tracks].reverse(); // arriba: subtítulos; abajo: audio
+
+  /** Pista destino al arrastrar verticalmente: solo entre pistas del mismo tipo. */
+  const dragTargetTrack = (clipId: string, d: Drag) => {
+    const idx = displayed.findIndex((t) => t.clips.some((c) => c.id === clipId));
+    const target = displayed[idx + Math.round(d.dy / TRACK_H)];
+    return target && target.kind === displayed[idx].kind ? target : displayed[idx];
+  };
 
   const dragPreview = (clip: Clip, d: Drag) => {
     const deltaFrames = d.dx / pxPerFrame;
@@ -89,9 +101,9 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
 
   const commitDrag = (d: Drag) => {
     const clip = findClip(d.clipId);
-    if (!clip || Math.abs(d.dx) < 2) return;
+    if (!clip || (Math.abs(d.dx) < 2 && Math.abs(d.dy) < TRACK_H / 2)) return;
     const p = dragPreview(clip, d);
-    if (d.mode === "move") onMove(clip.id, p.from);
+    if (d.mode === "move") onMove(clip.id, p.from, dragTargetTrack(clip.id, d).id);
     else if (d.mode === "trim-end") onTrim(clip.id, "end", p.dur - clip.durationInFrames);
     else onTrim(clip.id, "start", p.from - clip.from);
   };
@@ -111,7 +123,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
     <div className="timeline">
       <div className="timeline-headers" style={{ width: HEADER_W }}>
         <div className="ruler-spacer" />
-        {[...project.tracks].reverse().map((t) => (
+        {displayed.map((t) => (
           <div key={t.id} className="track-header" style={{ height: TRACK_H }}>
             {t.name}
           </div>
@@ -140,7 +152,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
               ) : null,
             )}
           </div>
-          {[...project.tracks].reverse().map((track) => (
+          {displayed.map((track, trackIndex) => (
             <div
               key={track.id}
               className={`track track-${track.kind}`}
@@ -153,16 +165,26 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
               }}
             >
               {track.clips.map((clip) => {
-                const p = drag?.clipId === clip.id ? dragPreview(clip, drag) : { from: clip.from, dur: clip.durationInFrames };
+                const dragging = drag?.clipId === clip.id;
+                const p = dragging ? dragPreview(clip, drag) : { from: clip.from, dur: clip.durationInFrames };
+                const shiftY =
+                  dragging && drag.mode === "move"
+                    ? (displayed.indexOf(dragTargetTrack(clip.id, drag)) - trackIndex) * TRACK_H
+                    : 0;
                 return (
                   <div
                     key={clip.id}
                     className={`clip clip-${clip.kind} ${selectedId === clip.id ? "selected" : ""}`}
-                    style={{ left: p.from * pxPerFrame, width: Math.max(4, p.dur * pxPerFrame) }}
+                    style={{
+                      left: p.from * pxPerFrame,
+                      width: Math.max(4, p.dur * pxPerFrame),
+                      transform: shiftY ? `translateY(${shiftY}px)` : undefined,
+                      zIndex: dragging ? 3 : undefined,
+                    }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
                       onSelect(clip.id);
-                      setDrag({ clipId: clip.id, mode: "move", startX: e.clientX, dx: 0 });
+                      setDrag({ clipId: clip.id, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                     }}
                     title={clipLabel(clip)}
                   >
@@ -171,7 +193,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         onSelect(clip.id);
-                        setDrag({ clipId: clip.id, mode: "trim-start", startX: e.clientX, dx: 0 });
+                        setDrag({ clipId: clip.id, mode: "trim-start", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
                     <span className="clip-label">{clipLabel(clip)}</span>
@@ -180,7 +202,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         onSelect(clip.id);
-                        setDrag({ clipId: clip.id, mode: "trim-end", startX: e.clientX, dx: 0 });
+                        setDrag({ clipId: clip.id, mode: "trim-end", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
                   </div>

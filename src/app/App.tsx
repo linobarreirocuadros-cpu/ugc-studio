@@ -4,6 +4,8 @@ import * as ops from "../project/ops";
 import {
   createEmptyProject,
   getProjectDuration,
+  normalizeProject,
+  type AudioClip,
   type CaptionClip,
   type CaptionStyle,
   type Project,
@@ -11,11 +13,13 @@ import {
   type VideoClip,
 } from "../project/types";
 import { AIPanel, CAPTION_PRESETS } from "./AIPanel";
+import { FoleyPanel, openFolder } from "./FoleyPanel";
+import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
 import { ProjectComposition } from "../remotion/ProjectComposition";
 import { Timeline, formatTimecode } from "./Timeline";
 import { useHistory } from "./useHistory";
 
-type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string };
+type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
 
 const STORAGE_KEY = "ugc-studio:autosave";
@@ -34,19 +38,20 @@ const readDurationInFrames = (src: string, fps: number) =>
     const v = document.createElement("video");
     v.preload = "metadata";
     v.onloadedmetadata = () => resolve(Math.max(1, Math.floor(v.duration * fps)));
-    v.onerror = () => reject(new Error("No se pudo leer el video"));
+    v.onerror = () => reject(new Error("No se pudo leer el archivo"));
     v.src = src;
   });
 
 export function App() {
   const saved = useMemo(loadSaved, []);
-  const history = useHistory<Project>(() => saved?.project ?? createEmptyProject());
+  const history = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
   const project = history.value;
   const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
   const [pxPerFrame, setPxPerFrame] = useState(2);
   const [uploading, setUploading] = useState(false);
+  const [binTab, setBinTab] = useState<"proyecto" | "foley">("proyecto");
   const [preset, setPreset] = useState<Preset>("h264-high");
   const [render, setRender] = useState<{ progress: number; url?: string; error?: string } | null>(null);
   const playerRef = useRef<PlayerRef>(null);
@@ -131,7 +136,7 @@ export function App() {
         body.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body });
         if (!res.ok) throw new Error("Error al subir " + file.name);
-        const { src, name, proxySrc } = await res.json();
+        const { src, name, proxySrc, kind } = await res.json();
         const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps).catch(() =>
           readDurationInFrames(src, project.fps),
         );
@@ -139,9 +144,9 @@ export function App() {
         const lost = media.find((m) => m.name === name && missing.has(m.src));
         if (lost) {
           history.apply((p) => ops.relinkMedia(p, lost.src, src, proxySrc));
-          setMedia((list) => list.map((x) => (x.src === lost.src ? { src, name, durationInFrames, proxySrc } : x)));
+          setMedia((list) => list.map((x) => (x.src === lost.src ? { src, name, durationInFrames, proxySrc, kind } : x)));
         } else {
-          setMedia((m) => [...m, { src, name, durationInFrames, proxySrc }]);
+          setMedia((m) => [...m, { src, name, durationInFrames, proxySrc, kind }]);
         }
       }
     } catch (e) {
@@ -151,8 +156,19 @@ export function App() {
     }
   };
 
-  const addText = () =>
-    history.apply((p) => ops.addTextClip(p, { text: "Tu hook aquí", from: frame, durationInFrames: p.fps * 3 }));
+  const addMedia = (m: MediaItem) =>
+    history.apply((p) => (m.kind === "audio" ? ops.addAudioClip(p, m, "A1", frame) : ops.addVideoClip(p, m)));
+
+  const addFoley = async (file: { name: string; src: string }) => {
+    const durationInFrames = await readDurationInFrames(file.src, project.fps).catch(() => project.fps);
+    history.apply((p) => ops.addAudioClip(p, { src: file.src, name: file.name, durationInFrames }, "A2", frame));
+  };
+
+  const addText = () => {
+    const id = ops.newId();
+    history.apply((p) => ops.addTextClip(p, { id, text: "Tu hook aquí", from: frame, durationInFrames: p.fps * 3 }));
+    setSelectedId(id); // queda seleccionado para editarlo de inmediato
+  };
 
   const split = () => history.apply((p) => ops.splitAt(p, frame));
   const remove = (ripple: boolean) => {
@@ -220,7 +236,7 @@ export function App() {
     const file = files?.[0];
     if (!file) return;
     const data = JSON.parse(await file.text());
-    history.apply(() => data.project);
+    history.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
   };
 
@@ -259,8 +275,9 @@ export function App() {
             <span className="error">Error: {render.error}</span>
           ) : render.url ? (
             <span>
-              ✓ Listo. Guardado en la carpeta <b>UGC Studio/Exportaciones</b> ·{" "}
-              <a href={render.url} target="_blank" rel="noreferrer">abrir video</a>
+              ✓ Listo. Guardado en <b>UGC Studio/Exportaciones</b> ·{" "}
+              <a href={render.url} target="_blank" rel="noreferrer">ver video</a> ·{" "}
+              <a href="#" onClick={(e) => { e.preventDefault(); openFolder("exports"); }}>abrir carpeta</a>
             </span>
           ) : (
             <span>Exportando… {Math.round(render.progress * 100)}%</span>
@@ -271,21 +288,27 @@ export function App() {
 
       <aside className="panel bin">
         <div className="panel-title">
-          Proyecto
-          <button onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? "Optimizando…" : "Importar"}
-          </button>
-          <input ref={fileInput} type="file" accept="video/*" multiple hidden onChange={(e) => importFiles(e.target.files)} />
+          <div className="tabs">
+            <button className={binTab === "proyecto" ? "active" : ""} onClick={() => setBinTab("proyecto")}>Proyecto</button>
+            <button className={binTab === "foley" ? "active" : ""} onClick={() => setBinTab("foley")}>Foley</button>
+          </div>
+          {binTab === "proyecto" && (
+            <button onClick={() => fileInput.current?.click()} disabled={uploading}>
+              {uploading ? "Optimizando…" : "Importar"}
+            </button>
+          )}
+          <input ref={fileInput} type="file" accept="video/*,audio/*" multiple hidden onChange={(e) => importFiles(e.target.files)} />
         </div>
-        {media.length === 0 && <p className="hint">Importa tus clips UGC (Ctrl+I próximamente).</p>}
-        {media.map((m) => (
+        {binTab === "foley" && <FoleyPanel onAdd={addFoley} />}
+        {binTab === "proyecto" && media.length === 0 && <p className="hint">Importa tus clips UGC, voces en off o música.</p>}
+        {binTab === "proyecto" && media.map((m) => (
           <div
             key={m.src}
             className={`bin-item ${missing.has(m.src) ? "missing" : ""}`}
-            onDoubleClick={() => history.apply((p) => ops.addVideoClip(p, m))}
-            title="Doble clic para agregar al final de V1"
+            onDoubleClick={() => addMedia(m)}
+            title={m.kind === "audio" ? "Doble clic: agregar en A1 donde está el cabezal" : "Doble clic: agregar al final de V1"}
           >
-            <video src={m.proxySrc ?? m.src} muted preload="metadata" />
+            {m.kind === "audio" ? <div className="bin-audio">♪</div> : <video src={m.proxySrc ?? m.src} muted preload="metadata" />}
             <div>
               <div className="bin-name">{m.name}</div>
               <div className="bin-dur">
@@ -330,6 +353,7 @@ export function App() {
             onStyle={(patch) => history.apply((p) => ops.styleAllCaptions(p, patch))}
           />
         )}
+        {selected?.kind === "audio" && <AudioInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         {selected?.kind === "video" && <VideoInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         <div className="shortcuts">
           <b>Atajos</b>
@@ -349,7 +373,7 @@ export function App() {
           pxPerFrame={pxPerFrame}
           onSeek={seek}
           onSelect={setSelectedId}
-          onMove={(id, from) => history.apply((p) => ops.moveClip(p, id, from))}
+          onMove={(id, from, trackId) => history.apply((p) => ops.moveClip(p, id, from, trackId))}
           onTrim={(id, edge, delta) => history.apply((p) => ops.trimClip(p, id, edge, delta))}
         />
       </section>
@@ -369,7 +393,7 @@ function TextInspector({ clip, onChange }: { clip: TextClip; onChange: (patch: P
         <input type="checkbox" checked={clip.style.background !== null} onChange={(e) => style({ background: e.target.checked ? "rgba(0,0,0,0.55)" : null })} />
       </label>
       <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={clip.style.y} onChange={(e) => style({ y: Number(e.target.value) })} /></label>
-      <label>Tipografía<input value={clip.style.fontFamily} onChange={(e) => style({ fontFamily: e.target.value })} /></label>
+      <FontSelect value={clip.style.fontFamily} onChange={(fontFamily) => style({ fontFamily })} />
     </div>
   );
 }
@@ -409,7 +433,45 @@ function CaptionInspector({
       <label className="row"><input type="checkbox" checked={s.uppercase} onChange={(e) => onStyle({ uppercase: e.target.checked })} /> MAYÚSCULAS</label>
       <label className="row"><input type="checkbox" checked={s.stroke} onChange={(e) => onStyle({ stroke: e.target.checked })} /> Contorno negro</label>
       <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={s.y} onChange={(e) => onStyle({ y: Number(e.target.value) })} /></label>
-      <label>Tipografía<input value={s.fontFamily} onChange={(e) => onStyle({ fontFamily: e.target.value })} /></label>
+      <FontSelect value={s.fontFamily} onChange={(fontFamily) => onStyle({ fontFamily })} />
+    </div>
+  );
+}
+
+function FontSelect({ value, onChange }: { value: string; onChange: (fontFamily: string) => void }) {
+  const current = primaryFamily(value);
+  return (
+    <label>
+      Tipografía
+      <select value={current} onChange={(e) => onChange(e.target.value)} style={{ fontFamily: `"${current}"` }}>
+        {!FONT_FAMILIES.includes(current) && <option value={current}>{current}</option>}
+        {FONT_FAMILIES.map((f) => (
+          <option key={f} value={f}>{f}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function AudioInspector({ clip, fps, onChange }: { clip: AudioClip; fps: number; onChange: (patch: Partial<AudioClip>) => void }) {
+  const seconds = (frames: number) => Math.round((frames / fps) * 10) / 10;
+  return (
+    <div className="fields">
+      <div className="bin-name">♪ {clip.name}</div>
+      <div className="bin-dur">Duración: {formatTimecode(clip.durationInFrames, fps)}</div>
+      <label>
+        Volumen · {Math.round(clip.volume * 100)}%
+        <input type="range" min={0} max={1} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} />
+      </label>
+      <label>
+        Fade in (segundos)
+        <input type="number" min={0} step={0.1} value={seconds(clip.fadeIn)} onChange={(e) => onChange({ fadeIn: Math.round(Number(e.target.value) * fps) })} />
+      </label>
+      <label>
+        Fade out (segundos)
+        <input type="number" min={0} step={0.1} value={seconds(clip.fadeOut)} onChange={(e) => onChange({ fadeOut: Math.round(Number(e.target.value) * fps) })} />
+      </label>
+      <div className="hint">Arrastra el clip arriba o abajo para pasarlo entre A1 (música) y A2 (efectos).</div>
     </div>
   );
 }

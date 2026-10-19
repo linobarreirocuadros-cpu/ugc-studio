@@ -1,7 +1,8 @@
 # Progreso
 
 ## Estado actual
-Fase 0 completa. Fase 1 en curso: subtítulos automáticos y quitar silencios ya funcionan.
+Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX), Foley y
+tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
 
 ## Registro
 
@@ -47,5 +48,21 @@ Fase 0 completa. Fase 1 en curso: subtítulos automáticos y quitar silencios ya
   si el proxy falla se usa el original (onError solo en preview; el export sigue fallando fuerte).
 - Probado en navegador: aviso, reconexión y reproducción con fallback.
 
+### 2026-10-19 — Audio, Foley y tipografías (Claude)
+- `AudioClip` (volumen, fadeIn/fadeOut en frames) y pistas A1 "Música" / A2 "SFX".
+  `normalizeProject()` agrega pistas faltantes a proyectos viejos (se llama al cargar/abrir).
+- La duración del video la marcan video/textos/subtítulos; una canción más larga no alarga el
+  export y su fade out ocurre donde termina el video (`useVideoConfig` en `AudioLayer`).
+- `moveClip(p, id, from, trackId)`: arrastre vertical entre pistas del mismo tipo.
+- Foley: carpetas en `~/UGC Studio/Foley/<categoría>`; `GET /api/library`, servidas en `/library`.
+  Pestaña "Foley": clic = escuchar, doble clic = agrega en A2 en el cabezal.
+  `POST /api/open-folder` abre la carpeta en Explorador/Finder.
+- Tipografías: se probó @remotion/google-fonts pero el export falla sin internet; se cambió a
+  archivos locales `@fontsource/*` + `@remotion/fonts` (`src/remotion/fonts.ts`, generado con
+  pesos 400/700/900 del subset latin). `fontWeightFor` evita negritas falsas (Anton solo 400).
+- "+ Texto" deja el texto seleccionado. Timeline: nombres de pista se desplazan con las pistas.
+- Probado en navegador: importar video+mp3, Foley a A2, mover A1→A2, fuente Anton, export con
+  audio (6 s aunque la canción dura 20 s).
+
 ## Siguiente paso sugerido
-Probar transcripción real con un video UGC del usuario. Luego: Google Fonts y panel de transcripción.
+Probar transcripción real con un video UGC del usuario. Luego: V2 para B-roll, panel de transcripción, y empezar Fase 2 (chat con IA).

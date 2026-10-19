@@ -15,10 +15,12 @@
 - [x] Generar subtítulos automáticos (estilos: karaoke, palabra por palabra, bloque)
 - [x] Editar texto de cada bloque de subtítulos; estilo global (color, resaltado, mayúsculas, contorno)
 - [x] Cortar silencios automáticamente (jump cuts) usando la transcripción
-- [ ] Tipografías reales (Google Fonts) en preview y export
+- [x] Tipografías reales incluidas en el programa (13 fuentes, funcionan sin internet)
 - [ ] Panel de transcripción: leer el texto y borrar frases para cortar el video
 - [ ] Opción de transcripción en la nube (ElevenLabs Scribe / OpenAI) para más precisión
-- [ ] Múltiples pistas de video y audio (A1, A2 para música y Foley)
+- [x] Pistas de audio A1 (música) y A2 (efectos) con volumen y fade in/out
+- [x] Arrastrar clips entre pistas del mismo tipo
+- [ ] Más de una pista de video (V2 para B-roll)
 - [ ] Waveform y miniaturas en la línea de tiempo
 
 ## Fase 2 — Chat de IA integrado
@@ -28,7 +30,7 @@
 
 ## Fase 3 — Marcas, Foley y presets
 - [ ] Brand Kits: tipografías, colores, estilo de subtítulos, reglas, hooks que funcionan
-- [ ] Biblioteca de Foley / SFX por carpetas
+- [x] Biblioteca de Foley / SFX por carpetas (UGC Studio/Foley, pestaña Foley)
 - [ ] Guardar y reutilizar efectos y presets
 
 ## Fase 4 — Motion graphics

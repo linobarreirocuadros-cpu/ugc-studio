@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
@@ -16,16 +17,21 @@ const DATA_DIR = process.env.UGC_DATA_DIR ?? path.join(os.homedir(), "UGC Studio
 const MEDIA_DIR = path.join(DATA_DIR, "media");
 const PROXY_DIR = path.join(MEDIA_DIR, "proxies");
 const OUT_DIR = path.join(DATA_DIR, "Exportaciones");
+const FOLEY_DIR = path.join(DATA_DIR, "Foley");
+const FOLEY_FOLDERS = ["Whoosh", "Impactos", "Pops y clicks", "Risers", "Transiciones", "Ambiente", "Música"];
+const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac|aiff?)$/i;
 const PORT = Number(process.env.PORT ?? 3001);
 const BASE_URL = `http://localhost:${PORT}`;
 
 fs.mkdirSync(PROXY_DIR, { recursive: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
+for (const f of FOLEY_FOLDERS) fs.mkdirSync(path.join(FOLEY_DIR, f), { recursive: true });
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
 app.use("/media", express.static(MEDIA_DIR));
 app.use("/out", express.static(OUT_DIR));
+app.use("/library", express.static(FOLEY_DIR));
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -78,13 +84,16 @@ const makeProxy = (filename: string) => {
 app.post("/api/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
   const src = `/media/${req.file.filename}`;
+  const isAudio = req.file.mimetype.startsWith("audio/") || AUDIO_EXT.test(req.file.originalname);
   let proxySrc: string | undefined;
-  try {
-    proxySrc = await makeProxy(req.file.filename);
-  } catch (err) {
-    console.error("No se pudo crear el proxy:", err); // se sigue usando el original
+  if (!isAudio) {
+    try {
+      proxySrc = await makeProxy(req.file.filename);
+    } catch (err) {
+      console.error("No se pudo crear el proxy:", err); // se sigue usando el original
+    }
   }
-  res.json({ src, proxySrc, name: req.file.originalname });
+  res.json({ src, proxySrc, name: req.file.originalname, kind: isAudio ? "audio" : "video" });
 });
 
 // Para proyectos creados antes de que existieran los proxies.
@@ -98,6 +107,38 @@ app.post("/api/proxy", async (req, res) => {
     res.json({ proxySrc: await makeProxy(filename) });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// --- Biblioteca de Foley ----------------------------------------------------------
+// Carpetas dentro de "UGC Studio/Foley". El usuario arrastra ahí sus sonidos y aparecen en la app.
+
+app.get("/api/library", (_req, res) => {
+  const folders = fs
+    .readdirSync(FOLEY_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => ({
+      folder: d.name,
+      files: fs
+        .readdirSync(path.join(FOLEY_DIR, d.name))
+        .filter((f) => AUDIO_EXT.test(f))
+        .sort()
+        .map((f) => ({ name: f, src: `/library/${encodeURIComponent(d.name)}/${encodeURIComponent(f)}` })),
+    }))
+    .sort((a, b) => a.folder.localeCompare(b.folder));
+  res.json({ folders });
+});
+
+// Abre una carpeta en el Explorador (Windows) o Finder (Mac).
+app.post("/api/open-folder", (req, res) => {
+  const which = req.body.which as "foley" | "exports" | "data";
+  const dir = which === "foley" ? FOLEY_DIR : which === "exports" ? OUT_DIR : DATA_DIR;
+  const cmd = process.platform === "win32" ? "explorer" : process.platform === "darwin" ? "open" : "xdg-open";
+  try {
+    spawn(cmd, [dir], { detached: true, stdio: "ignore" }).on("error", () => {}).unref();
+    res.json({ ok: true, dir });
+  } catch {
+    res.json({ ok: false, dir });
   }
 });
 
