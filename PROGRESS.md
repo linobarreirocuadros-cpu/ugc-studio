@@ -13,5 +13,9 @@ Fase 0 completa. Se puede importar video, editar en la línea de tiempo, agregar
 - Nota: el export usa Chrome Headless de Remotion (se descarga solo la primera vez). Para usar
   otro navegador: variable de entorno `REMOTION_BROWSER=/ruta/al/chrome`.
 
+### 2026-10-19 — Lanzadores (Claude)
+- Agregados `Abrir UGC Studio (Windows).bat` y `Abrir UGC Studio (Mac).command`: el usuario no
+  programa, así que abre la app con doble clic (instalan dependencias la primera vez).
+
 ## Siguiente paso sugerido
 Fase 1: transcripción con timestamps por palabra y subtítulos automáticos.

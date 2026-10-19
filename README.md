@@ -2,15 +2,21 @@
 
 Editor de video para UGC con flujo tipo Premiere Pro, construido sobre Remotion.
 
-## Cómo usarlo
-Necesitas [Node.js 20+](https://nodejs.org).
+## Cómo abrirlo (sin programar)
+1. Instala [Node.js](https://nodejs.org) (botón **LTS**). Solo una vez.
+2. Descarga este proyecto: botón verde **Code → Download ZIP** y descomprímelo.
+3. Doble clic en:
+   - **Windows:** `Abrir UGC Studio (Windows).bat`
+   - **Mac:** `Abrir UGC Studio (Mac).command` (la primera vez: clic derecho → Abrir → Abrir)
+4. Se abre el editor en tu navegador (usa Chrome). No cierres la ventana negra mientras editas.
 
+La primera vez tarda unos minutos porque instala todo.
+
+## Para programadores
 ```bash
 npm install
-npm run dev
+npm run dev   # http://localhost:5173
 ```
-
-Abre http://localhost:5173 en Chrome.
 
 - **Importar**: botón en el panel Proyecto. Doble clic en un clip para ponerlo en la línea de tiempo.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
