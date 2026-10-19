@@ -20,6 +20,10 @@ npm run dev   # http://localhost:5173
 
 - **Importar**: botón en el panel Proyecto. Doble clic en un clip para ponerlo en la línea de tiempo.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
-- **Exportar**: elige calidad arriba a la derecha → Exportar. El archivo queda en `out/`.
+- **Exportar**: elige calidad arriba a la derecha → Exportar.
+
+Tus videos importados y exportaciones se guardan en la carpeta **`UGC Studio`** dentro de tu
+carpeta de usuario (ej. `C:\Users\TuNombre\UGC Studio` o `/Users/TuNombre/UGC Studio`).
+Así, al descargar una versión nueva del programa, no pierdes nada.
 
 Ver `ROADMAP.md` para lo que viene y `PROGRESS.md` para el estado actual.

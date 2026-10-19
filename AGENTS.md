@@ -18,7 +18,9 @@ modifica el JSON y `src/remotion/ProjectComposition.tsx` lo dibuja.
 - `src/project/` — modelo de datos (`types.ts`) y operaciones puras (`ops.ts`)
 - `src/remotion/` — composición de Remotion que renderiza un `Project` (preview y export)
 - `src/app/` — interfaz React (Vite): monitor, línea de tiempo, paneles
-- `server/` — servidor Express local: subida de archivos a `media/` y export a `out/`
+- `server/` — servidor Express local: subida de archivos, proxies y export. Los datos viven en
+  `~/UGC Studio/` (`media/`, `media/proxies/`, `Exportaciones/`), fuera del repo; se puede
+  cambiar con la variable `UGC_DATA_DIR`.
 
 ## Comandos
 - `npm install` — instalar

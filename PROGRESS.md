@@ -39,5 +39,13 @@ Fase 0 completa. Fase 1 en curso: subtítulos automáticos y quitar silencios ya
 - Además: `premountFor` (carga el siguiente clip 1 s antes), `pauseWhenBuffering` y
   `acceptableTimeShiftInSeconds` en el video. Proyectos viejos piden su proxy a `/api/proxy`.
 
+### 2026-10-19 — Pantalla negra al reproducir (Claude)
+- Causa probable: el usuario descargó el ZIP nuevo en otra carpeta; el proyecto (guardado en el
+  navegador) apuntaba a videos que estaban en `media/` de la carpeta vieja → 404 → negro.
+- Arreglos: datos fuera del programa en `~/UGC Studio/`; aviso "Archivo no encontrado" en el panel
+  y en el monitor; al importar un archivo con el mismo nombre se reconecta solo (`relinkMedia`);
+  si el proxy falla se usa el original (onError solo en preview; el export sigue fallando fuerte).
+- Probado en navegador: aviso, reconexión y reproducción con fallback.
+
 ## Siguiente paso sugerido
 Probar transcripción real con un video UGC del usuario. Luego: Google Fonts y panel de transcripción.

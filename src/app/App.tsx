@@ -65,11 +65,29 @@ export function App() {
     }
   }, [project, media]);
 
+  // Detecta videos cuyo archivo ya no existe (p. ej. tras mover o actualizar el programa)
+  const [missing, setMissing] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      media.map((m) =>
+        fetch(m.src, { method: "HEAD" })
+          .then((r) => (r.ok ? null : m.src))
+          .catch(() => m.src),
+      ),
+    ).then((results) => {
+      if (!cancelled) setMissing(new Set(results.filter((x): x is string => x !== null)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [media]);
+
   // Crea proxies para videos importados antes de que existieran (una vez por archivo)
   const proxyRequested = useRef(new Set<string>());
   useEffect(() => {
     for (const m of media) {
-      if (m.proxySrc || proxyRequested.current.has(m.src)) continue;
+      if (m.proxySrc || missing.has(m.src) || proxyRequested.current.has(m.src)) continue;
       proxyRequested.current.add(m.src);
       fetch("/api/proxy", {
         method: "POST",
@@ -84,7 +102,7 @@ export function App() {
         })
         .catch(() => {});
     }
-  }, [media, history.apply]);
+  }, [media, missing, history.apply]);
 
   // Sincroniza el cabezal con el reproductor
   useEffect(() => {
@@ -114,8 +132,17 @@ export function App() {
         const res = await fetch("/api/upload", { method: "POST", body });
         if (!res.ok) throw new Error("Error al subir " + file.name);
         const { src, name, proxySrc } = await res.json();
-        const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps);
-        setMedia((m) => [...m, { src, name, durationInFrames, proxySrc }]);
+        const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps).catch(() =>
+          readDurationInFrames(src, project.fps),
+        );
+        // Si es el mismo video que faltaba (mismo nombre), se reconecta en vez de duplicarse.
+        const lost = media.find((m) => m.name === name && missing.has(m.src));
+        if (lost) {
+          history.apply((p) => ops.relinkMedia(p, lost.src, src, proxySrc));
+          setMedia((list) => list.map((x) => (x.src === lost.src ? { src, name, durationInFrames, proxySrc } : x)));
+        } else {
+          setMedia((m) => [...m, { src, name, durationInFrames, proxySrc }]);
+        }
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
@@ -231,7 +258,10 @@ export function App() {
           {render.error ? (
             <span className="error">Error: {render.error}</span>
           ) : render.url ? (
-            <a href={render.url} target="_blank" rel="noreferrer">✓ Listo: descargar video</a>
+            <span>
+              ✓ Listo. Guardado en la carpeta <b>UGC Studio/Exportaciones</b> ·{" "}
+              <a href={render.url} target="_blank" rel="noreferrer">abrir video</a>
+            </span>
           ) : (
             <span>Exportando… {Math.round(render.progress * 100)}%</span>
           )}
@@ -251,7 +281,7 @@ export function App() {
         {media.map((m) => (
           <div
             key={m.src}
-            className="bin-item"
+            className={`bin-item ${missing.has(m.src) ? "missing" : ""}`}
             onDoubleClick={() => history.apply((p) => ops.addVideoClip(p, m))}
             title="Doble clic para agregar al final de V1"
           >
@@ -262,6 +292,7 @@ export function App() {
                 {formatTimecode(m.durationInFrames, project.fps)}
                 {project.transcripts?.[m.src] ? " · transcrito" : ""}
               </div>
+              {missing.has(m.src) && <div className="bin-missing">⚠ Archivo no encontrado. Impórtalo de nuevo y se reconecta solo.</div>}
             </div>
           </div>
         ))}
@@ -274,6 +305,7 @@ export function App() {
           component={ProjectComposition}
           inputProps={{ project, preview: true }}
           bufferStateDelayInMilliseconds={300}
+          acknowledgeRemotionLicense
           durationInFrames={duration}
           fps={project.fps}
           compositionWidth={project.width}

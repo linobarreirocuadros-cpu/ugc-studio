@@ -157,6 +157,18 @@ export const setProxy = (project: Project, src: string, proxySrc: string): Proje
     clips: t.clips.map((c) => (c.kind === "video" && c.src === src ? { ...c, proxySrc } : c)),
   }));
 
+/** Reconecta los clips de un archivo perdido a uno nuevo (como "Link Media" en Premiere). */
+export const relinkMedia = (project: Project, oldSrc: string, newSrc: string, proxySrc?: string): Project => {
+  const relinked = mapTracks(project, (t) => ({
+    ...t,
+    clips: t.clips.map((c) => (c.kind === "video" && c.src === oldSrc ? { ...c, src: newSrc, proxySrc } : c)),
+  }));
+  const transcript = project.transcripts?.[oldSrc];
+  if (!transcript) return relinked;
+  const { [oldSrc]: _, ...rest } = project.transcripts!;
+  return { ...relinked, transcripts: { ...rest, [newSrc]: transcript } };
+};
+
 // --- Transcripción y subtítulos -------------------------------------------------
 
 /** Proyectos guardados antes de la Fase 1 no tienen pista de subtítulos. */

@@ -192,3 +192,5 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .clip-caption { background: #c9a227; }
 .clip-caption .clip-label { color: #1a1a1a; }
 .track-caption .clip { font-size: 11px; }
+.bin-item.missing video { opacity: 0.3; }
+.bin-missing { color: #ff9a9a; font-size: 11px; margin-top: 2px; }

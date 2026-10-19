@@ -3,15 +3,19 @@ import express from "express";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const MEDIA_DIR = path.join(ROOT, "media");
+// Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
+// (descargar un ZIP nuevo) no se pierdan. Por defecto: <carpeta de usuario>/UGC Studio
+const DATA_DIR = process.env.UGC_DATA_DIR ?? path.join(os.homedir(), "UGC Studio");
+const MEDIA_DIR = path.join(DATA_DIR, "media");
 const PROXY_DIR = path.join(MEDIA_DIR, "proxies");
-const OUT_DIR = path.join(ROOT, "out");
+const OUT_DIR = path.join(DATA_DIR, "Exportaciones");
 const PORT = Number(process.env.PORT ?? 3001);
 const BASE_URL = `http://localhost:${PORT}`;
 
@@ -171,4 +175,7 @@ process.on("unhandledRejection", (err) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Servidor UGC Studio en ${BASE_URL}`));
+app.listen(PORT, () => {
+  console.log(`Servidor UGC Studio en ${BASE_URL}`);
+  console.log(`Tus videos y exportaciones se guardan en: ${DATA_DIR}`);
+});
