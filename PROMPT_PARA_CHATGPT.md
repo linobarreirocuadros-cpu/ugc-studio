@@ -8,10 +8,12 @@ Hola. Vas a continuar el desarrollo de un proyecto de software que empecé con o
 
 ## 1. Quién soy
 
-- Me llamo Lino. Trabajo como **editor de videos UGC** para una empresa de Estados Unidos llamada **Growth Assistant**. Edito anuncios UGC (videos verticales 9:16 de creadores de contenido) para distintas marcas, por ejemplo **Dermaflash**, una marca femenina de skincare de Estados Unidos.
-- Mi flujo de trabajo es con **Premiere Pro** y la suite de Adobe (After Effects, etc.). Estoy acostumbrado a sus atajos y su forma de trabajar.
+- Me llamo Lino. Soy **motion graphics designer, video editor specialist y artista visual**. Lo mío es el **storytelling**: contar historias de manera visual.
+- Hoy trabajo como **editor de videos UGC** para una empresa de Estados Unidos llamada **Growth Assistant**. Edito anuncios UGC (videos verticales 9:16 de creadores de contenido) para distintas marcas, por ejemplo **Dermaflash**, una marca femenina de skincare de Estados Unidos.
+- Domino **Premiere Pro, After Effects** y la suite de Adobe. Pienso en keyframes, curvas de animación (easing), composición, ritmo, tipografía y jerarquía visual. Puedes hablarme con esos términos. Para mí la calidad visual y la narrativa del video son tan importantes como que el programa funcione.
 - Estoy aprendiendo a editar con **Remotion** (video con código React) usando IAs.
-- **No sé programar.** Necesito que me expliques todo paso a paso, en lenguaje simple, en español. Si tengo que hacer algo en mi computador (instalar algo, abrir una terminal, copiar un archivo), dime exactamente dónde hacer clic y qué escribir.
+- **No sé programar.** En la parte técnica necesito que me expliques todo paso a paso, en lenguaje simple, en español. Si tengo que hacer algo en mi computador (instalar algo, abrir una terminal, copiar un archivo), dime exactamente dónde hacer clic y qué escribir.
+- **Soy nuevo usando ChatGPT para un proyecto de software así.** No sé cuál es la mejor forma de organizarme dentro de ChatGPT (ver sección 10).
 - Mi computador: **Windows 11 Home**, procesador **AMD Ryzen 7 7700X** (8 núcleos), **32 GB de RAM**, placa ASUS TUF Gaming B850M-Plus WiFi. No he confirmado qué tarjeta gráfica tengo.
 - Este proyecto es para mí, lo construyo poco a poco, sin apuro.
 
@@ -166,6 +168,7 @@ En general me gusta cómo va quedando.
 8. No rompas lo que ya funciona: proxies, reconexión de archivos, fuentes locales, export, chat.
 9. **Si tienes acceso al repositorio** (por ejemplo, con Codex conectado a GitHub), haz los cambios ahí, en commits claros. **Si no tienes acceso** y yo tengo que copiar código a mano, dame **archivos completos** (no fragmentos sueltos), indicando la ruta exacta de cada uno, porque no sé combinar cambios parciales.
 10. Cuando yo tenga que probar algo, dame los pasos numerados: qué descargar, qué abrir y qué hacer clic.
+11. **En lo visual, trátame como motion designer.** En subtítulos, textos animados, transiciones y motion graphics, cuida el timing, el easing, la tipografía, la composición y la narrativa, no solo que "funcione". Cuando diseñes controles de animación, piensa en cómo lo haría After Effects (keyframes, curvas, presets reutilizables) para que me resulte natural. Pídeme opinión en las decisiones de diseño: ahí yo soy el experto.
 
 ## 9. Notas legales e importantes
 
@@ -173,6 +176,29 @@ En general me gusta cómo va quedando.
 - **Música de YouTube**: descargarla es técnicamente posible (yt-dlp, open source), pero usarla en anuncios de marcas puede traer problemas de copyright y bloqueos en Meta. Preferir música libre de derechos o con licencia, y avisarme del riesgo.
 - Los modelos gratis en la nube (Gemini, OpenRouter) pueden usar mis mensajes para entrenar o registrarlos; Ollama local es 100% privado.
 
+## 10. Cómo organizarme dentro de ChatGPT: necesito tu recomendación
+
+Soy nuevo en esto y no sé cómo llevar un proyecto así dentro de ChatGPT. Sé que existen varias formas de trabajar:
+
+- **Projects** (el panel de proyectos de ChatGPT, donde se agrupan chats, archivos e instrucciones).
+- **Un chat normal.**
+- **Codex** (el agente de programación de ChatGPT, que se puede conectar a mi repositorio de GitHub).
+
+Quiero que me expliques, en lenguaje simple:
+
+1. Para qué sirve cada una y cuál es la diferencia práctica para este proyecto.
+2. **Cuál me recomiendas y cómo combinarlas.** Por ejemplo: qué parte del trabajo hago en un Project (planificación, ideas, diseño visual, brand kits, decisiones), qué parte en Codex (escribir y modificar el código del repositorio), y cuándo me sirve un chat normal.
+3. Si me recomiendas un Project: qué **instrucciones** le pongo, qué **archivos** subo (por ejemplo este prompt, `AGENTS.md`, `ROADMAP.md`, `PROGRESS.md`) y cómo organizo los chats dentro (uno por fase, uno por tema…).
+4. Si me recomiendas Codex: **cómo conectarlo a mi GitHub paso a paso**, cómo le pido cambios, cómo reviso lo que hizo y cómo bajo la versión nueva a mi PC para probarla.
+5. **Un flujo de trabajo semanal sencillo** para avanzar poco a poco sin perder el hilo, y cómo mantener actualizados `PROGRESS.md` y `ROADMAP.md` para poder alternar entre ChatGPT y Claude cuando a uno se le acaben los mensajes.
+6. Qué plan de ChatGPT necesito para lo que me recomiendes, y sus límites (dímelo con honestidad; si no estás seguro de un dato actual, dilo).
+
+Ten en cuenta mi perfil: vengo del mundo visual (motion graphics, edición, storytelling), no del código. Prefiero un sistema simple y claro antes que uno técnico.
+
 ---
 
-**Tu primera tarea**: confirma que entendiste el proyecto con un resumen corto. Revisa `PROGRESS.md` y `ROADMAP.md` del repositorio si tienes acceso. Luego dime qué propones hacer primero, y guíame para probar el chat con Ollama en mi PC si todavía no lo he hecho.
+**Tu primera tarea**:
+
+1. Confirma que entendiste el proyecto con un resumen corto. Si tienes acceso al repositorio, revisa `PROGRESS.md` y `ROADMAP.md`.
+2. Respóndeme la sección 10: **cómo me recomiendas organizarme en ChatGPT** (Projects, chat normal, Codex), paso a paso.
+3. Dime qué propones hacer primero en el proyecto, y guíame para probar el chat con Ollama en mi PC si todavía no lo he hecho.

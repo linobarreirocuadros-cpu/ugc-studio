@@ -14,6 +14,13 @@ que edita el proyecto. Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el e
 llamará como tools. Nunca hagas que la IA genere código Remotion para editar un video: la IA
 modifica el JSON y `src/remotion/ProjectComposition.tsx` lo dibuja.
 
+## Sobre el usuario
+Lino: motion graphics designer, video editor specialist y artista visual (storytelling visual),
+editor UGC en Growth Assistant. Domina Premiere y After Effects; **no programa**. Explicar lo
+técnico paso a paso y en simple; en lo visual (timing, easing, tipografía, composición) él es el
+experto: pedir su criterio. Usa Windows 11, Ryzen 7 7700X, 32 GB RAM. Contexto completo en
+`PROMPT_PARA_CHATGPT.md`.
+
 ## Principio: todo gratis
 El usuario quiere poder hacer trabajos UGC de principio a fin **sin pagar nada**. Toda herramienta,
 modelo o servicio que se integre debe ser gratuito y, de preferencia, open source y local
