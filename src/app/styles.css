@@ -212,3 +212,5 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .foley-file { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 16px; border-radius: 4px; cursor: pointer; }
 .foley-file:hover, .foley-file.playing { background: var(--panel-2); }
 .foley-play { padding: 0 6px; font-size: 10px; }
+.bin-broll { margin-top: 4px; padding: 1px 6px; font-size: 11px; opacity: 0; }
+.bin-item:hover .bin-broll { opacity: 1; }

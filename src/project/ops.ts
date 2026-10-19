@@ -33,11 +33,15 @@ export const findClip = (project: Project, clipId: string) => {
   return null;
 };
 
-/** Agrega un video al final del track indicado (V1 por defecto). */
+/**
+ * Agrega un video al track indicado: por defecto al final de V1. Con `from` se coloca en ese frame
+ * (ej. B-roll en V2 donde está el cabezal); el B-roll entra en silencio para no tapar la voz.
+ */
 export const addVideoClip = (
   project: Project,
   media: { src: string; name: string; durationInFrames: number; proxySrc?: string },
   trackId = "V1",
+  from?: number,
 ): Project =>
   mapTracks(project, (track) => {
     if (track.id !== trackId) return track;
@@ -47,11 +51,11 @@ export const addVideoClip = (
       src: media.src,
       proxySrc: media.proxySrc,
       name: media.name,
-      from: trackEnd(track),
+      from: from === undefined ? trackEnd(track) : Math.max(0, Math.round(from)),
       durationInFrames: media.durationInFrames,
       trimStart: 0,
       sourceDurationInFrames: media.durationInFrames,
-      volume: 1,
+      volume: trackId === "V1" ? 1 : 0,
     };
     return { ...track, clips: [...track.clips, clip] };
   });

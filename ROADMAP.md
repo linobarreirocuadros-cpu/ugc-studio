@@ -20,7 +20,7 @@
 - [ ] Opción de transcripción en la nube (ElevenLabs Scribe / OpenAI) para más precisión
 - [x] Pistas de audio A1 (música) y A2 (efectos) con volumen y fade in/out
 - [x] Arrastrar clips entre pistas del mismo tipo
-- [ ] Más de una pista de video (V2 para B-roll)
+- [x] Pista V2 para B-roll (botón "+ B-roll" en el panel, entra en silencio donde está el cabezal)
 - [ ] Waveform y miniaturas en la línea de tiempo
 
 ## Fase 2 — Chat de IA integrado
@@ -34,11 +34,16 @@
 - [ ] Guardar y reutilizar efectos y presets
 
 ## Fase 4 — Motion graphics
+- [ ] HyperFrames (HeyGen, open source Apache-2.0): la IA escribe escenas HTML + GSAP, se
+      renderizan a video y entran como clip en V2. Remotion sigue siendo la base del editor.
 - [ ] Plantillas de textos animados parametrizables
 - [ ] Animaciones vectoriales (SVG/Lottie) generadas por prompt
 - [ ] Transiciones y efectos (zoom, shake, blur, color)
 
 ## Fase 5 — Integraciones
+- [ ] Limpieza de voz (DeepFilterNet / RNNoise) y separar voz/música (Demucs) — open source
+- [ ] Quitar fondo sin pantalla verde (RobustVideoMatting / rembg) — open source
+- [ ] Animaciones Lottie (@remotion/lottie) con biblioteca de LottieFiles
 - [ ] ElevenLabs (voces, SFX)
 - [ ] Higgsfield (generación de video/imagen)
 - [ ] Métricas de Meta Ads por marca para mejorar hooks

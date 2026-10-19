@@ -64,5 +64,14 @@ tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
 - Probado en navegador: importar video+mp3, Foley a A2, mover A1→A2, fuente Anton, export con
   audio (6 s aunque la canción dura 20 s).
 
+### 2026-10-19 — V2 B-roll + investigación de herramientas (Claude)
+- Pista `V2` (video, encima de V1). `addVideoClip(p, media, trackId, from?)`: en V2 entra en el
+  cabezal y con volumen 0. Botón "+ B-roll" al pasar el mouse por un video del panel.
+- Probado export: V2 tapa a V1 solo durante su clip.
+- El usuario preguntó por HyperFrames (HeyGen, github.com/heygen-com/hyperframes, Apache-2.0,
+  HTML+GSAP → MP4 con Chrome headless + FFmpeg). Decisión: Remotion sigue siendo la base; HyperFrames
+  se integra en la Fase 4 como generador de clips de motion graphics que entran en V2.
+  "Hypermotion" no se encontró; pendiente que el usuario mande link.
+
 ## Siguiente paso sugerido
-Probar transcripción real con un video UGC del usuario. Luego: V2 para B-roll, panel de transcripción, y empezar Fase 2 (chat con IA).
+Probar transcripción real con un video UGC del usuario. Luego: Fase 2 (chat con IA) o HyperFrames, según prefiera el usuario.

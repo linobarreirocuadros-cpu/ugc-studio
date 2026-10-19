@@ -111,6 +111,7 @@ const DEFAULT_TRACKS: Omit<Track, "clips">[] = [
   { id: "A2", kind: "audio", name: "A2 SFX" },
   { id: "A1", kind: "audio", name: "A1 Música" },
   { id: "V1", kind: "video", name: "V1" },
+  { id: "V2", kind: "video", name: "V2 B-roll" }, // se dibuja encima de V1
   { id: "T1", kind: "text", name: "T1" },
   { id: "S1", kind: "caption", name: "SUB" },
 ];

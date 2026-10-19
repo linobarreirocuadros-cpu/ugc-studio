@@ -158,6 +158,7 @@ export function App() {
 
   const addMedia = (m: MediaItem) =>
     history.apply((p) => (m.kind === "audio" ? ops.addAudioClip(p, m, "A1", frame) : ops.addVideoClip(p, m)));
+  const addBroll = (m: MediaItem) => history.apply((p) => ops.addVideoClip(p, m, "V2", frame));
 
   const addFoley = async (file: { name: string; src: string }) => {
     const durationInFrames = await readDurationInFrames(file.src, project.fps).catch(() => project.fps);
@@ -315,6 +316,18 @@ export function App() {
                 {formatTimecode(m.durationInFrames, project.fps)}
                 {project.transcripts?.[m.src] ? " · transcrito" : ""}
               </div>
+              {m.kind !== "audio" && !missing.has(m.src) && (
+                <button
+                  className="bin-broll"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addBroll(m);
+                  }}
+                  title="Agregar como B-roll en V2, donde está el cabezal (sin sonido)"
+                >
+                  + B-roll
+                </button>
+              )}
               {missing.has(m.src) && <div className="bin-missing">⚠ Archivo no encontrado. Impórtalo de nuevo y se reconecta solo.</div>}
             </div>
           </div>
