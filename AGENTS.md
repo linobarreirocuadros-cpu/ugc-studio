@@ -14,6 +14,13 @@ que edita el proyecto. Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el e
 llamará como tools. Nunca hagas que la IA genere código Remotion para editar un video: la IA
 modifica el JSON y `src/remotion/ProjectComposition.tsx` lo dibuja.
 
+## Principio: todo gratis
+El usuario quiere poder hacer trabajos UGC de principio a fin **sin pagar nada**. Toda herramienta,
+modelo o servicio que se integre debe ser gratuito y, de preferencia, open source y local
+(ej. Whisper en el navegador, Ollama para el chat, fuentes @fontsource, HyperFrames).
+Servicios de pago (Claude/OpenAI API, ElevenLabs, Higgsfield) solo como opción extra, nunca
+como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de integrarlo.
+
 ## Estructura
 - `src/project/` — modelo de datos (`types.ts`) y operaciones puras (`ops.ts`)
 - `src/remotion/` — composición de Remotion que renderiza un `Project` (preview y export)
