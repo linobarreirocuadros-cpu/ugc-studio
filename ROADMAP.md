@@ -8,6 +8,7 @@
 - [x] Capa de texto con propiedades (texto, tamaño, color, fondo, posición, tipografía)
 - [x] Deshacer / rehacer, autoguardado, guardar/abrir proyecto (.json)
 - [x] Exportar: MP4 H.264 alta calidad / borrador, MOV ProRes 422 HQ
+- [x] Proxies automáticos para reproducción fluida
 
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)

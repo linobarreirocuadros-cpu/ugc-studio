@@ -30,5 +30,14 @@ Fase 0 completa. Fase 1 en curso: subtítulos automáticos y quitar silencios ya
   no hay acceso a huggingface.co).
 - Limitación: "Quitar silencios" no mueve textos/subtítulos ya creados; generar subtítulos después.
 
+### 2026-10-19 — Reproducción fluida (Claude)
+- Problema reportado: la vista previa se trababa y repetía partes, sobre todo en los cortes.
+- Solución: **proxies** como en Premiere. Al importar, el servidor crea una copia liviana
+  (lado corto 540 px, keyframe cada 15 frames) con el ffmpeg que trae Remotion
+  (`RenderInternals.callFf`), en `media/proxies/`. `VideoClip.proxySrc` la guarda; el Player usa
+  `preview: true` → proxy; la exportación usa siempre el original (probado borrando el proxy).
+- Además: `premountFor` (carga el siguiente clip 1 s antes), `pauseWhenBuffering` y
+  `acceptableTimeShiftInSeconds` en el video. Proyectos viejos piden su proxy a `/api/proxy`.
+
 ## Siguiente paso sugerido
 Probar transcripción real con un video UGC del usuario. Luego: Google Fonts y panel de transcripción.

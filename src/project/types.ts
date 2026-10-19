@@ -4,7 +4,8 @@
 export type VideoClip = {
   id: string;
   kind: "video";
-  src: string; // URL servida por el servidor local, ej. /media/abc.mp4
+  src: string; // URL servida por el servidor local, ej. /media/abc.mp4 (original, para exportar)
+  proxySrc?: string; // copia liviana solo para la vista previa (como los proxies de Premiere)
   name: string;
   from: number; // frame donde empieza en la línea de tiempo
   durationInFrames: number; // duración visible en la línea de tiempo

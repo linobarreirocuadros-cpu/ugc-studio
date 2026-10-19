@@ -35,7 +35,7 @@ export const findClip = (project: Project, clipId: string) => {
 /** Agrega un video al final del track indicado (V1 por defecto). */
 export const addVideoClip = (
   project: Project,
-  media: { src: string; name: string; durationInFrames: number },
+  media: { src: string; name: string; durationInFrames: number; proxySrc?: string },
   trackId = "V1",
 ): Project =>
   mapTracks(project, (track) => {
@@ -44,6 +44,7 @@ export const addVideoClip = (
       id: newId(),
       kind: "video",
       src: media.src,
+      proxySrc: media.proxySrc,
       name: media.name,
       from: trackEnd(track),
       durationInFrames: media.durationInFrames,
@@ -148,6 +149,13 @@ export const trimClip = (
   if (c.kind === "video") (patch as Partial<VideoClip>).trimStart = c.trimStart + delta;
   return updateClip(project, clipId, patch);
 };
+
+/** Asigna el proxy de vista previa a todos los clips de un archivo. */
+export const setProxy = (project: Project, src: string, proxySrc: string): Project =>
+  mapTracks(project, (t) => ({
+    ...t,
+    clips: t.clips.map((c) => (c.kind === "video" && c.src === src ? { ...c, proxySrc } : c)),
+  }));
 
 // --- Transcripción y subtítulos -------------------------------------------------
 

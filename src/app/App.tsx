@@ -15,7 +15,7 @@ import { ProjectComposition } from "../remotion/ProjectComposition";
 import { Timeline, formatTimecode } from "./Timeline";
 import { useHistory } from "./useHistory";
 
-type MediaItem = { src: string; name: string; durationInFrames: number };
+type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
 
 const STORAGE_KEY = "ugc-studio:autosave";
@@ -65,6 +65,27 @@ export function App() {
     }
   }, [project, media]);
 
+  // Crea proxies para videos importados antes de que existieran (una vez por archivo)
+  const proxyRequested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const m of media) {
+      if (m.proxySrc || proxyRequested.current.has(m.src)) continue;
+      proxyRequested.current.add(m.src);
+      fetch("/api/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ src: m.src }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data?.proxySrc) return;
+          setMedia((list) => list.map((x) => (x.src === m.src ? { ...x, proxySrc: data.proxySrc } : x)));
+          history.apply((p) => ops.setProxy(p, m.src, data.proxySrc));
+        })
+        .catch(() => {});
+    }
+  }, [media, history.apply]);
+
   // Sincroniza el cabezal con el reproductor
   useEffect(() => {
     const p = playerRef.current;
@@ -92,9 +113,9 @@ export function App() {
         body.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body });
         if (!res.ok) throw new Error("Error al subir " + file.name);
-        const { src, name } = await res.json();
-        const durationInFrames = await readDurationInFrames(src, project.fps);
-        setMedia((m) => [...m, { src, name, durationInFrames }]);
+        const { src, name, proxySrc } = await res.json();
+        const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps);
+        setMedia((m) => [...m, { src, name, durationInFrames, proxySrc }]);
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
@@ -222,7 +243,7 @@ export function App() {
         <div className="panel-title">
           Proyecto
           <button onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? "Subiendo…" : "Importar"}
+            {uploading ? "Optimizando…" : "Importar"}
           </button>
           <input ref={fileInput} type="file" accept="video/*" multiple hidden onChange={(e) => importFiles(e.target.files)} />
         </div>
@@ -234,7 +255,7 @@ export function App() {
             onDoubleClick={() => history.apply((p) => ops.addVideoClip(p, m))}
             title="Doble clic para agregar al final de V1"
           >
-            <video src={m.src} muted preload="metadata" />
+            <video src={m.proxySrc ?? m.src} muted preload="metadata" />
             <div>
               <div className="bin-name">{m.name}</div>
               <div className="bin-dur">
@@ -251,7 +272,8 @@ export function App() {
         <Player
           ref={playerRef}
           component={ProjectComposition}
-          inputProps={{ project }}
+          inputProps={{ project, preview: true }}
+          bufferStateDelayInMilliseconds={300}
           durationInFrames={duration}
           fps={project.fps}
           compositionWidth={project.width}

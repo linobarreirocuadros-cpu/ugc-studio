@@ -5,16 +5,17 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, selectComposition } from "@remotion/renderer";
+import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MEDIA_DIR = path.join(ROOT, "media");
+const PROXY_DIR = path.join(MEDIA_DIR, "proxies");
 const OUT_DIR = path.join(ROOT, "out");
 const PORT = Number(process.env.PORT ?? 3001);
 const BASE_URL = `http://localhost:${PORT}`;
 
-fs.mkdirSync(MEDIA_DIR, { recursive: true });
+fs.mkdirSync(PROXY_DIR, { recursive: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const app = express();
@@ -32,9 +33,68 @@ const upload = multer({
   }),
 });
 
-app.post("/api/upload", upload.single("file"), (req, res) => {
+// --- Proxies --------------------------------------------------------------------
+// Copia liviana (lado corto 540 px, keyframe cada 0,5 s) para que la vista previa sea fluida
+// y los saltos entre cortes sean instantáneos. La exportación siempre usa el archivo original.
+// Usa el ffmpeg que trae Remotion, así no hay que instalar nada.
+
+const proxyJobs = new Map<string, Promise<string>>();
+
+const makeProxy = (filename: string) => {
+  const existing = proxyJobs.get(filename);
+  if (existing) return existing;
+  const outName = filename.replace(/\.[^.]+$/, "") + ".proxy.mp4";
+  const outPath = path.join(PROXY_DIR, outName);
+  const job = (async () => {
+    if (!fs.existsSync(outPath)) {
+      const tmp = outPath + ".tmp.mp4";
+      await RenderInternals.callFf({
+        bin: "ffmpeg",
+        args: [
+          "-y", "-i", path.join(MEDIA_DIR, filename),
+          "-vf", "scale='if(lt(iw,ih),540,-2)':'if(lt(iw,ih),-2,540)'",
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-g", "15", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
+          tmp,
+        ],
+        indent: false,
+        logLevel: "error",
+        binariesDirectory: null,
+        cancelSignal: undefined,
+      });
+      fs.renameSync(tmp, outPath);
+    }
+    return `/media/proxies/${outName}`;
+  })();
+  job.catch(() => proxyJobs.delete(filename));
+  proxyJobs.set(filename, job);
+  return job;
+};
+
+app.post("/api/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
-  res.json({ src: `/media/${req.file.filename}`, name: req.file.originalname });
+  const src = `/media/${req.file.filename}`;
+  let proxySrc: string | undefined;
+  try {
+    proxySrc = await makeProxy(req.file.filename);
+  } catch (err) {
+    console.error("No se pudo crear el proxy:", err); // se sigue usando el original
+  }
+  res.json({ src, proxySrc, name: req.file.originalname });
+});
+
+// Para proyectos creados antes de que existieran los proxies.
+app.post("/api/proxy", async (req, res) => {
+  const src = String(req.body.src ?? "");
+  const filename = path.basename(src);
+  if (!src.startsWith("/media/") || !fs.existsSync(path.join(MEDIA_DIR, filename))) {
+    return res.status(404).json({ error: "Archivo no encontrado" });
+  }
+  try {
+    res.json({ proxySrc: await makeProxy(filename) });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // --- Exportación ---------------------------------------------------------------

@@ -2,16 +2,19 @@ import { AbsoluteFill, OffthreadVideo, Sequence, interpolate, useCurrentFrame } 
 import type { CaptionClip, Project, TextClip, VideoClip } from "../project/types";
 
 // Convierte rutas relativas (/media/x.mp4) en absolutas para el render en el servidor.
-export type CompositionProps = { project: Project; mediaBaseUrl?: string };
+// `preview` = true en el Player de la app: usa proxies livianos para reproducir fluido.
+export type CompositionProps = { project: Project; mediaBaseUrl?: string; preview?: boolean };
 
 const resolveSrc = (src: string, base?: string) =>
   base && src.startsWith("/") ? base.replace(/\/$/, "") + src : src;
 
-const VideoLayer: React.FC<{ clip: VideoClip; base?: string }> = ({ clip, base }) => (
+const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean }> = ({ clip, base, preview }) => (
   <OffthreadVideo
-    src={resolveSrc(clip.src, base)}
+    src={resolveSrc(preview && clip.proxySrc ? clip.proxySrc : clip.src, base)}
     startFrom={clip.trimStart}
     volume={clip.volume}
+    pauseWhenBuffering
+    acceptableTimeShiftInSeconds={0.3}
     style={{ width: "100%", height: "100%", objectFit: "cover" }}
   />
 );
@@ -98,13 +101,19 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
   );
 };
 
-export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl }) => (
+export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview }) => (
   <AbsoluteFill style={{ backgroundColor: "black" }}>
     {project.tracks.map((track) =>
       track.clips.map((clip) => (
-        <Sequence key={clip.id} from={clip.from} durationInFrames={clip.durationInFrames}>
+        <Sequence
+          key={clip.id}
+          from={clip.from}
+          durationInFrames={clip.durationInFrames}
+          // Carga el video 1 s antes de que aparezca para que el corte no se trabe
+          premountFor={clip.kind === "video" ? project.fps : undefined}
+        >
           {clip.kind === "video" ? (
-            <VideoLayer clip={clip} base={mediaBaseUrl} />
+            <VideoLayer clip={clip} base={mediaBaseUrl} preview={preview} />
           ) : clip.kind === "text" ? (
             <TextLayer clip={clip} />
           ) : (
