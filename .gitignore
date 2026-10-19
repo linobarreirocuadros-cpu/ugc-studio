@@ -1,0 +1,8 @@
+node_modules/
+dist/
+media/*
+!media/.gitkeep
+out/*
+!out/.gitkeep
+.env
+*.log
