@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Clip, Project } from "../project/types";
-import { getProjectDuration } from "../project/types";
+import { clipLabel, getProjectDuration } from "../project/types";
 
 type Drag = {
   clipId: string;
@@ -164,7 +164,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
                       onSelect(clip.id);
                       setDrag({ clipId: clip.id, mode: "move", startX: e.clientX, dx: 0 });
                     }}
-                    title={clip.kind === "video" ? clip.name : clip.text}
+                    title={clipLabel(clip)}
                   >
                     <div
                       className="trim-handle left"
@@ -174,7 +174,7 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
                         setDrag({ clipId: clip.id, mode: "trim-start", startX: e.clientX, dx: 0 });
                       }}
                     />
-                    <span className="clip-label">{clip.kind === "video" ? clip.name : clip.text}</span>
+                    <span className="clip-label">{clipLabel(clip)}</span>
                     <div
                       className="trim-handle right"
                       onMouseDown={(e) => {

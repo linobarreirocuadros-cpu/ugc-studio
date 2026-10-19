@@ -9,11 +9,14 @@
 - [x] Deshacer / rehacer, autoguardado, guardar/abrir proyecto (.json)
 - [x] Exportar: MP4 H.264 alta calidad / borrador, MOV ProRes 422 HQ
 
-## Fase 1 — Transcripción y subtítulos
-- [ ] Transcripción con timestamps por palabra (Whisper local o ElevenLabs Scribe)
-- [ ] Generar subtítulos automáticos (estilos: palabra por palabra, karaoke, caja)
-- [ ] Editar texto de la transcripción y que se actualicen los subtítulos
-- [ ] Cortar silencios automáticamente
+## Fase 1 — Transcripción y subtítulos (en curso)
+- [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)
+- [x] Generar subtítulos automáticos (estilos: karaoke, palabra por palabra, bloque)
+- [x] Editar texto de cada bloque de subtítulos; estilo global (color, resaltado, mayúsculas, contorno)
+- [x] Cortar silencios automáticamente (jump cuts) usando la transcripción
+- [ ] Tipografías reales (Google Fonts) en preview y export
+- [ ] Panel de transcripción: leer el texto y borrar frases para cortar el video
+- [ ] Opción de transcripción en la nube (ElevenLabs Scribe / OpenAI) para más precisión
 - [ ] Múltiples pistas de video y audio (A1, A2 para música y Foley)
 - [ ] Waveform y miniaturas en la línea de tiempo
 

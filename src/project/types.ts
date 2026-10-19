@@ -30,11 +30,33 @@ export type TextStyle = {
   y: number; // posición vertical, 0 = arriba, 1 = abajo
 };
 
-export type Clip = VideoClip | TextClip;
+/** Palabra transcrita. Tiempos en frames desde el inicio del archivo original. */
+export type Word = { text: string; start: number; end: number };
+
+export type CaptionPreset = "karaoke" | "palabra" | "bloque";
+
+export type CaptionStyle = TextStyle & {
+  preset: CaptionPreset;
+  highlightColor: string; // color de la palabra que se está diciendo
+  uppercase: boolean;
+  stroke: boolean; // contorno negro para leer sobre cualquier fondo
+};
+
+/** Un bloque de subtítulo (2–4 palabras). Tiempos de las palabras relativos a `from`. */
+export type CaptionClip = {
+  id: string;
+  kind: "caption";
+  from: number;
+  durationInFrames: number;
+  words: Word[];
+  style: CaptionStyle;
+};
+
+export type Clip = VideoClip | TextClip | CaptionClip;
 
 export type Track = {
   id: string;
-  kind: "video" | "text";
+  kind: "video" | "text" | "caption";
   name: string;
   clips: Clip[];
 };
@@ -46,6 +68,7 @@ export type Project = {
   width: number;
   height: number;
   tracks: Track[]; // el primer track se dibuja abajo, el último arriba
+  transcripts?: Record<string, Word[]>; // por archivo (clave = src)
 };
 
 export const DEFAULT_TEXT_STYLE: TextStyle = {
@@ -54,6 +77,18 @@ export const DEFAULT_TEXT_STYLE: TextStyle = {
   color: "#ffffff",
   background: "rgba(0,0,0,0.55)",
   y: 0.75,
+};
+
+export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
+  fontFamily: "Montserrat, Inter, Helvetica, Arial, sans-serif",
+  fontSize: 78,
+  color: "#ffffff",
+  background: null,
+  y: 0.7,
+  preset: "karaoke",
+  highlightColor: "#ffe500",
+  uppercase: true,
+  stroke: true,
 };
 
 export const createEmptyProject = (): Project => ({
@@ -65,7 +100,9 @@ export const createEmptyProject = (): Project => ({
   tracks: [
     { id: "V1", kind: "video", name: "V1", clips: [] },
     { id: "T1", kind: "text", name: "T1", clips: [] },
+    { id: "S1", kind: "caption", name: "SUB", clips: [] },
   ],
+  transcripts: {},
 });
 
 export const getProjectDuration = (project: Project): number => {
@@ -77,3 +114,6 @@ export const getProjectDuration = (project: Project): number => {
   }
   return Math.max(end, project.fps); // Remotion necesita al menos 1 frame; usamos 1 s
 };
+
+export const clipLabel = (clip: Clip): string =>
+  clip.kind === "video" ? clip.name : clip.kind === "text" ? clip.text : clip.words.map((w) => w.text).join(" ");

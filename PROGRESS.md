@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-Fase 0 completa. Se puede importar video, editar en la línea de tiempo, agregar textos y exportar.
+Fase 0 completa. Fase 1 en curso: subtítulos automáticos y quitar silencios ya funcionan.
 
 ## Registro
 
@@ -17,5 +17,18 @@ Fase 0 completa. Se puede importar video, editar en la línea de tiempo, agregar
 - Agregados `Abrir UGC Studio (Windows).bat` y `Abrir UGC Studio (Mac).command`: el usuario no
   programa, así que abre la app con doble clic (instalan dependencias la primera vez).
 
+### 2026-10-19 — Fase 1, parte 1 (Claude)
+- Transcripción con `@remotion/whisper-web` (Whisper en WASM dentro del navegador): gratis, sin
+  claves, el modelo se descarga una vez desde huggingface.co. Requiere cross-origin isolation:
+  `vite.config.ts` envía cabeceras COOP/COEP. Código en `src/app/transcribe.ts`.
+- Modelo: `Project.transcripts[src]` guarda palabras en frames del archivo original. Nueva pista
+  `S1` (SUB) con `CaptionClip` (bloques de 2–3 palabras, tiempos relativos al bloque).
+- Ops nuevas en `ops.ts`: `setTranscript`, `generateCaptions`, `styleAllCaptions`,
+  `setCaptionText`, `removeSilences`. Probadas con transcripción simulada + render real.
+- UI: panel "Herramientas IA" (izquierda) e inspector de subtítulos (derecha).
+- Pendiente de probar: la transcripción real en el computador del usuario (en la nube de Claude
+  no hay acceso a huggingface.co).
+- Limitación: "Quitar silencios" no mueve textos/subtítulos ya creados; generar subtítulos después.
+
 ## Siguiente paso sugerido
-Fase 1: transcripción con timestamps por palabra y subtítulos automáticos.
+Probar transcripción real con un video UGC del usuario. Luego: Google Fonts y panel de transcripción.

@@ -1,7 +1,16 @@
 import { Player, type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as ops from "../project/ops";
-import { createEmptyProject, getProjectDuration, type Project, type TextClip, type VideoClip } from "../project/types";
+import {
+  createEmptyProject,
+  getProjectDuration,
+  type CaptionClip,
+  type CaptionStyle,
+  type Project,
+  type TextClip,
+  type VideoClip,
+} from "../project/types";
+import { AIPanel, CAPTION_PRESETS } from "./AIPanel";
 import { ProjectComposition } from "../remotion/ProjectComposition";
 import { Timeline, formatTimecode } from "./Timeline";
 import { useHistory } from "./useHistory";
@@ -228,10 +237,14 @@ export function App() {
             <video src={m.src} muted preload="metadata" />
             <div>
               <div className="bin-name">{m.name}</div>
-              <div className="bin-dur">{formatTimecode(m.durationInFrames, project.fps)}</div>
+              <div className="bin-dur">
+                {formatTimecode(m.durationInFrames, project.fps)}
+                {project.transcripts?.[m.src] ? " · transcrito" : ""}
+              </div>
             </div>
           </div>
         ))}
+        <AIPanel project={project} apply={history.apply} />
       </aside>
 
       <main className="monitor">
@@ -256,6 +269,13 @@ export function App() {
         <div className="panel-title">Propiedades</div>
         {!selected && <p className="hint">Selecciona un clip en la línea de tiempo.</p>}
         {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
+        {selected?.kind === "caption" && (
+          <CaptionInspector
+            clip={selected}
+            onText={(text) => history.apply((p) => ops.setCaptionText(p, selected.id, text))}
+            onStyle={(patch) => history.apply((p) => ops.styleAllCaptions(p, patch))}
+          />
+        )}
         {selected?.kind === "video" && <VideoInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         <div className="shortcuts">
           <b>Atajos</b>
@@ -296,6 +316,46 @@ function TextInspector({ clip, onChange }: { clip: TextClip; onChange: (patch: P
       </label>
       <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={clip.style.y} onChange={(e) => style({ y: Number(e.target.value) })} /></label>
       <label>Tipografía<input value={clip.style.fontFamily} onChange={(e) => style({ fontFamily: e.target.value })} /></label>
+    </div>
+  );
+}
+
+function CaptionInspector({
+  clip,
+  onText,
+  onStyle,
+}: {
+  clip: CaptionClip;
+  onText: (text: string) => void;
+  onStyle: (patch: Partial<CaptionStyle>) => void;
+}) {
+  const s = clip.style;
+  return (
+    <div className="fields">
+      <label>
+        Texto de este bloque
+        <textarea
+          key={clip.id}
+          defaultValue={clip.words.map((w) => w.text).join(" ")}
+          onBlur={(e) => onText(e.target.value)}
+        />
+      </label>
+      <div className="hint">El estilo se aplica a todos los subtítulos:</div>
+      <label>
+        Estilo
+        <select value={s.preset} onChange={(e) => onStyle({ preset: e.target.value as CaptionStyle["preset"] })}>
+          {CAPTION_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+      </label>
+      <label>Tamaño<input type="number" value={s.fontSize} onChange={(e) => onStyle({ fontSize: Number(e.target.value) })} /></label>
+      <label>Color<input type="color" value={s.color} onChange={(e) => onStyle({ color: e.target.value })} /></label>
+      <label>Color resaltado<input type="color" value={s.highlightColor} onChange={(e) => onStyle({ highlightColor: e.target.value })} /></label>
+      <label className="row"><input type="checkbox" checked={s.uppercase} onChange={(e) => onStyle({ uppercase: e.target.checked })} /> MAYÚSCULAS</label>
+      <label className="row"><input type="checkbox" checked={s.stroke} onChange={(e) => onStyle({ stroke: e.target.checked })} /> Contorno negro</label>
+      <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={s.y} onChange={(e) => onStyle({ y: Number(e.target.value) })} /></label>
+      <label>Tipografía<input value={s.fontFamily} onChange={(e) => onStyle({ fontFamily: e.target.value })} /></label>
     </div>
   );
 }
