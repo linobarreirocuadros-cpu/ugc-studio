@@ -92,5 +92,10 @@ tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
 - Probado con un servidor simulado tipo Ollama: lista de modelos, herramientas, errores,
   `<think>` oculto y Ctrl+Z. NO probado con un modelo real (sin red/sin Ollama en la nube).
 
+### 2026-10-19 — Traspaso a ChatGPT (Claude)
+- El usuario quiere seguir el proyecto en ChatGPT. Se creó `PROMPT_PARA_CHATGPT.md` con todo el
+  contexto (visión, stack, arquitectura, historial, decisiones, pendientes y reglas de trabajo).
+  Mantenerlo actualizado si cambia algo importante.
+
 ## Siguiente paso sugerido
 Que el usuario instale Ollama + qwen3:30b-a3b y pruebe el chat con un video real; ajustar el prompt según resultados. Luego: HyperFrames (Fase 4) o Brand Kits (Fase 3).
