@@ -23,10 +23,13 @@
 - [x] Pista V2 para B-roll (botón "+ B-roll" en el panel, entra en silencio donde está el cabezal)
 - [ ] Waveform y miniaturas en la línea de tiempo
 
-## Fase 2 — Chat de IA integrado
-- [ ] Panel de chat; las funciones de `ops.ts` expuestas como tools
-- [ ] Selector de modelo (Claude, OpenAI, otros) con claves API en `.env`
-- [ ] Comandos de voz (micrófono → Whisper → chat)
+## Fase 2 — Chat de IA integrado (hecho, falta probar con modelos reales)
+- [x] Panel "Chat IA"; 14 herramientas que usan `ops.ts` (subtítulos, silencios, textos, volumen, Foley…)
+- [x] Motores: Ollama (local, gratis, por defecto), Gemini / Groq / OpenRouter (gratis con límite),
+      Claude y OpenAI (de pago, opcionales). Claves guardadas en `UGC Studio/config.json`
+- [x] Comandos de voz (micrófono → Whisper en el navegador → chat)
+- [ ] Probar y ajustar el prompt con qwen3:30b-a3b en el PC del usuario
+- [ ] Respuestas en streaming (ver el texto mientras se escribe)
 
 ## Fase 3 — Marcas, Foley y presets
 - [ ] Brand Kits: tipografías, colores, estilo de subtítulos, reglas, hooks que funcionan

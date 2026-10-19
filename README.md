@@ -26,6 +26,11 @@ Tus videos importados y exportaciones se guardan en la carpeta **`UGC Studio`** 
 carpeta de usuario (ej. `C:\Users\TuNombre\UGC Studio` o `/Users/TuNombre/UGC Studio`).
 Así, al descargar una versión nueva del programa, no pierdes nada.
 
+**Chat con IA (gratis):** instala [Ollama](https://ollama.com/download), abre PowerShell y escribe
+`ollama pull qwen3:30b-a3b` (o `qwen3:8b` si tu PC tiene 16 GB de RAM). En el editor, pestaña
+**Chat IA** → ⚙ → Motor "Ollama". También puedes usar Gemini/Groq/OpenRouter (gratis con
+límite diario) o Claude/ChatGPT (de pago) pegando su clave.
+
 **Foley:** copia tus efectos de sonido a las carpetas de `UGC Studio/Foley` (Whoosh, Impactos,
 Pops y clicks…) y aparecen en la pestaña **Foley** del editor.
 

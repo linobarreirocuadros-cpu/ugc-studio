@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
+import { registerChatRoutes } from "./llm";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
@@ -141,6 +142,8 @@ app.post("/api/open-folder", (req, res) => {
     res.json({ ok: false, dir });
   }
 });
+
+registerChatRoutes(app, DATA_DIR);
 
 // --- Exportación ---------------------------------------------------------------
 

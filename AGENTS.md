@@ -25,6 +25,9 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `src/project/` — modelo de datos (`types.ts`) y operaciones puras (`ops.ts`)
 - `src/remotion/` — composición de Remotion que renderiza un `Project` (preview y export)
 - `src/app/` — interfaz React (Vite): monitor, línea de tiempo, paneles
+- `src/ai/tools.ts` — herramientas del chat (JSON Schema, tiempos en segundos) + system prompt
+- `src/app/chat/` — panel de chat y `executeTool.ts` (ejecuta herramientas en el navegador)
+- `server/llm.ts` — proveedores de IA, conversación en memoria, `/api/chat`, `/api/settings`, `/api/models`
 - `server/` — servidor Express local: subida de archivos, proxies y export. Los datos viven en
   `~/UGC Studio/` (`media/`, `media/proxies/`, `Exportaciones/`), fuera del repo; se puede
   cambiar con la variable `UGC_DATA_DIR`.

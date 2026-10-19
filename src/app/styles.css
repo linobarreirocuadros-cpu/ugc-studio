@@ -214,3 +214,30 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .foley-play { padding: 0 6px; font-size: 10px; }
 .bin-broll { margin-top: 4px; padding: 1px 6px; font-size: 11px; opacity: 0; }
 .bin-item:hover .bin-broll { opacity: 1; }
+
+/* Chat IA */
+.inspector { display: flex; flex-direction: column; }
+.chat { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; }
+.chat-header { display: flex; align-items: center; gap: 6px; }
+.chat-engine { flex: 1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-header button { padding: 2px 8px; }
+.badge { margin-left: 6px; padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+.badge.free { background: #1f3a2a; color: #7fe0a6; }
+.badge.paid { background: #3a2a1f; color: #e0b07f; }
+.chat-settings { background: var(--panel-2); padding: 10px; border-radius: 6px; }
+.chat-settings code { background: #111; padding: 1px 4px; border-radius: 3px; user-select: text; }
+.chat-settings a { color: #7cc0ff; }
+.chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.chat-msg { padding: 7px 10px; border-radius: 8px; white-space: pre-wrap; user-select: text; line-height: 1.45; }
+.chat-msg.user { background: var(--accent); color: white; align-self: flex-end; max-width: 90%; }
+.chat-msg.assistant { background: var(--panel-2); align-self: flex-start; max-width: 95%; }
+.chat-msg.action { color: #7fe0a6; font-size: 11px; padding: 0 4px; }
+.chat-msg.status { color: #7cc0ff; font-size: 11px; padding: 0 4px; }
+.chat-msg.error { background: #3a1f1f; color: #ffb4b4; }
+.chat-examples { display: flex; flex-direction: column; gap: 6px; }
+.chat-example { text-align: left; white-space: normal; line-height: 1.35; }
+.chat-input { display: flex; flex-direction: column; gap: 6px; }
+.chat-input textarea { min-height: 54px; }
+.chat-buttons { display: flex; gap: 6px; justify-content: flex-end; }
+.chat-buttons .recording { background: #c0392b; border-color: #c0392b; color: white; }
+.chat-msg.failed { color: #ff9a9a; font-size: 11px; padding: 0 4px; }

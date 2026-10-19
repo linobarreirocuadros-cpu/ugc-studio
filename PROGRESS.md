@@ -1,6 +1,9 @@
 # Progreso
 
 ## Estado actual
+Fase 2 (chat con IA) construida. Usuario: Windows 11, Ryzen 7 7700X, 32 GB RAM → recomendado
+Ollama con qwen3:30b-a3b (MoE, corre bien en CPU) o qwen3:8b.
+
 Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX), Foley y
 tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
 
@@ -73,5 +76,21 @@ tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
   se integra en la Fase 4 como generador de clips de motion graphics que entran en V2.
   "Hypermotion" no se encontró; pendiente que el usuario mande link.
 
+### 2026-10-19 — Fase 2: chat con IA (Claude)
+- Principio "todo gratis" en AGENTS.md. Motor por defecto: Ollama local.
+- Flujo: el navegador envía el texto a `/api/chat`; el servidor guarda la conversación (en
+  memoria, por `conversationId`) en el formato nativo de cada proveedor y devuelve
+  `{text, toolCalls}`; el navegador ejecuta cada herramienta con `executeTool` y devuelve los
+  resultados; se repite hasta 12 vueltas. Cambiar motor/modelo inicia conversación nueva.
+- Adaptadores: OpenAI-compatible por `fetch` (Ollama, Gemini, Groq, OpenRouter, OpenAI; quita
+  `<think>…</think>`), y Claude con el SDK oficial `@anthropic-ai/sdk` (beta messages, effort
+  medium, `fallbacks: "default"` salvo Haiku, guarda `response.content` completo).
+- `useHistory` ahora guarda el estado en un ref y expone `current()` para que varias
+  herramientas seguidas vean el proyecto actualizado. Cada herramienta = un paso de deshacer.
+- Voz: MediaRecorder → `transcribeVoice` (Whisper web, idioma "voice-lang", por defecto es).
+- Ollama en `127.0.0.1` (no `localhost`: en Windows puede resolver a IPv6 y fallar).
+- Probado con un servidor simulado tipo Ollama: lista de modelos, herramientas, errores,
+  `<think>` oculto y Ctrl+Z. NO probado con un modelo real (sin red/sin Ollama en la nube).
+
 ## Siguiente paso sugerido
-Probar transcripción real con un video UGC del usuario. Luego: Fase 2 (chat con IA) o HyperFrames, según prefiera el usuario.
+Que el usuario instale Ollama + qwen3:30b-a3b y pruebe el chat con un video real; ajustar el prompt según resultados. Luego: HyperFrames (Fase 4) o Brand Kits (Fase 3).

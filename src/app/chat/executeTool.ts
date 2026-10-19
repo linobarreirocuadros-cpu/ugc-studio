@@ -1,0 +1,279 @@
+// Ejecuta en el navegador las herramientas que pide el chat de IA. Cada herramienta usa las
+// mismas operaciones puras de `ops.ts` que la línea de tiempo, así todo se puede deshacer.
+import * as ops from "../../project/ops";
+import {
+  getProjectDuration,
+  type CaptionStyle,
+  type Clip,
+  type Project,
+  type TextClip,
+  type TextStyle,
+  type VideoClip,
+} from "../../project/types";
+import { FONT_FAMILIES } from "../../remotion/fonts";
+import { transcribeMissing } from "../transcribe";
+
+export type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
+type FoleyFolder = { folder: string; files: { name: string; src: string }[] };
+
+export type ToolContext = {
+  getProject: () => Project;
+  commit: (next: Project) => void;
+  undo: () => void;
+  media: MediaItem[];
+  fetchFoley: () => Promise<FoleyFolder[]>;
+  readDuration: (src: string) => Promise<number>;
+  onStatus: (text: string) => void;
+};
+
+type Input = Record<string, unknown>;
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+const round = (x: number) => Math.round(x * 100) / 100;
+
+const POSITIONS: Record<string, number> = { arriba: 0.18, centro: 0.5, abajo: 0.72 };
+
+const pickFont = (v: unknown) => {
+  const f = str(v);
+  if (!f) return undefined;
+  return FONT_FAMILIES.find((x) => x.toLowerCase() === f.toLowerCase()) ?? FONT_FAMILIES.find((x) => x.toLowerCase().includes(f.toLowerCase()));
+};
+
+/** Convierte las opciones de estilo que manda la IA a un parche de estilo del proyecto. */
+const stylePatch = (input: Input): Partial<CaptionStyle> => {
+  const patch: Partial<CaptionStyle> = {};
+  const style = str(input.style);
+  if (style === "karaoke" || style === "palabra" || style === "bloque") patch.preset = style;
+  if (str(input.highlight_color)) patch.highlightColor = str(input.highlight_color);
+  if (str(input.color)) patch.color = str(input.color);
+  const font = pickFont(input.font);
+  if (font) patch.fontFamily = font;
+  if (num(input.font_size)) patch.fontSize = num(input.font_size);
+  if (bool(input.uppercase) !== undefined) patch.uppercase = bool(input.uppercase);
+  if (bool(input.stroke) !== undefined) patch.stroke = bool(input.stroke);
+  const pos = str(input.position);
+  if (pos && POSITIONS[pos] !== undefined) patch.y = pos === "abajo" ? 0.7 : POSITIONS[pos];
+  return patch;
+};
+
+const textStylePatch = (input: Input, current?: TextStyle): Partial<TextStyle> => {
+  const patch: Partial<TextStyle> = {};
+  const font = pickFont(input.font);
+  if (font) patch.fontFamily = font;
+  if (num(input.font_size)) patch.fontSize = num(input.font_size);
+  if (str(input.color)) patch.color = str(input.color);
+  const bg = bool(input.background);
+  if (bg !== undefined) patch.background = bg ? current?.background ?? "rgba(0,0,0,0.55)" : null;
+  const pos = str(input.position);
+  if (pos && POSITIONS[pos] !== undefined) patch.y = POSITIONS[pos];
+  return patch;
+};
+
+const requireClip = (project: Project, id: unknown) => {
+  const found = ops.findClip(project, String(id ?? ""));
+  if (!found) throw new Error(`No existe un clip con id "${id}". Usa get_project_state para ver los ids.`);
+  return found;
+};
+
+const clipSummary = (c: Clip, fps: number) => {
+  const base = { id: c.id, inicio_s: round(c.from / fps), fin_s: round((c.from + c.durationInFrames) / fps) };
+  if (c.kind === "video" || c.kind === "audio") return { ...base, tipo: c.kind, nombre: c.name, volumen: Math.round(c.volume * 100) };
+  if (c.kind === "text") return { ...base, tipo: "texto", texto: c.text };
+  return { ...base, tipo: "subtitulo", texto: c.words.map((w) => w.text).join(" ") };
+};
+
+/** Transcripción en tiempo de la línea de tiempo, en frases cortas con su segundo de inicio. */
+const transcriptLines = (project: Project) => {
+  const v1 = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter((c): c is VideoClip => c.kind === "video");
+  const words = v1.flatMap((c) => ops.wordsOnTimeline(project, c)).sort((a, b) => a.start - b.start);
+  const lines: string[] = [];
+  let line: string[] = [];
+  let lineStart = 0;
+  words.forEach((w, i) => {
+    if (line.length === 0) lineStart = w.start;
+    line.push(w.text);
+    const pause = words[i + 1] ? words[i + 1].start - w.end > project.fps * 0.4 : true;
+    if (line.length >= 12 || /[.!?]$/.test(w.text) || pause) {
+      lines.push(`[${round(lineStart / project.fps)}s] ${line.join(" ")}`);
+      line = [];
+    }
+  });
+  const text = lines.join("\n");
+  return text.length > 8000 ? text.slice(0, 8000) + "\n…" : text;
+};
+
+export async function executeTool(name: string, input: Input, ctx: ToolContext): Promise<string> {
+  const project = ctx.getProject();
+  const fps = project.fps;
+  const f = (seconds: unknown) => Math.max(0, Math.round((num(seconds) ?? 0) * fps));
+  const commit = (next: Project) => ctx.commit(next);
+
+  const transcribeIfNeeded = () =>
+    transcribeMissing(
+      ctx.getProject(),
+      (src, words) => commit(ops.setTranscript(ctx.getProject(), src, words)),
+      ctx.onStatus,
+    );
+
+  switch (name) {
+    case "get_project_state": {
+      const foley = await ctx.fetchFoley().catch(() => []);
+      return JSON.stringify({
+        duracion_s: round(getProjectDuration(project) / fps),
+        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, clips: t.clips.map((c) => clipSummary(c, fps)) })),
+        transcripcion: transcriptLines(project) || "(sin transcribir: generate_captions o remove_silences la crean)",
+        archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
+        foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),
+      });
+    }
+
+    case "remove_silences": {
+      await transcribeIfNeeded();
+      const before = getProjectDuration(ctx.getProject());
+      const minSilenceFrames = Math.max(3, f(input.min_silence_s ?? 0.5));
+      commit(ops.removeSilences(ctx.getProject(), { minSilenceFrames, padFrames: 4 }));
+      const after = getProjectDuration(ctx.getProject());
+      return `Silencios cortados. Duración: ${round(before / fps)}s → ${round(after / fps)}s.`;
+    }
+
+    case "generate_captions": {
+      await transcribeIfNeeded();
+      const maxWords = Math.min(5, Math.max(1, Math.round(num(input.words_per_caption) ?? 3)));
+      commit(
+        ops.generateCaptions(ctx.getProject(), {
+          ...ops.DEFAULT_CAPTION_OPTIONS,
+          maxWords,
+          maxChars: maxWords * 7,
+          style: stylePatch(input),
+        }),
+      );
+      const n = ctx.getProject().tracks.find((t) => t.id === "S1")?.clips.length ?? 0;
+      return n > 0 ? `${n} bloques de subtítulos creados.` : "No se encontró voz para subtitular.";
+    }
+
+    case "style_captions": {
+      const patch = stylePatch(input);
+      if (Object.keys(patch).length === 0) throw new Error("No se indicó ningún cambio de estilo.");
+      commit(ops.styleAllCaptions(project, patch));
+      return "Estilo de subtítulos actualizado.";
+    }
+
+    case "add_text": {
+      const text = str(input.text);
+      if (!text) throw new Error("Falta el texto.");
+      const id = ops.newId();
+      commit(
+        ops.addTextClip(project, {
+          id,
+          text,
+          from: f(input.start_s),
+          durationInFrames: Math.max(1, f(input.duration_s ?? 3)),
+          style: textStylePatch(input),
+        }),
+      );
+      return `Texto agregado (id ${id}).`;
+    }
+
+    case "update_text": {
+      const { clip } = requireClip(project, input.clip_id);
+      if (clip.kind !== "text") throw new Error("Ese clip no es un texto.");
+      const patch: Partial<TextClip> = { style: { ...clip.style, ...textStylePatch(input, clip.style) } };
+      if (str(input.text)) patch.text = str(input.text);
+      commit(ops.updateClip(project, clip.id, patch));
+      return "Texto actualizado.";
+    }
+
+    case "split_at": {
+      commit(ops.splitAt(project, f(input.time_s)));
+      return `Corte hecho en ${num(input.time_s)}s.`;
+    }
+
+    case "delete_clip": {
+      const { clip } = requireClip(project, input.clip_id);
+      commit(bool(input.ripple) ? ops.rippleDeleteClip(project, clip.id) : ops.deleteClip(project, clip.id));
+      return "Clip borrado.";
+    }
+
+    case "move_clip": {
+      const { clip } = requireClip(project, input.clip_id);
+      commit(ops.moveClip(project, clip.id, f(input.start_s), str(input.track)));
+      return "Clip movido.";
+    }
+
+    case "trim_clip": {
+      let { clip } = requireClip(project, input.clip_id);
+      let next = project;
+      if (num(input.start_s) !== undefined) {
+        next = ops.trimClip(next, clip.id, "start", f(input.start_s) - clip.from);
+        clip = ops.findClip(next, clip.id)!.clip;
+      }
+      if (num(input.end_s) !== undefined) {
+        next = ops.trimClip(next, clip.id, "end", f(input.end_s) - (clip.from + clip.durationInFrames));
+      }
+      commit(next);
+      return "Clip recortado.";
+    }
+
+    case "set_volume": {
+      const { clip } = requireClip(project, input.clip_id);
+      if (clip.kind !== "video" && clip.kind !== "audio") throw new Error("Ese clip no tiene sonido.");
+      const patch: Record<string, number> = {};
+      if (num(input.volume_percent) !== undefined) patch.volume = Math.min(1, Math.max(0, num(input.volume_percent)! / 100));
+      if (clip.kind === "audio" && num(input.fade_in_s) !== undefined) patch.fadeIn = f(input.fade_in_s);
+      if (clip.kind === "audio" && num(input.fade_out_s) !== undefined) patch.fadeOut = f(input.fade_out_s);
+      commit(ops.updateClip(project, clip.id, patch as Partial<Clip>));
+      return "Volumen actualizado.";
+    }
+
+    case "add_media": {
+      const query = (str(input.name) ?? "").toLowerCase();
+      const item = ctx.media.find((m) => m.name.toLowerCase().includes(query));
+      if (!item) throw new Error(`No hay ningún archivo importado que se llame "${input.name}".`);
+      const track = str(input.track) ?? "V1";
+      let next: Project;
+      if (track === "A1") next = ops.addAudioClip(project, item, "A1", f(input.start_s));
+      else if (track === "V2") next = ops.addVideoClip(project, item, "V2", f(input.start_s));
+      else next = ops.addVideoClip(project, item, "V1");
+      if (num(input.volume_percent) !== undefined) {
+        const added = next.tracks.find((t) => t.id === track)?.clips.at(-1);
+        if (added) next = ops.updateClip(next, added.id, { volume: num(input.volume_percent)! / 100 } as Partial<Clip>);
+      }
+      commit(next);
+      return `"${item.name}" agregado en ${track}.`;
+    }
+
+    case "add_sound_effect": {
+      const query = (str(input.query) ?? "").toLowerCase();
+      const folders = await ctx.fetchFoley();
+      const all = folders.flatMap((d) => d.files.map((x) => ({ ...x, folder: d.folder })));
+      const hit =
+        all.find((x) => x.name.toLowerCase().includes(query)) ?? all.find((x) => x.folder.toLowerCase().includes(query));
+      if (!hit) {
+        throw new Error(
+          all.length === 0
+            ? "La biblioteca de Foley está vacía: el usuario debe copiar sonidos a UGC Studio/Foley."
+            : `No hay un sonido que coincida con "${input.query}".`,
+        );
+      }
+      const durationInFrames = await ctx.readDuration(hit.src).catch(() => fps);
+      let next = ops.addAudioClip(project, { src: hit.src, name: hit.name, durationInFrames }, "A2", f(input.time_s));
+      const added = next.tracks.find((t) => t.id === "A2")?.clips.at(-1);
+      if (added && num(input.volume_percent) !== undefined) {
+        next = ops.updateClip(next, added.id, { volume: num(input.volume_percent)! / 100 } as Partial<Clip>);
+      }
+      commit(next);
+      return `Sonido "${hit.name}" agregado en ${num(input.time_s)}s.`;
+    }
+
+    case "undo": {
+      const steps = Math.min(20, Math.max(1, Math.round(num(input.steps) ?? 1)));
+      for (let i = 0; i < steps; i++) ctx.undo();
+      return `Deshechos ${steps} cambio(s).`;
+    }
+
+    default:
+      throw new Error(`Herramienta desconocida: ${name}`);
+  }
+}

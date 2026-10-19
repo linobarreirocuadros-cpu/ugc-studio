@@ -14,6 +14,7 @@ import {
 } from "../project/types";
 import { AIPanel, CAPTION_PRESETS } from "./AIPanel";
 import { FoleyPanel, openFolder } from "./FoleyPanel";
+import { ChatPanel } from "./chat/ChatPanel";
 import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
 import { ProjectComposition } from "../remotion/ProjectComposition";
 import { Timeline, formatTimecode } from "./Timeline";
@@ -52,6 +53,7 @@ export function App() {
   const [pxPerFrame, setPxPerFrame] = useState(2);
   const [uploading, setUploading] = useState(false);
   const [binTab, setBinTab] = useState<"proyecto" | "foley">("proyecto");
+  const [rightTab, setRightTab] = useState<"propiedades" | "chat">("chat");
   const [preset, setPreset] = useState<Preset>("h264-high");
   const [render, setRender] = useState<{ progress: number; url?: string; error?: string } | null>(null);
   const playerRef = useRef<PlayerRef>(null);
@@ -356,7 +358,26 @@ export function App() {
       </main>
 
       <aside className="panel inspector">
-        <div className="panel-title">Propiedades</div>
+        <div className="panel-title">
+          <div className="tabs">
+            <button className={rightTab === "chat" ? "active" : ""} onClick={() => setRightTab("chat")}>Chat IA</button>
+            <button className={rightTab === "propiedades" ? "active" : ""} onClick={() => setRightTab("propiedades")}>Propiedades</button>
+          </div>
+        </div>
+        {/* El chat queda montado al cambiar de pestaña para no perder la conversación */}
+        <div style={{ display: rightTab === "chat" ? "contents" : "none" }}>
+          <ChatPanel
+            ctx={() => ({
+              getProject: history.current,
+              commit: (next) => history.apply(() => next),
+              undo: history.undo,
+              media,
+              fetchFoley: () => fetch("/api/library").then((r) => r.json()).then((d) => d.folders ?? []),
+              readDuration: (src) => readDurationInFrames(src, project.fps),
+            })}
+          />
+        </div>
+        {rightTab === "propiedades" && <>
         {!selected && <p className="hint">Selecciona un clip en la línea de tiempo.</p>}
         {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         {selected?.kind === "caption" && (
@@ -376,6 +397,7 @@ export function App() {
           <div>← → · frame a frame</div>
           <div>+ / − · zoom línea de tiempo</div>
         </div>
+        </>}
       </aside>
 
       <section className="timeline-area">
