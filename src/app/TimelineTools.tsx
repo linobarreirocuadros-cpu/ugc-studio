@@ -15,13 +15,13 @@ export const TIMELINE_TOOLS: { id: TimelineTool; label: string; key: string; ico
   { id: "text", label: "Texto", key: "T", icon: <path d="M4 5h16M12 5v15m-4 0h8M4 5v3m16-3v3"/> },
 ];
 
-export function TimelineTools({ tool, onTool, onFit, onZoom }: { tool: TimelineTool; onTool: (tool: TimelineTool) => void; onFit: () => void; onZoom: (factor: number) => void }) {
+export function TimelineTools({ tool, onTool, onFit, onZoom, hint }: { tool: TimelineTool; onTool: (tool: TimelineTool) => void; onFit: () => void; onZoom: (factor: number) => void; hint:(id:string)=>string }) {
   const pane = useTimelinePanelWidth<HTMLElement>("tools", "Ancho de herramientas del timeline");
   const grid = toolGrid(pane.size.width, pane.size.height);
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 12, top: 12, maxHeight: 300 });
   const more = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null);
   const items = [
-    ...TIMELINE_TOOLS.map(item => ({ id: item.id, label: `${item.label} (${item.key})`, active: tool === item.id, icon: <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">{item.icon}</svg>, action: () => onTool(item.id) })),
+    ...TIMELINE_TOOLS.map(item => ({ id: item.id, label: `${item.label} (${hint(`tool.${item.id}`)})`, active: tool === item.id, icon: <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">{item.icon}</svg>, action: () => onTool(item.id) })),
     { id: "out", label: "Alejar timeline", active: false, icon: "−", action: () => onZoom(.8) },
     { id: "in", label: "Acercar timeline", active: false, icon: "+", action: () => onZoom(1.25) },
     { id: "fit", label: "Ajustar timeline", active: false, icon: "↔", action: onFit },

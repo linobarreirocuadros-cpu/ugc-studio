@@ -7,6 +7,7 @@ import type { TimelineTool } from "./TimelineTools";
 import { findClip as projectClip, rippleTrimClip, slipClip, trimClip, linkedIds, clipsEditable, editSelection } from "../project/ops";
 import type { TimelinePreferences } from "./timelinePreferences";
 import { useTimelinePanelWidth } from "./useTimelinePanelWidth";
+import { wheelModifier, wheelPixels, type GesturePreferences } from "./gesturePreferences";
 
 type Drag = {
   clipId: string;
@@ -41,6 +42,9 @@ type Props = {
   tool: TimelineTool;
   snapping: boolean;
   preferences: TimelinePreferences;
+  gestures: GesturePreferences;
+  markRange: {start:number|null;end:number|null};
+  onTrackHeight:(height:number)=>void;
   onSeek: (frame: number) => void;
   onSelect: (clipIds: string[]) => void;
   onMove: (clipIds: string[], deltaFrames: number, trackOffset: number) => void;
@@ -58,7 +62,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const selectionIds = (ids: string[]) => preferences.linkedSelection ? linkedIds(project, ids) : ids;
@@ -82,6 +86,20 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
   }, [hasLinkedAudio, revealTrackId, TRACK_H]);
   const [cutFrame, setCutFrame] = useState<number | null>(null);
   const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
+  useEffect(()=>{
+    const horizontal=scrollRef.current,vertical=horizontal?.parentElement;if(!horizontal||!vertical)return;
+    const wheel=(e:WheelEvent)=>{
+      if((e.target as HTMLElement).closest("input,select,textarea,[role=separator]"))return;
+      const action=gestures[wheelModifier(e)];if(action==="none")return;
+      e.preventDefault();const delta=wheelPixels(e.deltaY||e.deltaX,e.deltaMode,vertical.clientHeight||300);
+      if(action==="horizontal")horizontal.scrollLeft+=e.deltaX||delta;
+      else if(action==="vertical")vertical.scrollTop+=delta;
+      else if(action==="zoom") {const factor=Math.exp(-delta*.006);if(Math.max(.02,Math.min(20,pxPerFrame*factor))===pxPerFrame)return;const x=Math.max(0,Math.min(horizontal.clientWidth,e.clientX-horizontal.getBoundingClientRect().left));zoomAnchor.current={frame:(horizontal.scrollLeft+x)/pxPerFrame,x};onZoom(factor);}
+      else if(action==="height")onTrackHeight(preferences.trackHeight+(delta<0?4:-4));
+      else {onSeek(frame+Math.sign(delta)*(action==="fiveFrames"?5:1));}
+    };
+    vertical.addEventListener("wheel",wheel,{passive:false});return()=>vertical.removeEventListener("wheel",wheel);
+  },[gestures,pxPerFrame,frame,onZoom,onSeek,onTrackHeight,preferences.trackHeight]);
   const panCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => panCleanup.current?.(), []);
   useLayoutEffect(() => { if (zoomAnchor.current && scrollRef.current) { scrollRef.current.scrollLeft = zoomAnchor.current.frame * pxPerFrame - zoomAnchor.current.x; zoomAnchor.current = null; } }, [pxPerFrame]);
@@ -205,7 +223,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
     }
     if ((event.target as HTMLElement).closest(".ruler")) return;
     const at = frameFromX(event.clientX);
-    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(event.shiftKey ? 0.8 : 1.25); }
+    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); const factor=event.altKey ? 0.8 : 1.25; if(Math.max(.02,Math.min(20,pxPerFrame*factor))===pxPerFrame)return; zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(factor); }
     else if (tool === "text") { event.preventDefault(); event.stopPropagation(); onAddText(at); }
     else if (tool === "razor") {
       event.preventDefault(); event.stopPropagation();
@@ -251,6 +269,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
               window.addEventListener("mouseup", up);
             }}
           >
+            {(markRange.start!==null||markRange.end!==null)&&<span className="timeline-mark-range" aria-label="Rango de entrada y salida" style={{left:(markRange.start??0)*pxPerFrame,width:Math.max(0,(markRange.end??duration)-(markRange.start??0))*pxPerFrame}}/>}
             {Array.from({ length: totalSeconds }, (_, s) =>
               s % labelEvery === 0 ? (
                 <span key={s} className="tick" style={{ left: s * secondPx }}>

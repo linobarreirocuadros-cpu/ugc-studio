@@ -89,5 +89,5 @@ export function useWorkspace() {
     {dragged && <div className="dock-drag-instructions" role="status">Borde: dividir · Centro: intercambiar · Borde exterior: ocupar todo el lado · Esc: cancelar</div>}
     {preview && target && <div className="dock-preview" style={geometry(preview)}><span>{target.edge === "center" ? "Intercambiar" : `Acoplar ${EDGE_LABEL[target.edge]}`} · {PANEL_LABEL[dragged!]}</span></div>}
   </>;
-  return { appRef, canvasRef, panelProps, handle, overlays, dragged, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "56px auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
+  return { appRef, canvasRef, panelProps, handle, overlays, dragged, toggleMax, showPanel: (panel:Panel) => { if(maximized && maximized!==panel)setMaximized(null); }, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "74px auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
 }

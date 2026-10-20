@@ -1,5 +1,8 @@
-import { useState, type DragEvent } from "react";
+import { useImperativeHandle, useRef, useState, type DragEvent, type Ref } from "react";
 import { formatTimecode, type MediaDrag } from "./Timeline";
+import { useShuttle } from "./useShuttle";
+
+export type SourceHandle = { command:(id:string)=>boolean; range:()=>{inFrame:number;outFrame:number}; seek:(frame:number)=>void };
 
 type SourceMedia = {
   src: string;
@@ -9,20 +12,41 @@ type SourceMedia = {
   kind?: "video" | "audio";
 };
 
-export function SourceMonitor({ media, fps, onInsert, onDragStart }: {
+export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint }: {
   media: SourceMedia | null;
   fps: number;
   onInsert: (trackId: string, inFrame: number, outFrame: number, videoOnly: boolean) => void;
   onDragStart: (event: DragEvent, inFrame: number, outFrame: number, mode: MediaDrag["mode"]) => void;
+  ref?:Ref<SourceHandle>; hint:(id:string)=>string;
 }) {
   const [position, setPosition] = useState(0);
   const [inFrame, setInFrame] = useState(0);
   const [outFrame, setOutFrame] = useState(media?.durationInFrames ?? 1);
+  const mediaRef=useRef<HTMLMediaElement|null>(null);
   const isAudio = media?.kind === "audio";
   const current = Math.max(0, Math.min((media?.durationInFrames ?? 1) - 1, position));
 
   const markIn = () => setInFrame(Math.min(current, outFrame - 1));
   const markOut = () => setOutFrame(Math.max(inFrame + 1, current + 1));
+  const currentFrame=()=>Math.round((mediaRef.current?.currentTime??position/fps)*fps);
+  const seek=(frame:number)=>{const at=Math.max(0,Math.min((media?.durationInFrames??1)-1,frame));if(mediaRef.current)mediaRef.current.currentTime=at/fps;setPosition(at);};
+  const shuttle=useShuttle({current:currentFrame,seek,play:()=>{void mediaRef.current?.play().catch(()=>{});},pause:()=>mediaRef.current?.pause(),toggle:()=>{const p=mediaRef.current;if(p){if(p.paused)void p.play().catch(()=>{});else p.pause();}},rate:rate=>{if(mediaRef.current)mediaRef.current.playbackRate=rate;},fps,end:media?.durationInFrames??1});
+  useImperativeHandle(ref,()=>({range:()=>({inFrame,outFrame}),seek,command:(id)=>{
+    if(!media)return false;
+    if(shuttle(id))return true;
+    if(id==="markIn")setInFrame(Math.min(currentFrame(),outFrame-1));
+    else if(id==="markOut")setOutFrame(Math.max(inFrame+1,currentFrame()+1));
+    else if(id==="clearIn")setInFrame(0);
+    else if(id==="clearOut")setOutFrame(media.durationInFrames);
+    else if(id==="clearMarks"||id==="markClip"){setInFrame(0);setOutFrame(media.durationInFrames);}
+    else if(id==="goIn")seek(inFrame);
+    else if(id==="goOut")seek(outFrame-1);
+    else if(id==="start")seek(0);
+    else if(id==="end")seek(media.durationInFrames-1);
+    else if(/^step(Left|Right)[15]$/.test(id))seek(currentFrame()+(id.includes("Left")?-1:1)*Number(id.at(-1)));
+    else return false;
+    return true;
+  }}));
 
   return (
     <div className="source-monitor">
@@ -30,16 +54,16 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart }: {
       <div className="source-preview">
         {!media ? <p className="hint">Selecciona un archivo en Proyecto para verlo aquí.</p> :
           isAudio ? (
-            <audio src={media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
+            <audio ref={el=>{mediaRef.current=el;}} src={media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
           ) : (
-            <video src={media.proxySrc ?? media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
+            <video ref={el=>{mediaRef.current=el;}} src={media.proxySrc ?? media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
           )}
       </div>
       {media && <>
         <div className="source-timecode">{formatTimecode(current, fps)} / {formatTimecode(media.durationInFrames, fps)}</div>
         <div className="source-markers">
-          <button onClick={markIn} title="Marcar entrada en el fotograma actual">I · Entrada</button>
-          <button onClick={markOut} title="Marcar salida después del fotograma actual">O · Salida</button>
+          <button onClick={markIn} title={`Marcar entrada · ${hint("markIn")}`}>Entrada</button>
+          <button onClick={markOut} title={`Marcar salida · ${hint("markOut")}`}>Salida</button>
           <button onClick={() => { setInFrame(0); setOutFrame(media.durationInFrames); }} title="Usar el archivo completo">Limpiar</button>
         </div>
         <div className="source-range">Rango: {formatTimecode(inFrame, fps)} → {formatTimecode(outFrame, fps)}</div>

@@ -1,0 +1,3782 @@
+{
+  "source": "Adobe Premiere Pro 2026 · Windows · preset de fábrica en inglés, formato 6",
+  "audited": "2026-10-20",
+  "sourceModified": "2026-09-15",
+  "sha256": "863347C48D90029EFC38458D975475F18A8274BB1862F421A6BED32ABE8D5E16",
+  "entries": [
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.record.video",
+      "chord": "KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.record",
+      "chord": "KeyG"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.goto.inpoint",
+      "chord": "KeyQ"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.goto.outpoint",
+      "chord": "KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.record.audio",
+      "chord": "KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.step.forward",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.stop",
+      "chord": "KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.step.back",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.fastrewind",
+      "chord": "KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.eject",
+      "chord": "KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "capture",
+      "command": "cmd.capture.fastforward",
+      "chord": "KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.five.up",
+      "chord": "Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.five.left",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.font.underline",
+      "chord": "Ctrl+KeyU"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.five.down",
+      "chord": "Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.five.right",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.one.left",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.one.right",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.one.down",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.font.italic",
+      "chord": "Ctrl+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.copyright",
+      "chord": "Ctrl+Alt+Shift+KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.font.bold",
+      "chord": "Ctrl+KeyB"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.arc",
+      "chord": "KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.wedge",
+      "chord": "KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.select",
+      "chord": "KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.line",
+      "chord": "KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.rotation",
+      "chord": "KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.ellipse",
+      "chord": "KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.position.bottom.titlesafe",
+      "chord": "Ctrl+Shift+KeyD"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.pen",
+      "chord": "KeyP"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.position.left.titlesafe",
+      "chord": "Ctrl+Shift+KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.type",
+      "chord": "KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.type.vertical",
+      "chord": "KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.position.top.titlesafe",
+      "chord": "Ctrl+Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.nudge.one.up",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.registered",
+      "chord": "Ctrl+Alt+Shift+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "titler",
+      "command": "cmd.titler.misc.tool.rectangle",
+      "chord": "KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.left.several",
+      "chord": "Alt+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.down",
+      "chord": "Alt+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.increase.audio.tracks.height",
+      "chord": "Alt+Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.increase.video.tracks.height",
+      "chord": "Ctrl+Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.left.one",
+      "chord": "Alt+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.right.several",
+      "chord": "Alt+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.up",
+      "chord": "Alt+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.nudge.right.one",
+      "chord": "Alt+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.decrease.video.tracks.height",
+      "chord": "Ctrl+Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.decrease.audio.tracks.height",
+      "chord": "Alt+Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slide.right.one",
+      "chord": "Alt+Period"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.workbar.set.in",
+      "chord": "Alt+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slip.left.one",
+      "chord": "Ctrl+Alt+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slip.right.several",
+      "chord": "Ctrl+Alt+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slide.right.several",
+      "chord": "Alt+Shift+Period"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.show.next.screen",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slip.left.several",
+      "chord": "Ctrl+Alt+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.show.previous.screen",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.workbar.set.out",
+      "chord": "Alt+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slide.left.one",
+      "chord": "Alt+Comma"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.ripple.delete",
+      "chord": "Alt+Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slide.left.several",
+      "chord": "Alt+Shift+Comma"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.slip.right.one",
+      "chord": "Ctrl+Alt+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.goto.next.caption.trackitem",
+      "chord": "Ctrl+Alt+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.goto.prev.caption.trackitem",
+      "chord": "Ctrl+Alt+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.paste.to.same.track",
+      "chord": "Ctrl+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "timeline",
+      "command": "cmd.timeline.pasteinsert.to.same.track",
+      "chord": "Ctrl+Shift+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.up.five",
+      "chord": "Ctrl+Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.right.five",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.left.five",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.left.one",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.right.one",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.up.one",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.down.one",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.graphics.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "Graphics",
+      "command": "cmd.monitor.nudge.down.five",
+      "chord": "Ctrl+Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.graphics.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.up.five",
+      "chord": "Ctrl+Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.right.five",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.left.five",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.left.one",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.right.one",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.up.one",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.down.one",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.down.five",
+      "chord": "Ctrl+Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.program.monitor.zoom.fit",
+      "chord": "Ctrl+Shift+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.program.monitor.zoom.100",
+      "chord": "Ctrl+Shift+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.source.monitor.zoom.fit",
+      "chord": "Ctrl+Alt+Shift+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.source.monitor.zoom.100",
+      "chord": "Ctrl+Alt+Shift+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.object.selection.change.drawmode",
+      "chord": "Ctrl+Alt+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.object.selection",
+      "chord": "Ctrl+Alt+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.add.to.mask.or.selection",
+      "chord": "Ctrl+Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.subtract.from.mask.or.selection",
+      "chord": "Ctrl+Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.insert",
+      "chord": "Comma"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.enable",
+      "chord": "Shift+KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.audiooptions.gain",
+      "chord": "KeyG"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.audiooptions.sourcechannelmappings",
+      "chord": "Shift+KeyG"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.group",
+      "chord": "Ctrl+KeyG"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.makesubclip",
+      "chord": "Ctrl+KeyU"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.overlay",
+      "chord": "Period"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.linkaudioandvideo",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clear.out",
+      "chord": "Ctrl+Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clear.in",
+      "chord": "Ctrl+Shift+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clear.inandout",
+      "chord": "Ctrl+Shift+KeyX"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.copy",
+      "chord": "Ctrl+KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.pasteinsert",
+      "chord": "Ctrl+Shift+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.keyboardshortcuts",
+      "chord": "Ctrl+Alt+KeyK"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.deselectall",
+      "chord": "Ctrl+Shift+KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.find",
+      "chord": "Ctrl+KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.cut",
+      "chord": "Ctrl+KeyX"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.ungroup",
+      "chord": "Ctrl+Shift+KeyG"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.duplicate",
+      "chord": "Ctrl+Shift+Slash"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.common.setin",
+      "chord": "KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.paste",
+      "chord": "Ctrl+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.pasteattributes",
+      "chord": "Ctrl+Alt+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.common.setout",
+      "chord": "KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.clip.speed",
+      "chord": "Ctrl+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.clear",
+      "chord": "Delete"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.editoriginal",
+      "chord": "Ctrl+KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Projects",
+      "chord": "Shift+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Source Monitors",
+      "chord": "Shift+Digit2"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Effect Controls",
+      "chord": "Shift+Digit5"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Effects",
+      "chord": "Shift+Digit7"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Audio Mixers",
+      "chord": "Shift+Digit6"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Media Browser",
+      "chord": "Shift+Digit8"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Program Monitors",
+      "chord": "Shift+Digit4"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.zoom.out",
+      "chord": "Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.reveal.nested.sequence",
+      "chord": "Ctrl+Alt+KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.searchwindow.open",
+      "chord": "Ctrl+Shift+KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.toggle.maximize.frame",
+      "chord": "Backquote"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.export.movie",
+      "chord": "Ctrl+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.export.sendtoqueue",
+      "chord": "Alt+Shift+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.close",
+      "chord": "Ctrl+Shift+KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.rippledelete",
+      "chord": "Shift+Delete"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.properties.selection",
+      "chord": "Ctrl+Shift+KeyH"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.closepanel",
+      "chord": "Ctrl+KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.redo",
+      "chord": "Ctrl+Shift+KeyZ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera2",
+      "chord": "Digit2"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.import",
+      "chord": "Ctrl+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.export.frame",
+      "chord": "Ctrl+Shift+KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.selectall",
+      "chord": "Ctrl+KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.exit",
+      "chord": "Ctrl+KeyQ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.edit.undo",
+      "chord": "Ctrl+KeyZ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.zoom.in",
+      "chord": "Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.8",
+      "chord": "Alt+Shift+Digit9"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.five.dec",
+      "chord": "Alt+Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.select.next.panel",
+      "chord": "Ctrl+Shift+Period"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.timeline.expand.all.tracks",
+      "chord": "Shift+Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.down",
+      "chord": "Ctrl+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.clearmarker.current",
+      "chord": "Ctrl+Alt+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.add.shape.rectangle",
+      "chord": "Ctrl+Alt+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.shuttle.slow.left",
+      "chord": "Shift+KeyJ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.lift",
+      "chord": "Semicolon"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.save",
+      "chord": "Ctrl+KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.setsequenceinoutmarkeraroundselection.out",
+      "chord": "Slash"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.toggle.maximize.focused.frame",
+      "chord": "Shift+Backquote"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.gotomarker.next",
+      "chord": "Shift+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.play.fat",
+      "chord": "Shift+Space"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.toggle.multicam.view",
+      "chord": "Shift+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.reversematchframe",
+      "chord": "Shift+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.select.find.box",
+      "chord": "Shift+KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.07slip",
+      "chord": "KeyY"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.posterframe.clear",
+      "chord": "Ctrl+Shift+KeyP"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.09pen",
+      "chord": "KeyP"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.setsequenceinoutmarkeraroundtargetclip",
+      "chord": "KeyX"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.applydefaulttransitions",
+      "chord": "Shift+KeyD"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.workspace.revert",
+      "chord": "Alt+Shift+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.add.shape.ellipse",
+      "chord": "Ctrl+Alt+KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.play.ctitoout",
+      "chord": "Ctrl+Space"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.decreaseclipvolumemany",
+      "chord": "Shift+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.decreaseclipvolume",
+      "chord": "BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.toggle.all.target.video",
+      "chord": "Ctrl+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.2",
+      "chord": "Ctrl+Digit2"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera9",
+      "chord": "Digit9"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.preview",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.savecopy",
+      "chord": "Ctrl+Alt+KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.toggle.all.target.audio",
+      "chord": "Ctrl+Digit9"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.toggle.audio.scrubbing",
+      "chord": "Shift+KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.6",
+      "chord": "Ctrl+Digit6"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.up",
+      "chord": "Ctrl+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.05ratestretch",
+      "chord": "KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.next.edit.any.track",
+      "chord": "Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.step.forward",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.snap",
+      "chord": "KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.new.bin",
+      "chord": "Ctrl+Slash"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.5",
+      "chord": "Ctrl+Digit5"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.next.edit",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.1",
+      "chord": "Alt+Shift+Digit2"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.3",
+      "chord": "Ctrl+Digit3"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.shuttle.slow.right",
+      "chord": "Shift+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.step.back.five",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.findprevioussequencegap",
+      "chord": "Ctrl+Shift+Semicolon"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.razorateditline.all",
+      "chord": "Ctrl+Shift+KeyK"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.placeholder",
+      "chord": "Shift+KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.shuttle.right",
+      "chord": "KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.0",
+      "chord": "Alt+Shift+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.select.previous.panel",
+      "chord": "Ctrl+Shift+Comma"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.to.top",
+      "chord": "Ctrl+Shift+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.toggleplay",
+      "chord": "Space"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.gotomarker.previous",
+      "chord": "Ctrl+Shift+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.size.five.dec",
+      "chord": "Ctrl+Alt+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.extract",
+      "chord": "Quote"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.set.marker",
+      "chord": "KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.set.rangedmarker.inandout",
+      "chord": "Alt+Shift+KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.set.rangedmarker",
+      "chord": "Ctrl+Alt+Shift+KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.5",
+      "chord": "Alt+Shift+Digit6"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera6",
+      "chord": "Digit6"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.size.five.inc",
+      "chord": "Ctrl+Alt+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.select.clip.at.playhead",
+      "chord": "KeyD"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.trimbackwardmany",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.toggletrimtype",
+      "chord": "Ctrl+Shift+KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.timeline.minimize.all.tracks",
+      "chord": "Shift+Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.shuttle.stop",
+      "chord": "KeyK"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.trim.in.to.cti",
+      "chord": "Ctrl+Alt+KeyQ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.toggle.fullscreen.monitor",
+      "chord": "Ctrl+Backquote"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.02_5trackselectbackward",
+      "chord": "Shift+KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera1",
+      "chord": "Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.goto.out",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.prev.edit",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.step.forward.five",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.selectedclip.start",
+      "chord": "Shift+Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.08slide",
+      "chord": "KeyU"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.increaseclipvolume",
+      "chord": "BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.6",
+      "chord": "Alt+Shift+Digit7"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.extendnextedittoplayhead",
+      "chord": "Shift+KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.prev.edit.any.track",
+      "chord": "Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.saveas",
+      "chord": "Ctrl+Shift+KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.10hand",
+      "chord": "KeyH"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.five.inc",
+      "chord": "Alt+Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.7",
+      "chord": "Alt+Shift+Digit8"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.makesubsequence",
+      "chord": "Shift+KeyU"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.extendpreviousedittoplayhead",
+      "chord": "Shift+KeyQ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.applydefaultvideotransition",
+      "chord": "Ctrl+KeyD"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.8",
+      "chord": "Ctrl+Digit8"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.increaseclipvolumemany",
+      "chord": "Shift+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.06razor",
+      "chord": "KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.help.contents",
+      "chord": "F1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.04roll",
+      "chord": "KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.1",
+      "chord": "Ctrl+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.trimforwardmany",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.step.back",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.posterframe.set",
+      "chord": "Shift+KeyP"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.rippletrimpreviousedittoplayhead",
+      "chord": "KeyQ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.12text",
+      "chord": "KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.applydefaultaudiotransition",
+      "chord": "Ctrl+Shift+KeyD"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.trim.out.to.cti",
+      "chord": "Ctrl+Alt+KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.size.one.dec",
+      "chord": "Ctrl+Alt+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.3",
+      "chord": "Alt+Shift+Digit4"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.enter.text.edit",
+      "chord": "Ctrl+Alt+Quote"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphicsinspector.alignleft",
+      "chord": "Ctrl+Shift+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphicsinspector.aligncenter",
+      "chord": "Ctrl+Shift+KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.11zoom",
+      "chord": "KeyZ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.trimbackward",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphicsinspector.alignright",
+      "chord": "Ctrl+Shift+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.toggle.all.source.video",
+      "chord": "Ctrl+Alt+Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.importfrombrowser",
+      "chord": "Ctrl+Alt+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.rippletrimnextedittoplayhead",
+      "chord": "KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.new.project",
+      "chord": "Ctrl+Alt+KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.marker.clearmarker.all",
+      "chord": "Ctrl+Alt+Shift+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.select.next.graphic.layer",
+      "chord": "Ctrl+Alt+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.one.dec",
+      "chord": "Alt+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.findnextsequencegap",
+      "chord": "Shift+Semicolon"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.playintoout",
+      "chord": "Ctrl+Shift+Space"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.01pointer",
+      "chord": "KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera3",
+      "chord": "Digit3"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.to.bottom",
+      "chord": "Ctrl+Shift+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.add.text",
+      "chord": "Ctrl+KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera4",
+      "chord": "Digit4"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.sequence.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera8",
+      "chord": "Digit8"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.toggle.all.source.audio",
+      "chord": "Ctrl+Alt+Digit9"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.4",
+      "chord": "Alt+Shift+Digit5"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.razorateditline",
+      "chord": "Ctrl+KeyK"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.zoomto.sequence",
+      "chord": "Backslash"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.4",
+      "chord": "Ctrl+Digit4"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.matchframe",
+      "chord": "KeyF"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.new.sequence",
+      "chord": "Ctrl+KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.graphics.select.previous.graphic.layer",
+      "chord": "Ctrl+Alt+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.one.inc",
+      "chord": "Alt+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.user.workspace.2",
+      "chord": "Alt+Shift+Digit3"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.goto.in",
+      "chord": "Shift+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.select.next.clip",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.selectedclip.end",
+      "chord": "Shift+End"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.shuttle.left",
+      "chord": "KeyJ"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tlnav.select.previous.clip",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.titler.misc.size.one.inc",
+      "chord": "Ctrl+Alt+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.02trackselectforward",
+      "chord": "KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choose.camera.7",
+      "chord": "Ctrl+Digit7"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.playedit",
+      "chord": "Shift+KeyK"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.toggle.record",
+      "chord": "Digit0"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.03ripple",
+      "chord": "KeyB"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.file.openproject",
+      "chord": "Ctrl+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Audio Clip Mixer",
+      "chord": "Shift+Digit9"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.transport.sequence.start",
+      "chord": "Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.extendselectededittoplayhead",
+      "chord": "KeyE"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.sequence.trimforward",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera7",
+      "chord": "Digit7"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.multicam.choosenocut.camera5",
+      "chord": "Digit5"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "uif.window.Timelines",
+      "chord": "Shift+Digit3"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.caption.add.track",
+      "chord": "Ctrl+Alt+KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.caption.add.trackitem",
+      "chord": "Ctrl+Alt+KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.mode.Import",
+      "chord": "Alt+Digit1"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.mode.Edit",
+      "chord": "Alt+Digit2"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.mode.Color",
+      "chord": "Alt+Digit3"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.window.mode.Export",
+      "chord": "Alt+Digit4"
+    },
+    {
+      "mode": "Edit",
+      "context": "global",
+      "command": "cmd.tools.25rangeselection",
+      "chord": "Shift+KeyV"
+    },
+    {
+      "mode": "Edit",
+      "context": "effects",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "effects",
+      "command": "cmd.effects.createcustomfolder",
+      "chord": "Ctrl+Slash"
+    },
+    {
+      "mode": "Edit",
+      "context": "history",
+      "command": "cmd.history.step.forward",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "history",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "history",
+      "command": "cmd.history.step.backward",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "search",
+      "command": "cmd.search.openinsourcemonitor",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.addtofavorites",
+      "chord": "Alt+Shift+KeyA"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.home",
+      "chord": "Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.down",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.deletewithoptions",
+      "chord": "Ctrl+Delete"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.enablehover",
+      "chord": "Shift+KeyH"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.pageup",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.right",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.pagedown",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.file.newbinfromselection",
+      "chord": "Shift+KeyB"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.file.new.bin",
+      "chord": "Ctrl+KeyB"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.movel.eft",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.wingtip.view.icon",
+      "chord": "Ctrl+PageDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.previouscolumnfield",
+      "chord": "Shift+Tab"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.nextcolumnfield",
+      "chord": "Tab"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.previous.thumbnail.size.large",
+      "chord": "Shift+BracketLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.next.thumbnail.size.large",
+      "chord": "Shift+BracketRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.moveextend.down",
+      "chord": "Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.nextrowfield",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.moveextend.left",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.previousrowfield",
+      "chord": "Shift+Enter"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.toggle.view",
+      "chord": "Shift+Backslash"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.moveextend.right",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.move.up",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.moveextend.up",
+      "chord": "Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.openinsource",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.zoom.in",
+      "chord": "Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.wingtip.view.list",
+      "chord": "Ctrl+PageUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "project",
+      "command": "cmd.project.zoom.out",
+      "chord": "Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "audiomixer",
+      "command": "cmd.audiomixer.showhidetracks",
+      "chord": "Ctrl+Alt+KeyT"
+    },
+    {
+      "mode": "Edit",
+      "context": "audiomixer",
+      "command": "cmd.audiomixer.loop",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "audiomixer",
+      "command": "cmd.audiomixer.meterinput",
+      "chord": "Ctrl+Shift+KeyI"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.makeacopy",
+      "chord": "Ctrl+Shift+Slash"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.pageup",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.zoomout",
+      "chord": "Minus"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.openproject",
+      "chord": "Ctrl+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.closeproject",
+      "chord": "Ctrl+Shift+KeyW"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.home",
+      "chord": "Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.zoomin",
+      "chord": "Equal"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.pagedown",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.movetotrash",
+      "chord": "Ctrl+Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.newproject",
+      "chord": "Ctrl+Alt+KeyN"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Edit",
+      "context": "prproduction",
+      "command": "cmd.mediabrowser.newfolder",
+      "chord": "Ctrl+KeyB"
+    },
+    {
+      "mode": "Edit",
+      "context": "effectcontrols",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "effectcontrols",
+      "command": "cmd.effectcontrols.loop.audio",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.right.one",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.left.one",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.down.one",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.left.five",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.right.five",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.up.one",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.rulers",
+      "chord": "Ctrl+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.up.five",
+      "chord": "Ctrl+Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.down.five",
+      "chord": "Ctrl+Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.guides",
+      "chord": "Ctrl+Semicolon"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.lockguides",
+      "chord": "Ctrl+Alt+Shift+KeyR"
+    },
+    {
+      "mode": "Edit",
+      "context": "program.monitor",
+      "command": "cmd.monitor.snapping",
+      "chord": "Ctrl+Shift+Semicolon"
+    },
+    {
+      "mode": "Edit",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.selectmedialist",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.openinsourcemonitor",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Edit",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.selectdirectorylist",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "metadata_editor",
+      "command": "cmd.metadataeditor.loop",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Edit",
+      "context": "metadata_editor",
+      "command": "cmd.metadataeditor.play",
+      "chord": "Space"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.segment.end",
+      "chord": "Shift+Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.next.line",
+      "chord": "Shift+ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.prev.word",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.prev.line",
+      "chord": "Shift+ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.txt.navigate.sourcemonitor",
+      "chord": "Shift+KeyZ"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.next.word",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.txt.navigate.automonitor",
+      "chord": "Shift+KeyC"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.txt.navigate.programmonitor",
+      "chord": "Shift+KeyX"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.select.segment.start",
+      "chord": "Shift+End"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.caption.edit.split",
+      "chord": "Alt+KeyS"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.caption.edit.merge",
+      "chord": "Alt+KeyM"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.delete",
+      "chord": "Alt+Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.segment.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.ripple.delete",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.segment.start",
+      "chord": "Home"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.prev.line",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.next.line",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.edit.segment",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.next.word",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Edit",
+      "context": "com.adobe.dva.text",
+      "command": "cmd.text.navigate.prev.word",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.copy",
+      "chord": "Ctrl+KeyC"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatebalance",
+      "chord": "KeyR"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatehighlightszone",
+      "chord": "Ctrl+Alt+Digit5"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.prevhue",
+      "chord": "Shift+KeyA"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.clear",
+      "chord": "Delete"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.previousoperation",
+      "chord": "Shift+KeyZ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.samplehue",
+      "chord": "Ctrl+KeyJ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatedarkerzone",
+      "chord": "Ctrl+Alt+Digit3"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activateglobalzone",
+      "chord": "Ctrl+Alt+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.cut",
+      "chord": "Ctrl+KeyX"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatelightestzone",
+      "chord": "Ctrl+Alt+Digit7"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatedarkestzone",
+      "chord": "Ctrl+Alt+Digit2"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activateexposure",
+      "chord": "KeyW"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.editoriginal",
+      "chord": "Ctrl+KeyE"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatecontrast",
+      "chord": "KeyQ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.find",
+      "chord": "Ctrl+KeyF"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatehueshift",
+      "chord": "KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatelumshift",
+      "chord": "KeyD"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.deselectall",
+      "chord": "Ctrl+Shift+KeyA"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activateshadowszone",
+      "chord": "Ctrl+Alt+Digit4"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatelighterzone",
+      "chord": "Ctrl+Alt+Digit6"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.keyboardshortcuts",
+      "chord": "Ctrl+Alt+KeyK"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatesatshift",
+      "chord": "KeyA"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatesharpness",
+      "chord": "KeyX"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.addadjustoperation",
+      "chord": "Shift+KeyN"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatesaturation",
+      "chord": "KeyT"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatetemp",
+      "chord": "KeyE"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.extracthues",
+      "chord": "Shift+KeyH"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.activatetexture",
+      "chord": "KeyZ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.nextoperation",
+      "chord": "Shift+KeyX"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.addstyleoperation",
+      "chord": "Shift+KeyB"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.nexthue",
+      "chord": "Shift+KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.paste",
+      "chord": "Ctrl+KeyV"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.pasteattributes",
+      "chord": "Ctrl+Alt+KeyV"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.duplicate",
+      "chord": "Ctrl+Shift+Slash"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.redo",
+      "chord": "Ctrl+Shift+KeyZ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.selectall",
+      "chord": "Ctrl+KeyA"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.edit.undo",
+      "chord": "Ctrl+KeyZ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.export.frame",
+      "chord": "Ctrl+Shift+KeyE"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.close",
+      "chord": "Ctrl+Shift+KeyW"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.closepanel",
+      "chord": "Ctrl+KeyW"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.exit",
+      "chord": "Ctrl+KeyQ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.export.movie",
+      "chord": "Ctrl+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.export.sendtoqueue",
+      "chord": "Alt+Shift+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.import",
+      "chord": "Ctrl+KeyI"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.importfrombrowser",
+      "chord": "Ctrl+Alt+KeyI"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.new.bin",
+      "chord": "Ctrl+Slash"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.new.project",
+      "chord": "Ctrl+Alt+KeyN"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.new.sequence",
+      "chord": "Ctrl+KeyN"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.openproject",
+      "chord": "Ctrl+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.properties.selection",
+      "chord": "Ctrl+Shift+KeyH"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.save",
+      "chord": "Ctrl+KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.saveas",
+      "chord": "Ctrl+Shift+KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.file.savecopy",
+      "chord": "Ctrl+Alt+KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.goto.in",
+      "chord": "Shift+KeyI"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.goto.out",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.add.shape.ellipse",
+      "chord": "Ctrl+Alt+KeyE"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.add.shape.rectangle",
+      "chord": "Ctrl+Alt+KeyR"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.add.text",
+      "chord": "Ctrl+KeyT"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.to.bottom",
+      "chord": "Ctrl+Shift+BracketLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.to.top",
+      "chord": "Ctrl+Shift+BracketRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.up",
+      "chord": "Ctrl+BracketRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.select.next.graphic.layer",
+      "chord": "Ctrl+Alt+BracketRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.select.previous.graphic.layer",
+      "chord": "Ctrl+Alt+BracketLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphicsinspector.aligncenter",
+      "chord": "Ctrl+Shift+KeyC"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphicsinspector.alignleft",
+      "chord": "Ctrl+Shift+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphicsinspector.alignright",
+      "chord": "Ctrl+Shift+KeyR"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.help.contents",
+      "chord": "F1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.marker.clearmarker.all",
+      "chord": "Ctrl+Alt+Shift+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.marker.clearmarker.current",
+      "chord": "Ctrl+Alt+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.marker.gotomarker.next",
+      "chord": "Shift+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.marker.gotomarker.previous",
+      "chord": "Ctrl+Shift+KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.marker.setsequenceinoutmarkeraroundselection.out",
+      "chord": "Slash"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.monitor.loop",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.monitor.sequence.clip.toggle",
+      "chord": "Ctrl+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.monitor.solo.composite.toggle",
+      "chord": "Ctrl+Digit2"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.monitor.split.screen",
+      "chord": "Ctrl+Digit3"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.posterframe.clear",
+      "chord": "Ctrl+Shift+KeyP"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.posterframe.set",
+      "chord": "Shift+KeyP"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.program.monitor.zoom.100",
+      "chord": "Ctrl+Shift+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.program.monitor.zoom.fit",
+      "chord": "Ctrl+Shift+Digit0"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.select.next.panel",
+      "chord": "Ctrl+Shift+Period"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.select.previous.panel",
+      "chord": "Ctrl+Shift+Comma"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.sequence.preview",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.set.marker",
+      "chord": "KeyM"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.source.monitor.zoom.100",
+      "chord": "Ctrl+Alt+Shift+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.source.monitor.zoom.fit",
+      "chord": "Ctrl+Alt+Shift+Digit0"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.subtract.from.mask.or.selection",
+      "chord": "Ctrl+Minus"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.five.dec",
+      "chord": "Alt+Shift+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.lead.five.inc",
+      "chord": "Alt+Shift+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.size.five.dec",
+      "chord": "Ctrl+Alt+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.size.five.inc",
+      "chord": "Ctrl+Alt+Shift+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.size.one.dec",
+      "chord": "Ctrl+Alt+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.titler.misc.size.one.inc",
+      "chord": "Ctrl+Alt+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tlnav.next.edit",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tlnav.prev.edit",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tlnav.select.next.clip",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tlnav.select.previous.clip",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.toggle.fullscreen.monitor",
+      "chord": "Ctrl+Backquote"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.toggle.maximize.focused.frame",
+      "chord": "Backquote"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.toggle.maximize.frame",
+      "chord": "Shift+Backquote"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tools.10hand",
+      "chord": "KeyH"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.tools.object.selection.change.drawmode",
+      "chord": "Ctrl+Alt+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.play.ctitoout",
+      "chord": "Ctrl+Space"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.playedit",
+      "chord": "Shift+KeyK"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.playintoout",
+      "chord": "Ctrl+Shift+Space"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.sequence.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.sequence.start",
+      "chord": "Home"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.shuttle.left",
+      "chord": "KeyJ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.shuttle.right",
+      "chord": "KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.shuttle.slow.left",
+      "chord": "Shift+KeyJ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.shuttle.slow.right",
+      "chord": "Shift+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.shuttle.stop",
+      "chord": "KeyK"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.step.back",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.step.forward",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.transport.toggleplay",
+      "chord": "Space"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.workspace.revert",
+      "chord": "Alt+Shift+Digit0"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Audio Clip Mixer",
+      "chord": "Shift+Digit9"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Audio Mixers",
+      "chord": "Shift+Digit6"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Color Controls",
+      "chord": "Shift+Digit0"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Effect Controls",
+      "chord": "Shift+Digit5"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Effects",
+      "chord": "Shift+Digit7"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Media Browser",
+      "chord": "Shift+Digit8"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Program Monitors",
+      "chord": "Shift+Digit4"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Projects",
+      "chord": "Shift+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Timelines",
+      "chord": "Shift+Digit3"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.resetoperation",
+      "chord": "Ctrl+Backslash"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.clear.in",
+      "chord": "Ctrl+Shift+KeyI"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.clear.inandout",
+      "chord": "Ctrl+Shift+KeyX"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.add.to.mask.or.selection",
+      "chord": "Ctrl+Equal"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.clear.out",
+      "chord": "Ctrl+Shift+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.enter.text.edit",
+      "chord": "Ctrl+Alt+Quote"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.selectpreviousscopelevel",
+      "chord": "Alt+Shift+KeyZ"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.graphics.move.graphic.layer.down",
+      "chord": "Ctrl+BracketLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.selectnextscopelevel",
+      "chord": "Alt+Shift+KeyX"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.toggleoperation",
+      "chord": "Backslash"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.mode.Import",
+      "chord": "Alt+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.mode.Edit",
+      "chord": "Alt+Digit2"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.mode.Color",
+      "chord": "Alt+Digit3"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.mode.Export",
+      "chord": "Alt+Digit4"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.0",
+      "chord": "Alt+Shift+Digit1"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.1",
+      "chord": "Alt+Shift+Digit2"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.2",
+      "chord": "Alt+Shift+Digit3"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.3",
+      "chord": "Alt+Shift+Digit4"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.4",
+      "chord": "Alt+Shift+Digit5"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.5",
+      "chord": "Alt+Shift+Digit6"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.6",
+      "chord": "Alt+Shift+Digit7"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.7",
+      "chord": "Alt+Shift+Digit8"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.window.user.workspace.8",
+      "chord": "Alt+Shift+Digit9"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.common.setin",
+      "chord": "KeyI"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.common.setout",
+      "chord": "KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "uif.window.Source Monitors",
+      "chord": "Shift+Digit2"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.addlutoperation",
+      "chord": "Shift+KeyV"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.targetcliplevel",
+      "chord": "Alt+Shift+KeyS"
+    },
+    {
+      "mode": "Color",
+      "context": "global",
+      "command": "cmd.colortools.targetsequencelevel",
+      "chord": "Alt+Shift+KeyD"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.wingtip.view.list",
+      "chord": "Ctrl+PageUp"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.wingtip.view.icon",
+      "chord": "Ctrl+PageDown"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.zoom.in",
+      "chord": "Equal"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.zoom.out",
+      "chord": "Minus"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.toggle.view",
+      "chord": "Shift+Backslash"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.moveextend.up",
+      "chord": "Shift+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.openinsource",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.previous.thumbnail.size.large",
+      "chord": "Shift+BracketLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.up",
+      "chord": "ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.nextcolumnfield",
+      "chord": "Tab"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.moveextend.down",
+      "chord": "Shift+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.moveextend.left",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.nextrowfield",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.right",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.pageup",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.moveextend.right",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.previouscolumnfield",
+      "chord": "Shift+Tab"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.movel.eft",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.next.thumbnail.size.large",
+      "chord": "Shift+BracketRight"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.home",
+      "chord": "Home"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.pagedown",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.move.down",
+      "chord": "ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.deletewithoptions",
+      "chord": "Ctrl+Delete"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.project.enablehover",
+      "chord": "Shift+KeyH"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.file.newbinfromselection",
+      "chord": "Shift+KeyB"
+    },
+    {
+      "mode": "Color",
+      "context": "project",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "timeline",
+      "command": "cmd.timeline.show.next.screen",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Color",
+      "context": "timeline",
+      "command": "cmd.timeline.show.previous.screen",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Color",
+      "context": "timeline",
+      "command": "cmd.timeline.increase.video.tracks.height",
+      "chord": "Ctrl+Equal"
+    },
+    {
+      "mode": "Color",
+      "context": "timeline",
+      "command": "cmd.timeline.decrease.video.tracks.height",
+      "chord": "Ctrl+Minus"
+    },
+    {
+      "mode": "Color",
+      "context": "effects",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "effects",
+      "command": "cmd.effects.createcustomfolder",
+      "chord": "Ctrl+Slash"
+    },
+    {
+      "mode": "Color",
+      "context": "history",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "history",
+      "command": "cmd.history.step.forward",
+      "chord": "ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "history",
+      "command": "cmd.history.step.backward",
+      "chord": "ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.down.five",
+      "chord": "Ctrl+Shift+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.graphics.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.up.one",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.left.one",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.right.five",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.right.one",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.left.five",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.down.one",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "Properties2",
+      "command": "cmd.monitor.nudge.up.five",
+      "chord": "Ctrl+Shift+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "ColorControls",
+      "command": "cmd.edit.rename.mask.or.selection",
+      "chord": "Enter"
+    },
+    {
+      "mode": "Color",
+      "context": "ColorControls",
+      "command": "cmd.colortools.delete.mask.or.selection",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "effectcontrols",
+      "command": "cmd.edit.clear",
+      "chord": "Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "effectcontrols",
+      "command": "cmd.effectcontrols.loop.audio",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.newproject",
+      "chord": "Ctrl+Alt+KeyN"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.zoomin",
+      "chord": "Equal"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.zoomout",
+      "chord": "Minus"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.mediabrowser.newfolder",
+      "chord": "Ctrl+KeyB"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.pageup",
+      "chord": "PageUp"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.makeacopy",
+      "chord": "Ctrl+Shift+Slash"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.openproject",
+      "chord": "Ctrl+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.end",
+      "chord": "End"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.home",
+      "chord": "Home"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.closeproject",
+      "chord": "Ctrl+Shift+KeyW"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.move.pagedown",
+      "chord": "PageDown"
+    },
+    {
+      "mode": "Color",
+      "context": "prproduction",
+      "command": "cmd.prproductionfolder.movetotrash",
+      "chord": "Ctrl+Backspace"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.rulers",
+      "chord": "Ctrl+KeyR"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.snapping",
+      "chord": "Ctrl+Shift+Semicolon"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.down.five",
+      "chord": "Ctrl+Shift+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.lockguides",
+      "chord": "Ctrl+Alt+Shift+KeyR"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.left.one",
+      "chord": "Ctrl+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.right.five",
+      "chord": "Ctrl+Shift+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.right.one",
+      "chord": "Ctrl+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.down.one",
+      "chord": "Ctrl+ArrowDown"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.left.five",
+      "chord": "Ctrl+Shift+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.guides",
+      "chord": "Ctrl+Semicolon"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.up.five",
+      "chord": "Ctrl+Shift+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "program.monitor",
+      "command": "cmd.monitor.nudge.up.one",
+      "chord": "Ctrl+ArrowUp"
+    },
+    {
+      "mode": "Color",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.selectdirectorylist",
+      "chord": "Shift+ArrowLeft"
+    },
+    {
+      "mode": "Color",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.selectmedialist",
+      "chord": "Shift+ArrowRight"
+    },
+    {
+      "mode": "Color",
+      "context": "mediabrowser",
+      "command": "cmd.mediabrowser.openinsourcemonitor",
+      "chord": "Shift+KeyO"
+    },
+    {
+      "mode": "Color",
+      "context": "metadata_editor",
+      "command": "cmd.metadataeditor.loop",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "metadata_editor",
+      "command": "cmd.metadataeditor.play",
+      "chord": "Space"
+    },
+    {
+      "mode": "Color",
+      "context": "audiomixer",
+      "command": "cmd.audiomixer.loop",
+      "chord": "Ctrl+KeyL"
+    },
+    {
+      "mode": "Color",
+      "context": "audiomixer",
+      "command": "cmd.audiomixer.showhidetracks",
+      "chord": "Ctrl+Alt+KeyT"
+    }
+  ]
+}

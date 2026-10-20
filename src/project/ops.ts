@@ -362,6 +362,66 @@ export const addSourceRange = (
   return overwritten;
 };
 
+/** Portapapeles interno inmutable. No escribe archivos ni usa el portapapeles del SO. */
+export const copyClips = (project: Project, ids: string[], linked = true): Project => {
+  const selected = new Set(linked ? linkedIds(project, ids) : ids);
+  return structuredClone({ ...project, tracks: project.tracks.map(t => ({ ...t, clips: t.clips.filter(c => selected.has(c.id)) })) });
+};
+
+/** Pega en las mismas pistas, manteniendo offsets y remapeando las relaciones de los clips. */
+export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string): Project => {
+  const clips = clipboard.tracks.flatMap(t => t.clips);
+  if (!clips.length || clipboard.fps !== project.fps || !Number.isFinite(at)) return project;
+  // No crear referencias perdidas o recursivas entre secuencias al pegar entre montajes.
+  if (clips.some(c => (c.kind === "audio" || c.kind === "video") && c.sequenceId && (!project.sequences?.[c.sequenceId] || hostId && containsSequence(project, c.sequenceId, hostId)))) return project;
+  let next = project;
+  const destinations = new Map<string,string>();
+  for (const source of clipboard.tracks.filter(t => t.clips.length)) {
+    let target = next.tracks.find(t => t.id === source.id && t.kind === source.kind);
+    if (!target && (source.kind === "audio" || source.kind === "video")) { next = addTrack(next, source.kind); target = next.tracks.find(t => !project.tracks.some(old => old.id === t.id) && ![...destinations.values()].includes(t.id)); }
+    target ??= next.tracks.find(t => t.kind === source.kind && ![...destinations.values()].includes(t.id));
+    if (!target || target.locked) return project;
+    destinations.set(source.id,target.id);
+  }
+  const start = Math.min(...clips.map(c => c.from)), delta = Math.max(0,Math.round(at)) - start;
+  const identities = new Map(clips.map(c => [c.id,newId()]));
+  const placed = mapTracks(next,t => ({ ...t, clips: [...t.clips, ...clipboard.tracks.filter(s => destinations.get(s.id) === t.id).flatMap(s => s.clips.map(c => {
+    const clip = structuredClone({ ...c, id: identities.get(c.id)!, from: c.from + delta });
+    if (clip.kind === "audio" || clip.kind === "video") clip.linkedClipId = clip.linkedClipId ? identities.get(clip.linkedClipId) : undefined;
+    if (clip.kind === "audio" && clip.derivedFrom) { const parent = identities.get(clip.derivedFrom.clipId); clip.derivedFrom = parent ? { ...clip.derivedFrom, clipId: parent } : undefined; }
+    return clip;
+  }))] }));
+  return overwritePlaced(project,placed,[...identities.values()]);
+};
+
+/** Abre espacio para Origen en las pistas destino y las que siguen ripple. Transacción atómica. */
+export const insertSourceRange = (project: Project, media: Parameters<typeof addSourceRange>[1], trackId: string, from: number, inFrame = 0, outFrame = media.durationInFrames, videoOnly = false): Project => {
+  if (![from,inFrame,outFrame,media.durationInFrames].every(Number.isFinite) || outFrame <= inFrame) return project;
+  const target = project.tracks.find(t => t.id === trackId);
+  if (!target || target.locked || !(target.kind === "video" || target.kind === "audio")) return project;
+  const start = Math.max(0,Math.min(media.durationInFrames-1,Math.round(inFrame))), end = Math.max(start+1,Math.min(media.durationInFrames,Math.round(outFrame)));
+  const at = Math.max(0,Math.round(from)), length = end-start;
+  const audio = target.kind === "video" && !videoOnly && media.hasAudio === true ? destinationTrack(project,"audio") : undefined;
+  if (target.kind === "video" && !videoOnly && media.hasAudio === true && !audio) return project;
+  const affected = new Set(project.tracks.filter(t => t.id === trackId || t.id === audio || t.syncLock && !t.locked).map(t => t.id));
+  // Incluir parejas aunque su pista no tenga syncLock, sin eludir candados.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const t of project.tracks) if (affected.has(t.id)) for (const c of t.clips.filter(c => c.from+c.durationInFrames>at)) for (const id of linkedIds(project,[c.id])) {
+      const mate = findClip(project,id)!; if (mate.track.locked) return project;
+      if (!affected.has(mate.track.id)) { affected.add(mate.track.id); changed = true; }
+    }
+  }
+  let next = project;
+  for (const t of project.tracks.filter(t => affected.has(t.id))) for (const c of t.clips.filter(c => c.from < at && c.from+c.durationInFrames > at)) next = splitAt(next,at,c.id);
+  next = mapTracks(next,t => !affected.has(t.id) ? t : ({...t,clips:t.clips.map(c => c.from>=at ? {...c,from:c.from+length}:c)}));
+  const placed = addSourceRange(next,media,trackId,at,start,end,videoOnly);
+  if (placed === next) return project;
+  const withMarkers = { ...placed, markers: (project.markers??[]).map(m=>m.frame>=at?{...m,frame:m.frame+length}:m) };
+  return preserveLocked(project,withMarkers);
+};
+
 export const addTextClip = (
   project: Project,
   opts: { text: string; from: number; durationInFrames: number; style?: Partial<TextStyle>; id?: string },

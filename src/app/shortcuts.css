@@ -1,0 +1,76 @@
+.app-chrome { grid-area: top; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.app-chrome .topbar { height: 48px; flex: 0 0 48px; }
+.app-menubar { display: flex; gap: 1px; height: 24px; align-items: center; padding: 0 5px; overflow-x: auto; flex-shrink: 0; }
+.app-menubar > button { background: transparent; border: 0; border-radius: 4px; padding: 3px 9px; font-size: 10px; white-space: nowrap; }
+.app-menubar > button.active { background: #7da9e126; }
+.app-dropdown { position: fixed; z-index: 180; width: min(320px,calc(100vw - 16px)); overflow: auto; padding: 5px; border: 1px solid #9cc8ff33; border-radius: 9px; background: #0b1628fa; box-shadow: 0 10px 30px #0009; backdrop-filter: blur(20px); }
+.app-dropdown > button { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 8px; gap: 15px; text-align: left; background: transparent; border: 0; font-size: 10px; }
+.app-dropdown small { display: block; font-size: 8px; color: var(--muted); }
+.app-dropdown kbd { font: inherit; font-size: 9px; color: #9ab1d0; white-space: nowrap; }
+.dock-panel:focus-visible { outline: 1px solid #89c3ff88; outline-offset: -2px; }
+.shortcut-dialog, .command-dialog { color: var(--text); background: linear-gradient(135deg,#0d1a2bf9,#111322fc); border: 1px solid #99c2f53d; border-radius: 14px; box-shadow: 0 20px 80px #000a; padding: 14px; width: min(1120px,calc(100vw - 24px)); max-height: calc(100dvh - 24px); font-size: 10px; }
+.shortcut-dialog[open] { display: flex; flex-direction: column; gap: 10px; height: min(820px,calc(100dvh - 24px)); }
+.shortcut-dialog::backdrop, .command-dialog::backdrop { background: #020611aa; backdrop-filter: blur(4px); }
+.shortcut-dialog header, .shortcut-dialog footer { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.shortcut-dialog header { justify-content: space-between; }
+.shortcut-dialog h2 { font-size: 15px; margin: 0 0 3px; font-weight: 500; }
+.shortcut-dialog h3 { font-size: 12px; margin: 0 0 6px; }
+.shortcut-dialog header span, .keyboard-modifiers span, .keyboard-legend { color: #9caec6; font-size: 9px; }
+.shortcut-dialog button, .shortcut-dialog input, .shortcut-dialog select { font-size: 10px; }
+.shortcut-tabs { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.shortcut-tabs label { margin-left: auto; font-size: 9px; }
+.shortcut-tabs button.active, .keyboard-modifiers button[aria-pressed=true] { background: #4a73994d; border-color: #91caff66; }
+.keyboard-modifiers { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.keyboard-modifiers button { padding: 3px 7px; }
+.keyboard-scroll { overflow: auto; flex-shrink: 0; max-height: 40%; }
+.visual-keyboard { min-width: 700px; display: grid; grid-template-columns: minmax(0,1fr); gap: 4px; }
+.keyboard-row { display: flex; gap: 4px; min-width: 0; }
+.visual-keyboard button { min-width: 0; height: 32px; padding: 3px 4px; background: #ffffff06; border-color: #94b6df1f; overflow: hidden; text-align: left; display: flex; flex-direction: column; justify-content: space-between; }
+.visual-keyboard button.assigned { background: linear-gradient(145deg,#23496c99,#25304e77); border-color: #80caff55; }
+.visual-keyboard button.pending { background: #8d703026; border-color: #c8a05744; }
+.visual-keyboard button.selected { outline: 2px solid #b6e0ff; outline-offset: -2px; }
+.visual-keyboard button span { font-size: 10px; }
+.visual-keyboard small { font-size: 7px; line-height: 1.1; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #bad3ec; }
+.keyboard-legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.available-dot, .pending-dot { width: 7px; height: 7px; border-radius: 50%; background: #80caff; display: inline-block; }
+.pending-dot { background: #c8a057; }
+.shortcut-filters { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.shortcut-filters input { min-width: 140px; flex: 1; }
+.shortcut-lower { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(230px,1fr); gap: 10px; min-height: 120px; flex: 1; overflow: hidden; }
+.shortcut-command-list, .shortcut-assignment { overflow: auto; border: 1px solid #90b7ea20; border-radius: 8px; padding: 5px; }
+.shortcut-command-list > button { border: 0; display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px; justify-content: space-between; background: transparent; text-align: left; }
+.shortcut-command-list > button.selected { background: #517fa52b; }
+.shortcut-command-list small { display: block; color: #91a4bc; font-size: 8px; }
+.shortcut-command-list kbd { font: inherit; font-size: 9px; color: #b9cee3; text-align: right; }
+.shortcut-assignment { padding: 10px; }
+.shortcut-assignment p { margin: 5px 0 8px; }
+.shortcut-note { color: #cbbf9e; font-size: 9px; }
+.binding-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.binding-chips button { padding: 3px 6px; }
+.shortcut-assignment .recording { outline: 1px solid #9bd8ff; background: #5b9bc540; }
+.shortcut-candidate { padding: 8px; margin: 8px 0; border: 1px solid #86bbe94d; border-radius: 7px; }
+.shortcut-candidate button { margin-top: 5px; margin-right: 4px; }
+.shortcut-reset-command { display: block; margin-top: 10px; }
+.shortcut-dialog footer { flex-wrap: wrap; padding-top: 8px; border-top: 1px solid #90b7ea20; }
+.shortcut-dialog footer > span { flex: 1; }
+.gesture-editor { overflow: auto; flex: 1; min-height: 0; max-width: 760px; width: 100%; margin: auto; }
+.gesture-editor > label { display: flex; justify-content: space-between; gap: 15px; align-items: center; padding: 8px 0; border-bottom: 1px solid #91a7c51c; }
+.gesture-editor p { font-size: 10px; color: #a9bad0; line-height: 1.6; }
+.gesture-editor kbd { font: inherit; }
+.premiere-reference { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.premiere-reference > p { margin: 0; font-size: 9px; line-height: 1.6; color: #a9bad0; }
+.premiere-reference-table { overflow: auto; min-height: 0; border: 1px solid #90b7ea20; border-radius: 8px; }
+.premiere-reference table { border-collapse: collapse; width: 100%; font-size: 9px; user-select: text; }
+.premiere-reference th { position: sticky; top: 0; background: #152238; text-align: left; }
+.premiere-reference td, .premiere-reference th { padding: 6px 8px; border-bottom: 1px solid #90b7ea14; }
+.premiere-reference td:last-child { white-space: nowrap; }
+.command-dialog { width: min(500px,calc(100vw - 24px)); }
+.command-dialog h2 { font-size: 14px; margin: 0 0 12px; }
+.command-dialog label { display: flex; gap: 10px; margin: 10px 0; align-items: center; }
+.command-dialog footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 15px; }
+.command-dialog p { line-height: 1.6; }
+.command-feedback { position: fixed; z-index: 170; bottom: 15px; left: 50%; transform: translateX(-50%); background: #0d1c30fa; border: 1px solid #92c5fa55; padding: 7px 12px; border-radius: 8px; max-width: 80vw; font-size: 10px; }
+.monitor-marks { font-size: 9px; color: #a7c5e5; padding: 2px 5px; }
+.timeline-mark-range { position: absolute; top: 0; bottom: 0; background: #d3bb5d30; border-left: 1px solid #e7cc79; border-right: 1px solid #e7cc79; pointer-events: none; }
+@media(max-width:760px) { .shortcut-dialog { padding: 9px; gap: 6px; } .shortcut-dialog[open] { gap: 6px; } .shortcut-lower { grid-template-columns: minmax(0,1fr) minmax(200px,1fr); } .keyboard-scroll { max-height: 40%; } .visual-keyboard button { height: 26px; justify-content: center; } .visual-keyboard small { display: none; } .keyboard-modifiers span { display: none; } }
+@media(max-width:500px) { .shortcut-lower { display: flex; flex-direction: column; overflow: auto; } .shortcut-command-list { min-height: 130px; } .shortcut-assignment { flex-shrink: 0; } .gesture-editor > label { flex-wrap: wrap; } }

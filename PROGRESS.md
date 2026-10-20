@@ -10,6 +10,9 @@ Barra de herramientas y espacio con cinco paneles acoplables por bordes, guía d
 separadores por división y ampliación/restauración. Medidor dBFS independiente, vertical/horizontal.
 Timeline con anchos internos ajustables para herramientas y cabeceras; herramientas en una columna
 por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, sin scroll en la columna.
+Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
+configurable. 116 comandos disponibles, 104 reservas pendientes y 629 asignaciones de Premiere 2026
+auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
 Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
 enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
@@ -25,6 +28,69 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Menús y atajos editables basados en Premiere Windows (Codex)
+
+**Investigación y decisiones**
+- Se contrastaron documentación primaria de Adobe y el preset de fábrica Windows/inglés de
+  Premiere Pro 2026 instalado: formato 6, actualizado el 2026-09-15, 629 asignaciones (394 Edición,
+  235 Color). Se conserva solo la tabla factual normalizada y su SHA-256, no el XML propietario.
+  Referencia completa buscable dentro del diálogo. El formato 5 tiene 396 asignaciones y no se mezcla.
+- Catálogo adaptado: 220 comandos, 116 disponibles y 104 reservados por funciones pendientes,
+  diferenciados en UI. No es implementación de todos los motores de Premiere ni importador .kys.
+- Se corrigió Shift+L: el preset real lo asigna a reproducción lenta; selección enlazada queda
+  sin combinación inicial. Acento grave distingue panel bajo mouse y Shift+acento grave, activo.
+  La documentación pública no enumera todos los comandos internos; ATAJOS.md explica el alcance.
+
+**Implementado**
+- Menús superiores en español; Ventana y Edición abren Atajos (Ctrl+Alt+K). Teclado visual US/ES,
+  búsqueda, filtros de panel/estado/tecla, varias asignaciones, captura, arrastre a tecla, conflictos
+  con reasignación explícita, guardar/cancelar/restaurar e importar/exportar presets JSON.
+- Mapa único por código físico, modificadores exactos, prioridad del contexto y reservas pendientes.
+  Ignora escritura, AltGr/composición, diálogos, menús y separadores. Hints de herramientas y toolbar
+  leen las preferencias. Mapa versión 1/revisión 2 local, con migración de valores iniciales corregidos.
+- Rueda en timeline horizontal, Ctrl vertical y Alt zoom bajo el puntero; ocho combinaciones
+  configurables con normalización de unidades. Alt+clic de Zoom aleja. Altura común opcional por rueda.
+- Atajos conectados a acciones existentes y nuevas: copiar/cortar/pegar/duplicar selección, corte
+  de destinos/todas las pistas, Q/W y Ctrl+Alt+Q/W, mover/slip 1/5 frames, navegación de edición,
+  paneles, I/O de Origen y Programa, marcadores, inserción/sobrescritura desde Origen y diálogo
+  previo a exportar (Ctrl+M no inicia un render por sí solo). Ganancia limitada al modelo 0..1.
+- `copyClips`, `pasteClips` e `insertSourceRange` en ops puras: enlaces/offsets/candados, sobrescritura,
+  IDs nuevos, protección de ciclos de secuencias e inserción con seguidores de ripple y marcadores.
+  Una operación de historial por edición. El portapapeles es interno, no comparte con otras apps.
+- Espacio/K/L y revisión inversa J sin audio; L repetida llega a 2/4/8/16×. Origen tiene transporte
+  propio; cambiar de monitor para reproducir detiene el otro. Marcas I/O de Programa son de sesión,
+  visibles en regla/monitor; no modifican rango de export ni se persisten en Project.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**59/59**), `npm run build` y `git diff --check` correctos.
+  Ocho pruebas nuevas: validez/ámbitos/conflictos/captura, auditoría 629 y migración Shift+L,
+  rueda/anclaje, pegado enlazado con candados, inserción con offsets/seguidores/marcadores y ciclos.
+  Permanece el aviso previo de paquetes grandes.
+- UI aislada en :5174: menú Ventana abre diálogo; conflicto Cuchilla→V avisa sin sobrescribir;
+  asignación adicional F2 guardada y ejecutada después de recargar; se confirmó que escribir V en
+  chat no cambia Cuchilla. Restauración de base y tabla completa Edición/Color visibles.
+- Ctrl+K a 00:00:02:00 pasó de 6 a 8 clips (video/audio); Ctrl+Z volvió a 6. Copiar/pegar por
+  menús pasó de 6 a 8; Deshacer restauró. La herramienta de navegador interceptó Ctrl+C/V con su
+  portapapeles virtual; la ejecución física de esas dos combinaciones queda para validación de Lino.
+- Origen: I, →, O produjo rango 0..2 frames; coma insertó dos frames, duración de 15:00 a 15:02,
+  6 a 10 clips al dividir/insertar pareja. Deshacer restauró. M añadió marcador y Ctrl+Z lo quitó.
+- Ctrl+M abrió opciones sin lanzar render. Rueda nativa pasó scroll horizontal de 0 a 261 px.
+  → y Shift+→ sumaron 6 frames. L dos veces dejó video a 2×; J retrocedió de 2:00 a 1:26 y K
+  dejó reproducción pausada. Sin errores de consola en la prueba. Montaje principal conservado.
+- Al añadir un hook durante HMR, la vista de desarrollo mostró un error de orden de hooks;
+  se recargaron prueba y editor principal y se recuperó el montaje desde autoguardado. No se
+  reprodujo en carga nueva. Diálogo comprobado también a 756×589, con controles inferiores dentro.
+
+**Pendientes y siguiente paso**
+- Probar Alt/Ctrl/Shift+rueda con el mouse físico, distribución/puntuación y comodidad con Lino;
+  arrastre de comandos a teclas, presets entre equipos y ejecución individual de todo el catálogo
+  no validados manualmente. No se repitieron exportación final, IA ni micrófono en esta sesión.
+- Las 104 reservas, más comandos adicionales de referencia, requieren desarrollar sus funciones:
+  keyframes, rolling, slide, velocidad, transiciones, mezcladores y gestión avanzada, entre otras.
+  J/K/L sostenidas y reproducción inversa con audio, zoom/pan de monitores y Alt+arrastre faltan.
+- Siguiente paso de Codex: ajustar sensación de rueda y teclas con la prueba de Lino y priorizar
+  funciones faltantes, manteniendo un único mapa de comandos y todas las ediciones mediante ops.
 
 ### 2026-10-20 — Anchos internos y herramientas compactas del timeline (Codex)
 

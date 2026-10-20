@@ -42,6 +42,13 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 2
   con migración de las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
   Ventanas flotantes y separación de pestañas siguen pendientes.
+- Atajos: mapa único Windows/QWERTY en `src/app/commands.ts`, menús en español y editor visual
+  en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
+  US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.
+  Preset de Premiere 2026 auditado: 629 asignaciones de Edición/Color, consultables como referencia;
+  solo 116 comandos adaptados están disponibles y 104 están reservados por funciones pendientes.
+  Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
+  Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
 - La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
   reconocer acciones o sonidos requiere modelos y análisis adicionales.
 - La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.

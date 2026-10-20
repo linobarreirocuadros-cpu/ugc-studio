@@ -6,12 +6,13 @@ import { formatTimecode } from "./Timeline";
 import { DEFAULT_TIMELINE_PREFERENCES, type TimelinePreferences } from "./timelinePreferences";
 
 const svg = (children: ReactNode) => <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
-export function TimelineToolbar({ project, frame, preferences, onPreferences, onSeek, onMarker, onDeleteMarker, onLink, canLink, canUnlink, onCreateSequence, hasSelection }: {
+export function TimelineToolbar({ project, frame, preferences, onPreferences, onSeek, onMarker, onDeleteMarker, onLink, canLink, canUnlink, onCreateSequence, hasSelection, hint }: {
   project: Project; frame: number; preferences: TimelinePreferences;
   onPreferences: (patch: Partial<TimelinePreferences>) => void; onSeek: (frame: number) => void;
   onMarker: (marker: TimelineMarker) => void; onDeleteMarker: (id: string) => void;
   onLink: (linked: boolean) => void; canLink: boolean; canUnlink: boolean;
   onCreateSequence: (name: string) => void; hasSelection: boolean;
+  hint:(id:string)=>string;
 }) {
   const [settings, setSettings] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
@@ -45,10 +46,10 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
   return <div ref={toolbar} className="timeline-toolbar" aria-label="Controles del timeline" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setSettings(false); setMarkersOpen(false); } }}>
     <div className="timeline-time-input"><input aria-label="Ir a tiempo del timeline" title="HH:MM:SS:FF · Enter para ir" value={time ?? formatTimecode(frame, project.fps)} onFocus={() => setTime(formatTimecode(frame, project.fps))} onChange={(e) => setTime(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") jump(); if (e.key === "Escape") { setTime(null); setTimeError(""); e.currentTarget.blur(); } }} onBlur={() => { setTime(null); setTimeError(""); }}/>{timeError && <span role="alert">{timeError}</span>}</div>
     {toggle("nestSequences", "Colocar secuencias anidadas o clips individuales", svg(<><path d="M11 2v20M3 5h5m6 0h7M3 12h5m6 0h7M3 19h5m6 0h7"/><rect x="8" y="4" width="6" height="16"/></>))}
-    {toggle("snapping", "Imán (S)", svg(<path d="M5 4v10a7 7 0 0 0 14 0V4h-4v10a3 3 0 0 1-6 0V4zM5 8h4m6 0h4"/>))}
-    {toggle("linkedSelection", "Selección enlazada (Shift+L)", svg(<><rect x="3" y="4" width="12" height="6" rx="1"/><rect x="9" y="14" width="12" height="6" rx="1"/><path d="m8 15 8-8m-5 0h5v5"/></>))}
+    {toggle("snapping", `Imán (${hint("snap")})`, svg(<path d="M5 4v10a7 7 0 0 0 14 0V4h-4v10a3 3 0 0 1-6 0V4zM5 8h4m6 0h4"/>))}
+    {toggle("linkedSelection", `Selección enlazada (${hint("linkedSelection")})`, svg(<><rect x="3" y="4" width="12" height="6" rx="1"/><rect x="9" y="14" width="12" height="6" rx="1"/><path d="m8 15 8-8m-5 0h5v5"/></>))}
     {toggle("selectionFollowsPlayhead", "Seleccionar bajo el cabezal", svg(<><path d="M12 2v20M3 6h6m6 0h6M3 18h6m6 0h6"/><rect x="8" y="9" width="8" height="6"/></>))}
-    <button title="Añadir marcador (M)" aria-label="Añadir marcador (M)" onClick={add}>{svg(<path d="M7 3h10v12l-5 6-5-6z"/>)}</button>
+    <button title={`Añadir marcador (${hint("marker")})`} aria-label={`Añadir marcador (${hint("marker")})`} onClick={add}>{svg(<path d="M7 3h10v12l-5 6-5-6z"/>)}</button>
     <button title="Lista de marcadores" aria-label="Lista de marcadores" aria-expanded={markersOpen} onClick={() => { setMarkersOpen(!markersOpen); setDraft(null); setSettings(false); }}>▾</button>
     <button title="Ajustes del timeline" aria-label="Ajustes del timeline" aria-expanded={settings} onClick={() => { setSettings(!settings); setMarkersOpen(false); }}>{svg(<path d="m14 4 3 3 4-1a6 6 0 0 1-7 7L6 21a2 2 0 0 1-3-3l8-8a6 6 0 0 1 7-7l-1 4"/>)}</button>
     <span className="timeline-edit-mode">Sobrescribir</span>

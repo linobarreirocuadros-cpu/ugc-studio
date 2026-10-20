@@ -114,6 +114,14 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
       movimiento/borrado conjunto reversible y selección independiente entre paneles
 - [x] Barra de herramientas: selección, selección hacia delante, cuchilla, recorte ripple de
       video/audio en su pista, slip, mano, zoom, texto, imán y ajustar montaje
+- [x] Menús Archivo/Edición/Clip/Secuencia/Marcadores/Gráficos/Ventana/Ayuda; teclado visual
+      editable con búsqueda, ámbitos, conflictos, varias combinaciones, persistencia y presets JSON
+- [x] Auditar preset Windows de Premiere 2026: 629 asignaciones consultables; mapa adaptado con
+      116 comandos disponibles y 104 pendientes identificados; rueda del timeline configurable
+- [x] Conectar atajos de Origen, inserción por ripple, portapapeles interno, recortes Q/W,
+      navegación, transporte y marcadores con historial y respeto de enlaces/candados
+- [ ] Validar mouse físico, puntuación del teclado, arrastre de comandos y traslado de presets con Lino
+- [ ] Ampliar funciones de los comandos reservados (rolling, slide, velocidad, keyframes, transiciones…)
 - [x] Medidor estéreo dBFS del Programa con pico retenido, aviso de saturación y reinicio
 - [x] Paneles intercambiables entre izquierda/centro/derecha/abajo, separadores de tamaño,
       persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino

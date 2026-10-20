@@ -8,6 +8,7 @@ import "./styles.css";
 import "./studio-theme.css";
 import "./workspace.css";
 import "./timeline-panels.css";
+import "./shortcuts.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
