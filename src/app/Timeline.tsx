@@ -6,6 +6,7 @@ import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
 import type { TimelineTool } from "./TimelineTools";
 import { findClip as projectClip, rippleTrimClip, slipClip, trimClip, linkedIds, clipsEditable, editSelection } from "../project/ops";
 import type { TimelinePreferences } from "./timelinePreferences";
+import { useTimelinePanelWidth } from "./useTimelinePanelWidth";
 
 type Drag = {
   clipId: string;
@@ -58,6 +59,7 @@ type Props = {
 const SNAP_PX = 8;
 
 export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+  const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const selectionIds = (ids: string[]) => preferences.linkedSelection ? linkedIds(project, ids) : ids;
   const editable = (id: string) => preferences.linkedSelection ? clipsEditable(project, [id]) : !projectClip(project, id)?.track.locked;
@@ -223,7 +225,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
 
   return (
     <div className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px` } as CSSProperties}>
-      <div className="timeline-headers" style={{ width: "var(--track-header-width,194px)" }}>
+      <div ref={headerPane.ref} className="timeline-headers" style={headerPane.style}>
         <div className="ruler-spacer" />
         {displayed.map((t) => (
           <div key={t.id} className={`track-header ${t.locked ? "locked" : ""}`} style={{ height: TRACK_H }}>
@@ -231,6 +233,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
           </div>
         ))}
       </div>
+      {headerPane.separator}
       <div className="timeline-scroll" ref={scrollRef}>
         <div ref={marquee.ref} onMouseDownCapture={captureTool} onMouseDown={marquee.onMouseDown} onMouseMove={(e) => { if (tool === "razor") setCutFrame(frameFromX(e.clientX)); }} onMouseLeave={() => setCutFrame(null)} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative" }}>
           <div

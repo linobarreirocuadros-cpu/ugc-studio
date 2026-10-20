@@ -83,11 +83,6 @@ body.workspace-resizing:has(.dock-divider.y.active), body.workspace-resizing:has
 @container bin (max-width: 220px) { .bin-media.grid { grid-template-columns: minmax(0,1fr); } .bin-controls { flex-wrap: wrap; } }
 @container monitor (max-width: 430px) and (min-height: 380px) { .monitor-view.split { grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(2,minmax(0,1fr)); } }
 @container timeline (max-width: 540px) {
-  .timeline-main { --track-header-width: 112px; }
-  .timeline-tools { width: 36px; grid-template-columns: 28px; padding: 4px 2px; }
-  .track-header { display: grid; grid-template-columns: 21px minmax(0,1fr) 21px; grid-template-rows: repeat(2,min(22px,calc(var(--track-height) / 2))); align-content: center; justify-content: stretch; gap: 0 2px; padding: 0 3px; }
-  .track-header button { height: min(22px,calc(var(--track-height) / 2)); }
-  .track-header .track-name { width: auto; font-size: 9px; }
   .timeline-selection-status { display: none; }
 }
 @media (max-width: 900px) { .topbar { overflow-x: auto; } .topbar > * { flex-shrink: 0; } }

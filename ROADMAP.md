@@ -122,6 +122,9 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Medidor independiente vertical/horizontal, escala adaptable y comprobación en 72×150 px;
       adaptación por contenedor de biblioteca, monitores, inspector y timeline con popovers sin recorte
 - [x] Probar arrastre real, redimensión con mouse/teclado, doble clic y persistencia de distribución
+- [x] Anchos internos del timeline ajustables: herramientas y cabeceras de pistas con separadores;
+      herramientas compactas en una/dos/tres columnas, sobrante en menú sin scroll de columna,
+      cabeceras responsivas y tipografía/iconos reducidos; preferencias locales persistentes
 - [ ] Validar con Lino comodidad de zonas/guía y cancelación de arrastre; ventanas flotantes y pestañas separables
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en Audio 1

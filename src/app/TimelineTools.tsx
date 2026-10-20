@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { toolGrid } from "./timelinePanels";
+import { useTimelinePanelWidth } from "./useTimelinePanelWidth";
 
 export type TimelineTool = "select" | "track" | "razor" | "ripple" | "slip" | "hand" | "zoom" | "text";
 export const TIMELINE_TOOLS: { id: TimelineTool; label: string; key: string; icon: ReactNode }[] = [
@@ -13,10 +16,42 @@ export const TIMELINE_TOOLS: { id: TimelineTool; label: string; key: string; ico
 ];
 
 export function TimelineTools({ tool, onTool, onFit, onZoom }: { tool: TimelineTool; onTool: (tool: TimelineTool) => void; onFit: () => void; onZoom: (factor: number) => void }) {
-  return <nav className="timeline-tools" aria-label="Herramientas básicas">
-    {TIMELINE_TOOLS.map((item) => <button key={item.id} aria-label={`${item.label} (${item.key})`} aria-pressed={tool === item.id} title={`${item.label} · ${item.key}`} className={tool === item.id ? "active" : ""} onClick={() => onTool(item.id)}><svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">{item.icon}</svg></button>)}
-    <span className="tool-divider" />
-    <button aria-label="Alejar timeline" title="Alejar · −" onClick={() => onZoom(0.8)}>−</button><button aria-label="Acercar timeline" title="Acercar · +" onClick={() => onZoom(1.25)}>+</button>
-    <button aria-label="Ajustar timeline" title="Ver todo el montaje" onClick={onFit}>↔</button>
-  </nav>;
+  const pane = useTimelinePanelWidth<HTMLElement>("tools", "Ancho de herramientas del timeline");
+  const grid = toolGrid(pane.size.width, pane.size.height);
+  const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 12, top: 12, maxHeight: 300 });
+  const more = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null);
+  const items = [
+    ...TIMELINE_TOOLS.map(item => ({ id: item.id, label: `${item.label} (${item.key})`, active: tool === item.id, icon: <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">{item.icon}</svg>, action: () => onTool(item.id) })),
+    { id: "out", label: "Alejar timeline", active: false, icon: "−", action: () => onZoom(.8) },
+    { id: "in", label: "Acercar timeline", active: false, icon: "+", action: () => onZoom(1.25) },
+    { id: "fit", label: "Ajustar timeline", active: false, icon: "↔", action: onFit },
+  ];
+  useLayoutEffect(() => {
+    if (!open || !more.current) return;
+    const r = more.current.getBoundingClientRect();
+    if (!r.width || !r.height) { setOpen(false); return; }
+    const height = Math.min(300, Math.max(80, window.innerHeight - 24));
+    const next = { left: Math.max(12, Math.min(r.right + 6, window.innerWidth - 232)), top: Math.max(12, Math.min(r.top, window.innerHeight - height - 12)), maxHeight: height };
+    setPosition(old => old.left === next.left && old.top === next.top && old.maxHeight === next.maxHeight ? old : next);
+  });
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: globalThis.PointerEvent) => { if (!menu.current?.contains(e.target as Node) && !more.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); more.current?.focus(); } };
+    window.addEventListener("pointerdown", close); window.addEventListener("keydown", key);
+    return () => { window.removeEventListener("pointerdown", close); window.removeEventListener("keydown", key); };
+  }, [open]);
+  useEffect(() => { if (!grid.overflow) setOpen(false); }, [grid.overflow]);
+  const hiddenActive = items.slice(grid.visible).some(item => item.active);
+  return <>
+    <nav ref={pane.ref} className="timeline-tools" aria-label="Herramientas básicas" data-columns={grid.columns} style={{ ...pane.style, "--tool-columns": grid.columns, "--tool-cell": `${grid.cell}px` } as CSSProperties}>
+      {items.slice(0, grid.visible).map((item, i) => <Fragment key={item.id}>
+        {!grid.overflow && i === 8 && <span className="tool-divider" />}
+        <button aria-label={item.label} aria-pressed={i < 8 ? item.active : undefined} title={item.label} className={item.active ? "active" : ""} onClick={item.action}>{item.icon}</button>
+      </Fragment>)}
+      {grid.overflow && <button ref={more} className={hiddenActive ? "active" : ""} aria-label="Más herramientas del timeline" aria-expanded={open} aria-haspopup="menu" title="Más herramientas" onClick={() => setOpen(value => !value)}>•••</button>}
+    </nav>
+    {pane.separator}
+    {open && createPortal(<div ref={menu} className="timeline-tool-menu" style={position} role="menu" aria-label="Más herramientas del timeline" onKeyDown={e => { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button")], i = buttons.indexOf(document.activeElement as HTMLButtonElement); const index = e.key === "ArrowDown" ? (i + 1) % buttons.length : e.key === "ArrowUp" ? (i - 1 + buttons.length) % buttons.length : e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : -1; if (index >= 0) { e.preventDefault(); e.stopPropagation(); buttons[index]?.focus(); } }}>{items.slice(grid.visible).map(item => <button role="menuitem" key={item.id} className={item.active ? "active" : ""} onClick={() => { item.action(); setOpen(false); more.current?.focus(); }}>{item.icon}<span>{item.label}</span></button>)}</div>, document.body)}
+  </>;
 }

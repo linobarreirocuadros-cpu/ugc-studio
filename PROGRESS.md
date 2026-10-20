@@ -8,6 +8,8 @@ Transcripción precisa local con faster-whisper large-v3 instalada y probada en 
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
 Barra de herramientas y espacio con cinco paneles acoplables por bordes, guía de destino,
 separadores por división y ampliación/restauración. Medidor dBFS independiente, vertical/horizontal.
+Timeline con anchos internos ajustables para herramientas y cabeceras; herramientas en una columna
+por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, sin scroll en la columna.
 Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
 enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
@@ -23,6 +25,40 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Anchos internos y herramientas compactas del timeline (Codex)
+
+**Decisiones e implementación**
+- Dos separadores internos permiten cambiar el ancho de herramientas y cabeceras de pistas;
+  el área de clips recibe el espacio restante. Arrastre con Pointer Events, flechas para ajustar,
+  doble clic para restablecer y Escape para cancelar. Anchos guardados localmente, fuera del JSON
+  del proyecto; los límites se adaptan al ancho disponible.
+- Herramientas de 12 px en celdas compactas, una columna inicial de 30 px y dos/tres columnas
+  al ampliar. El cálculo considera también la altura: si no caben todas, «Más herramientas» abre
+  el sobrante en un menú fuera del contenedor. No hay barras de scroll en la columna de herramientas.
+- Cabeceras con texto de 9 px e iconos de 11 px; al medir 164 px o menos distribuyen controles
+  en dos filas. Toolbar, etiquetas de clips y regla también se compactaron. Se conserva Poppins.
+- No se modificaron operaciones de edición ni datos del montaje.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**51/51**), `npm run build` y `git diff --check` correctos.
+  Dos pruebas nuevas cubren límites/preferencias inválidas y distribución de herramientas según
+  ancho/alto, reservando acceso a las que no caben. Permanece el aviso previo de paquetes grandes.
+- Navegador aislado: arrastre real a 30/54/80 px dio una/dos/tres columnas. Herramientas a 208 px
+  de altura sin desbordamiento; a 85 px aparecen tres herramientas y el botón de sobrante,
+  con scrollHeight igual a clientHeight. Menú dentro del viewport; selección de Mano y cierre
+  con Escape comprobados. Cabeceras estrechadas a 102 px, sin desbordamiento horizontal.
+- Recarga conservó anchos 30/102 px. Regla después de ajustar: clic en 0:01 dio 00:00:01:00
+  y clic en 0:00 dio 00:00:00:00. Separador de cabeceras visible con scroll vertical.
+- Editor principal observado con columna de herramientas de 28×148 px sin scroll; su montaje
+  se conservó. Sin errores de consola en la prueba aislada. Captura guardada fuera del repo.
+
+**Pendientes y siguiente paso**
+- Lino debe revisar comodidad y legibilidad de esta escala más pequeña durante edición real.
+  Cancelación con Escape a mitad del arrastre no probada manualmente. No se repitieron exportación,
+  procesamiento de audio ni captura de micrófono, que no cambian en esta entrega.
+- Siguiente paso de Codex: ajustar densidad o límites a partir de la revisión de Lino; mantener
+  estos anchos como preferencias de interfaz independientes del proyecto.
 
 ### 2026-10-20 — Acoplamiento flexible y adaptación de paneles (Codex)
 
