@@ -28,7 +28,9 @@
 - [x] Motores: Ollama (local, gratis, por defecto), Gemini / Groq / OpenRouter (gratis con límite),
       Claude y OpenAI (de pago, opcionales). Claves guardadas en `UGC Studio/config.json`
 - [x] Comandos de voz (micrófono → Whisper en el navegador → chat)
-- [ ] Probar y ajustar el prompt con qwen3:30b-a3b en el PC del usuario
+- [x] Probar el chat con Ollama real en el PC del usuario (qwen3:8b: texto, duración y deshacer)
+- [x] Probar el chat con qwen3:30b-a3b en el PC del usuario (texto, posición y duración)
+- [ ] Probar el chat con un video UGC real y ajustar el prompt según los resultados
 - [ ] Respuestas en streaming (ver el texto mientras se escribe)
 
 ## Fase 3 — Marcas, Foley y presets

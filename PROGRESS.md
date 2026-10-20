@@ -4,8 +4,8 @@
 Fase 2 (chat con IA) construida. Usuario: Windows 11, Ryzen 7 7700X, 32 GB RAM → recomendado
 Ollama con qwen3:30b-a3b (MoE, corre bien en CPU) o qwen3:8b.
 
-Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX), Foley y
-tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
+Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX), Foley,
+tipografías y V2 para B-roll. Falta: panel de transcripción, waveform y miniaturas.
 
 ## Registro
 
@@ -97,5 +97,26 @@ tipografías. Falta: panel de transcripción, V2 para B-roll, waveform.
   contexto (visión, stack, arquitectura, historial, decisiones, pendientes y reglas de trabajo).
   Mantenerlo actualizado si cambia algo importante.
 
+### 2026-10-19 — Primera prueba local del chat con Ollama (Codex)
+- Se actualizó la copia local al `main` de GitHub antes de probar. Se instaló Ollama 0.40.5
+  y se descargó `qwen3:8b`. PC: RTX 5070 con 12 GB de VRAM, 32 GB de RAM.
+- Prueba real en el navegador con un video sintético de 4 s: el chat agregó `PRUEBA IA`
+  en T1 desde el frame 0 durante 90 frames (3 s a 30 fps), arriba (`y: 0.18`). Se verificó
+  en monitor, línea de tiempo y archivo `.ugcproj.json` guardado. Deshacer quitó el texto,
+  Rehacer lo restauró y el autoguardado lo conservó tras recargar la página.
+- Se descargó y probó también `qwen3:30b-a3b` (18 GB). Su primera petición, incluida la
+  carga del modelo, tardó aproximadamente 69 s. Agregó `MODELO 30B` abajo (`y: 0.72`),
+  desde el frame 0 durante 60 frames (2 s). Se verificó en el monitor, la línea de tiempo
+  y el proyecto guardado. El PC tiene una RTX 5070 con 12 GB de VRAM; parte del modelo
+  se cargó en RAM. Una segunda petición, con el modelo ya cargado, leyó y resumió el proyecto
+  sin editarlo en unos 28 s. Quedó seleccionado el modelo de 30B en el editor.
+- `npm install` y `npm run typecheck` completados. `npm audit --omit=dev` reportó tres
+  avisos de severidad alta en la cadena `multer` → `busboy` → `dicer`; la corrección
+  automática propone un cambio mayor de `multer` y no se aplicó en esta prueba.
+- Pendiente: probar con un video UGC real y ajustar el prompt si las ediciones lo requieren.
+  Tampoco se probó Whisper real en este PC.
+
 ## Siguiente paso sugerido
-Que el usuario instale Ollama + qwen3:30b-a3b y pruebe el chat con un video real; ajustar el prompt según resultados. Luego: HyperFrames (Fase 4) o Brand Kits (Fase 3).
+Probar el chat con un video UGC real; ajustar el prompt según resultados y revisar la
+actualización de `multer` sin romper la importación de medios.
+Luego: HyperFrames (Fase 4) o Brand Kits (Fase 3).
