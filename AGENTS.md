@@ -141,6 +141,16 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
   comercial: esta integración usa un cliente propio del protocolo público y jose (MIT).
 - No declarar un resumen coherente o una transcripción perfecta por pasar pruebas técnicas:
   la revisión editorial, de texto y de escucha corresponde a Lino.
+- Fiabilidad: `QUALITY_AUDIT.md` registra alcance y pendientes. JSON externo/autoguardado se
+  valida con `projectFile.ts` antes de reemplazar el documento; no sobrescribir una copia inicial
+  inválida. Abrir/crear reinicia historial. Errores de autoguardado/exportación deben ser visibles.
+- Al seleccionar/arrastrar un clip hay que transferir foco al panel para los atajos, preservando
+  campos y controles. No resolver Delete globalmente si el usuario está escribiendo.
+- Peticiones del asistente capturan contexto al enviarse; guardas de `assistantSession.ts` invalidan
+  lecturas/escrituras al cambiar documento/secuencia. Aplicar también a tareas de transcripción,
+  audio, importación y otras operaciones asíncronas; no tomar selección nueva tras esperar al modelo.
+- Remotion no es open source OSI: su licencia comercial/gratuidad para agencia está pendiente
+  de resolver. No prometer uso profesional universal gratis por tratarse de ejecución local.
 
 ## Al terminar cada sesión de trabajo (obligatorio)
 1. Actualiza `PROGRESS.md`: qué hiciste, qué quedó pendiente, decisiones tomadas.

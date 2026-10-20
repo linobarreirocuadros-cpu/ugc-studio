@@ -1,6 +1,9 @@
 # Progreso
 
 ## Estado actual
+Primera auditoría de fiabilidad realizada el 2026-10-20: ver `QUALITY_AUDIT.md` para alcance,
+fallos corregidos, evidencias y condiciones de MVP. Estado: alfa funcional; aún no validado como
+editor único de agencia. No dar por solucionado el bucle en todos los videos por pasar esta prueba.
 Fase 2 (chat con IA) construida, con primera visión local y limpieza de audio integradas.
 ChatGPT conectado por Sign in with ChatGPT oficial y probado con GPT-6.1-Sol; selector de motor/modelo
 dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer y exportación.
@@ -32,6 +35,55 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Control de calidad y reparación de flujos críticos (Codex)
+
+**Implementado/corregido**
+- Borrado Backspace/Delete: el clip recibía selección pero el foco permanecía en el chat por
+  `preventDefault` del arrastre. Clic en superficies de edición enfoca el panel sin robar foco
+  a campos/controles. Borrado bloqueado conserva selección y explica el candado.
+- Monitores: I/O visible con tiempos de entrada/salida, luz y punto de estado en controles
+  activos; play/mute de Origen/fullscreen sincronizados. Entrada/salida compartidas y coherentes
+  al invertir orden; Enter en timecode permite volver a los atajos. Se comprobó también la llave
+  de Ajustes del timeline: abre/cierra su panel, con estado expandido resaltado.
+- Origen: cambiar resolución reiniciaba a cero; restauración pendiente separada de timeupdate
+  durante recarga. Probado 07:12 → 1/8 → Full conservando el punto.
+- `projectFile.ts`: validar JSON/modelo/medios/rangos/IDs/secuencias antes de abrir o renderizar.
+  Historial se reinicia al cambiar documento. Copia corrupta inicial se conserva y puede descargarse;
+  error de autoguardado avisa. Lectores de metadatos con timeout y rechazo de duración inválida.
+- `exportJob.ts`: gestionar errores de inicio/polling/protocolo y abortar seguimiento al desmontar;
+  no cerrar estado ni duplicar exportación mientras trabaja. No se añadió cancelación del render.
+- `assistantSession.ts`: contexto de petición capturado y guardas al cambiar documento/secuencia;
+  proteger escrituras del chat, análisis local, transcripción, importación y Foley pendientes.
+- Actualización Multer 1.x → 2.4.0 por tres avisos de severidad alta en su cadena; mantener disco
+  y devolver errores multipart como JSON. Auditoría final sin vulnerabilidades conocidas.
+
+**Pruebas realizadas**
+- 69/69 pruebas, typecheck y build aprobados. Build aún advierte chunks JS >500 kB.
+- UI aislada en 5174: reproducir/corregir foco, Backspace/Delete, candado, Deshacer/Rehacer,
+  escritura protegida en chat; I/O de ambos monitores, mute Origen, calidad, guías/bucle y fullscreen;
+  ajustes del timeline, guardar/reabrir y rechazo de proyecto inválido con montaje intacto.
+- Ollama qwen3:8b real: CONTROL QA arriba durante 0–2 s visible en Programa/T1; Deshacer,
+  Rehacer y Delete. Restaurados ChatGPT gpt-6.1-sol y Ollama qwen3:30b-a3b. La guarda de sesión
+  añadida después se comprobó con respuesta diferida simulada, no con carrera de backend real.
+- MP4 borrador real de tres parejas de AssortedTapes: H.264 1080×1920, 30 fps, 450 frames;
+  imagen 15.000 s y AAC estéreo 48 kHz de 15.019 s. FFmpeg decodifica todo sin errores.
+  Medidor observado alrededor de −12.7 dBFS L/R. Archivo/evidencia fuera del repositorio,
+  rutas en QUALITY_AUDIT; montaje de Lino en 5173 conservado.
+- Importación real de MP4 sintético tras actualizar Multer; solicitudes multipart y render
+  inválidas responden 400. `npm audit --omit=dev` final: 0 avisos conocidos.
+
+**Pendiente y decisiones**
+- Revisión de continuidad/lip sync y escucha con Lino, tres entregas completas con brief,
+  matriz de codecs/fps y sesión prolongada. No se certifican todos los botones/proveedores.
+- Pruebas físicas de micro/Alt+arrastrar, cuota agotada/copia corrupta en navegador, renovación
+  ChatGPT, concurrencia real y recuperación tras cierre inesperado; autoguardado versionado en disco.
+- La lectura de código y el ensayo técnico no sustituyen validar transcripción/resumen/audio.
+- Licencias: sin LICENSE propia; FAQ de Remotion revisada el 2026-10-20 confirma source-available,
+  con condiciones de gratuidad por tamaño de agencia. Antes del uso profesional hay que aclarar
+  ese encaje y evaluar motor libre para mantener el objetivo sin pagos. No se contrató nada.
+- Siguiente paso: validar AssortedTapes preview/export con Lino y registrar cualquier bucle con
+  tiempo exacto; estabilizar entregas y recuperación antes de seguir añadiendo herramientas.
 
 ### 2026-10-20 — Asistente simplificado e identidad del personaje (Codex)
 

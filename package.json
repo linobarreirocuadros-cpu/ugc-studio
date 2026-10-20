@@ -33,7 +33,7 @@
     "@remotion/whisper-web": "4.0.536",
     "express": "^4.22.3",
     "jose": "^6.2.13",
-    "multer": "^1.4.4",
+    "multer": "^2.4.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "remotion": "4.0.536"

@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
+import { assertProject } from "../src/project/projectFile";
 import { registerChatRoutes } from "./llm";
 import { createLocalTasks } from "./localTasks";
 import { registerVision } from "./vision";
@@ -50,6 +51,12 @@ const upload = multer({
     },
   }),
 });
+const receiveFile:express.RequestHandler=(req,res,next)=>{
+  upload.single("file")(req,res,(error:unknown)=>{
+    if(error){res.status(400).json({error:"No se pudo recibir el archivo. Comprueba el formato de la solicitud y vuelve a importarlo."});return;}
+    next();
+  });
+};
 
 // --- Proxies --------------------------------------------------------------------
 // Copia liviana (lado corto 540 px, keyframe cada 0,5 s) para que la vista previa sea fluida
@@ -158,7 +165,7 @@ const makeWaveform = (filename: string) => {
   return job;
 };
 
-app.post("/api/upload", upload.single("file"), async (req, res) => {
+app.post("/api/upload", receiveFile, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
   const src = `/media/${req.file.filename}`;
   const isAudio = req.file.mimetype.startsWith("audio/") || AUDIO_EXT.test(req.file.originalname);
@@ -174,7 +181,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 });
 
 // Convierte la toma del micrófono a WAV con duración fiable (WebM puede declarar Infinity).
-app.post("/api/record-voice", upload.single("file"), async (req, res) => {
+app.post("/api/record-voice", receiveFile, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió la grabación" });
   try {
     if (req.file.size > 50 * 1024 * 1024 || !req.file.mimetype.startsWith("audio/")) throw new Error("Usa una toma de audio de hasta 50 MB.");
@@ -290,6 +297,7 @@ app.post("/api/render", async (req, res) => {
   const preset = (req.body.preset as Preset) ?? "h264-high";
   const cfg = PRESETS[preset];
   if (!project || !cfg) return res.status(400).json({ error: "Proyecto o preset inválido" });
+  try{assertProject(project);}catch(error){return res.status(400).json({error:error instanceof Error?error.message:String(error)});}
 
   const id = Date.now().toString(36);
   const job: Job = { status: "rendering", progress: 0 };

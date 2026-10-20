@@ -101,6 +101,28 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Exportar: MP4 H.264 alta calidad / borrador, MOV ProRes 422 HQ
 - [x] Proxies automáticos para reproducción fluida
 
+## Fiabilidad antes de uso profesional — auditoría 2026-10-20
+
+Detalle y evidencias en `QUALITY_AUDIT.md`. Alfa funcional: completar controles no equivale
+a estar validado para entregas de agencia.
+
+- [x] Primera pasada de auditoría: código, 69 pruebas y flujos de UI en proyecto aislado
+- [x] Corregir foco de selección para Backspace/Delete; avisar cuando un candado bloquea borrado
+- [x] Estados activos visibles en monitores, I/O con tiempo y mute/fullscreen; conservar punto
+      de Origen al cambiar resolución
+- [x] Validar archivos antes de abrir/renderizar, reiniciar historial entre documentos, avisar
+      de fallo de autoguardado y conservar copia inicial inválida para recuperación
+- [x] Manejar fallos de red/HTTP/protocolo de exportación sin dejar estado atascado;
+      exportar muestra de 15 s y verificar codecs, duración y decodificación
+- [x] Guardas de sesión para impedir aplicar respuestas/tareas a otro documento/secuencia
+- [x] Actualizar importación Multer y verificar carga real, errores 400 y auditoría sin avisos conocidos
+- [ ] Validar tres anuncios con brief, continuidad, sincronía, CTA y escucha aprobados por Lino
+- [ ] Prueba prolongada y matriz de archivos reales: H.264/HEVC, VFR, 24/30/60 fps y varias capas
+- [ ] Autoguardado versionado en disco y ensayos de cierre inesperado, cuota agotada y medios movidos
+- [ ] Carrera real de IA/transcripción/audio con edición manual, Deshacer y cambio de documento
+- [ ] Resolver licencia de uso en agencia y evaluar motor de preview/render libre antes de prometer
+      flujo profesional completamente gratuito; elegir LICENSE propia con Lino
+
 ## Herramientas de edición manual y gestión de medios (en curso)
 - [x] Primera pasada visual basada en referencias de Lino: paneles grafito separados/redondeados,
       degradados suaves, jerarquía de botones, biblioteca, chat y timeline coherentes

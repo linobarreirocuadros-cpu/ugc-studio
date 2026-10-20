@@ -27,7 +27,9 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
   const root=useRef<HTMLDivElement>(null),stage=useRef<HTMLDivElement>(null);
   const [size,setSize]=useState({w:1,h:1}),[zoom,setZoom]=useState<number|"fit">("fit"),[pan,setPan]=useState({x:0,y:0}),[hand,setHand]=useState(false);
   const [time,setTime]=useState<string|null>(null),[timeError,setTimeError]=useState("");
-  const [safe,setSafe]=useState(false);
+  const [safe,setSafe]=useState(false),[fullscreen,setFullscreen]=useState(false),[viewError,setViewError]=useState("");
+  useEffect(()=>{const changed=()=>setFullscreen(document.fullscreenElement===root.current);document.addEventListener("fullscreenchange",changed);return()=>document.removeEventListener("fullscreenchange",changed);},[]);
+  const toggleFullscreen=async()=>{try{setViewError("");if(document.fullscreenElement===root.current)await document.exitFullscreen();else await root.current?.requestFullscreen();}catch{setViewError("El navegador no permitió la pantalla completa.");}};
   const [windowRange,setWindowRange]=useState({start:0,end:1});
   const fit=Math.min(size.w/width,size.h/height),scale=zoom==="fit"?fit:zoom;
   const bound=(p:{x:number;y:number},s=scale)=>({x:clamp(p.x,-Math.max(0,(width*s-size.w)/2),Math.max(0,(width*s-size.w)/2)),y:clamp(p.y,-Math.max(0,(height*s-size.h)/2),Math.max(0,(height*s-size.h)/2))});
@@ -45,7 +47,7 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
   const [lo,hi]=[Math.floor(windowRange.start*(duration-1)),Math.max(1,Math.ceil(windowRange.end*(duration-1)))];
   const range=Math.max(1,hi-lo),pct=(f:number)=>(f-lo)/range*100;
   const setAt=(clientX:number,node:HTMLElement)=>{const r=node.getBoundingClientRect();onSeek(Math.round(lo+clamp((clientX-r.left)/r.width,0,1)*range));};
-  const jump=()=>{if(time===null)return;const parts=time.split(":").map(Number);if(!/^\d+:\d{2}:\d{2}:\d{2}$/.test(time)||parts[1]>59||parts[2]>59||parts[3]>=fps){setTimeError("Usa HH:MM:SS:FF.");return;}onSeek(((parts[0]*60+parts[1])*60+parts[2])*fps+parts[3]);setTime(null);setTimeError("");};
+  const jump=()=>{if(time===null)return false;const parts=time.split(":").map(Number);if(!/^\d+:\d{2}:\d{2}:\d{2}$/.test(time)||parts[1]>59||parts[2]>59||parts[3]>=fps){setTimeError("Usa HH:MM:SS:FF.");return false;}const at=((parts[0]*60+parts[1])*60+parts[2])*fps+parts[3];if(at>=duration){setTimeError("Ese tiempo está fuera del video.");return false;}onSeek(at);setTime(null);setTimeError("");return true;};
   return <div className="monitor-viewer" ref={root}>
     <div className={`monitor-stage ${hand?"pan-tool":""}`} ref={stage} aria-label={`Imagen de ${name}`} title="Rueda: zoom · Shift+rueda: zoom rápido · Botón central o Mano: desplazar · Doble clic: ajustar"
       onDoubleClick={()=>{setZoom("fit");setPan({x:0,y:0});}}
@@ -57,14 +59,15 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
     </div>
     <div className="monitor-controls">
       <div className="monitor-readouts">
-        <input aria-label={`Ir a tiempo de ${name}`} title="HH:MM:SS:FF · Enter para ir" value={time??formatTimecode(frame,fps)} onFocus={()=>setTime(formatTimecode(frame,fps))} onChange={e=>setTime(e.target.value)} onBlur={()=>{setTime(null);setTimeError("");}} onKeyDown={e=>{if(e.key==="Enter")jump();if(e.key==="Escape")e.currentTarget.blur();}}/>
+        <input aria-label={`Ir a tiempo de ${name}`} title="HH:MM:SS:FF · Enter para ir" value={time??formatTimecode(frame,fps)} onFocus={()=>setTime(formatTimecode(frame,fps))} onChange={e=>setTime(e.target.value)} onBlur={()=>{setTime(null);setTimeError("");}} onKeyDown={e=>{if(e.key==="Enter"&&jump())e.currentTarget.blur();if(e.key==="Escape")e.currentTarget.blur();}}/>
         <select aria-label={`Zoom de ${name}`} value={zoom} onChange={e=>{setZoom(e.target.value==="fit"?"fit":Number(e.target.value));setPan({x:0,y:0});}}>
           <option value="fit">Ajustar</option>{zoom!=="fit"&&!zooms.includes(zoom)&&<option value={zoom}>{Math.round(zoom*100)}%</option>}{zooms.map(z=><option key={z} value={z}>{z*100}%</option>)}
         </select>
         <select aria-label={`Resolución de ${name}`} title="Resolución de vista previa. No cambia la exportación." value={quality} onChange={e=>onQuality(Number(e.target.value) as PreviewQuality)}>{[1,2,4,8,16].map(q=><option key={q} value={q}>{q===1?"Full":`1/${q}`}</option>)}</select>
         <span className="monitor-duration" title="Duración total">{formatTimecode(duration,fps)}</span>
       </div>
-      {(pending||error||timeError)&&<div className="monitor-status" role="status">{timeError||error&&`No se pudo preparar esa calidad: ${error}. Se usa Full.`||"Preparando vista local… Full mientras termina."}</div>}
+      {(pending||error||timeError||viewError)&&<div className="monitor-status" role="status">{timeError||viewError||error&&`No se pudo preparar esa calidad: ${error}. Se usa Full.`||"Preparando vista local… Full mientras termina."}</div>}
+      {marks&&(marks.start!==null||marks.end!==null)&&<div className="monitor-range-info" role="status" aria-label={`Rango de ${name}`}><span>Entrada {marks.start===null?"—":formatTimecode(marks.start,fps)}</span><span>Salida {marks.end===null?"—":formatTimecode(marks.end-1,fps)}</span></div>}
       <div className="monitor-ruler" role="slider" tabIndex={0} aria-label={`Cabezal de ${name}`} aria-valuemin={0} aria-valuemax={duration-1} aria-valuenow={frame} aria-valuetext={formatTimecode(frame,fps)}
         onKeyDown={e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();onSeek(frame+(e.key==="ArrowLeft"?-1:1));}}}
         onPointerDown={e=>{if(e.button!==0)return;e.currentTarget.setPointerCapture(e.pointerId);setAt(e.clientX,e.currentTarget);}}
@@ -82,10 +85,10 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
         <button title="Ver toda la duración en la regla" aria-label={`Restablecer regla de ${name}`} onClick={()=>setWindowRange({start:0,end:1})}>↔</button>
       </div>
       <div className="monitor-transport">
-        {actions.map(a=><button key={a.id} aria-label={`${a.label} en ${name}`} aria-pressed={a.active} title={`${a.label}${hint(a.id)?` · ${hint(a.id)}`:""}`} onClick={()=>onCommand(a.id)}>{a.id==="play"&&playing?monitorIcon(<path d="M8 4v16m8-16v16"/>):a.icon}</button>)}
+        {actions.map(a=>{const active=a.id==="play"?playing:a.id==="markIn"?marks?.start!==null&&marks?.start!==undefined:a.id==="markOut"?marks?.end!==null&&marks?.end!==undefined:a.active;return <button key={a.id} aria-label={`${a.label} en ${name}`} aria-pressed={active} disabled={a.id==="clearMarks"&&marks?.start===null&&marks.end===null} title={`${a.label}${hint(a.id)?` · ${hint(a.id)}`:""}${active?" · Activo":""}`} onClick={()=>onCommand(a.id)}>{a.id==="play"&&playing?monitorIcon(<path d="M8 4v16m8-16v16"/>):a.icon}</button>;})}
         <button aria-label={`Márgenes seguros de ${name}`} title="Márgenes de acción (90%) y títulos (80%). Solo vista previa." aria-pressed={safe} onClick={()=>setSafe(v=>!v)}>{monitorIcon(<><rect x="3" y="4" width="18" height="16"/><rect x="7" y="7" width="10" height="10"/></>)}</button>
         <button aria-label={`Mano en ${name}`} title="Desplazar imagen ampliada" aria-pressed={hand} onClick={()=>setHand(v=>!v)}>{monitorIcon(<path d="M7 12V6l3-1v7-9h3v9-8h3v9-5h3v9l-4 4H9l-6-8 2-2 4 4"/>)}</button>
-        <button aria-label={`Pantalla completa de ${name}`} title="Pantalla completa" onClick={()=>{if(document.fullscreenElement)void document.exitFullscreen();else void root.current?.requestFullscreen();}}>{monitorIcon(<path d="M3 9V3h6m6 0h6v6m0 6v6h-6M9 21H3v-6"/>)}</button>
+        <button aria-label={`Pantalla completa de ${name}`} title="Pantalla completa" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{monitorIcon(<path d="M3 9V3h6m6 0h6v6m0 6v6h-6M9 21H3v-6"/>)}</button>
       </div>
     </div>
   </div>;

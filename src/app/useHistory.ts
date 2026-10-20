@@ -40,10 +40,12 @@ export function useHistory<T>(initial: T | (() => T), limit = 200) {
   }, []);
 
   const current = useCallback(() => state.current!.present, []);
+  const reset=useCallback((present:T)=>{state.current={past:[],present,future:[]};rerender();},[]);
 
   return {
     value: state.current.present,
     current,
+    reset,
     apply,
     undo,
     redo,

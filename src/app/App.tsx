@@ -4,7 +4,6 @@ import * as ops from "../project/ops";
 import {
   createEmptyProject,
   getProjectDuration,
-  normalizeProject,
   destinationTrack,
   clipAtPlayhead,
   type AudioClip,
@@ -40,27 +39,38 @@ import { MenuBar } from "./MenuBar";
 import { ActionDialog } from "./ActionDialog";
 import { useShuttle } from "./useShuttle";
 import type { Panel } from "./workspaceLayout";
+import { updateMonitorRange } from "./monitorRange";
+import { parseProjectFile, type ProjectMedia } from "../project/projectFile";
+import { exportProject } from "./exportJob";
+import { guardAssistantSession } from "./assistantSession";
 
-type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean };
+type MediaItem = ProjectMedia;
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
 
 const STORAGE_KEY = "ugc-studio:autosave";
 
-const loadSaved = (): { project: Project; media: MediaItem[] } | null => {
+const loadSaved = () => {
+  let raw:string|null=null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+    raw = localStorage.getItem(STORAGE_KEY);
+    return {data:raw?parseProjectFile(raw):null,raw,error:""};
+  } catch(error) {
+    return {data:null,raw,error:`No se pudo recuperar el autoguardado. ${error instanceof Error?error.message:String(error)}`};
   }
+};
+const downloadText=(text:string,name:string)=>{
+  const a=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
 
 const readDurationInFrames = (src: string, fps: number) =>
   new Promise<number>((resolve, reject) => {
     const v = document.createElement("video");
     v.preload = "metadata";
-    v.onloadedmetadata = () => resolve(Math.max(1, Math.floor(v.duration * fps)));
-    v.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    const finish=(error?:Error)=>{clearTimeout(timer);const duration=v.duration;v.onloadedmetadata=null;v.onerror=null;v.removeAttribute("src");v.load();if(error)reject(error);else resolve(Math.max(1,Math.floor(duration*fps)));};
+    const timer=setTimeout(()=>finish(new Error("El archivo no respondió al leer su duración.")),20000);
+    v.onloadedmetadata = () => finish(!Number.isFinite(v.duration)||v.duration<=0?new Error("El archivo no tiene una duración válida."):undefined);
+    v.onerror = () => finish(new Error("No se pudo leer el archivo"));
     v.src = src;
   });
 
@@ -83,8 +93,10 @@ export function App() {
   const previousZoom=useRef<{scale:number;left:number}|null>(null), binAnchor=useRef<string|null>(null);
   useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(""),4500);return()=>clearTimeout(timer);},[feedback]);
   const saved = useMemo(loadSaved, []);
-  const rootHistory = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
+  const [storageIssue,setStorageIssue]=useState(saved.error),[autosaveBlocked,setAutosaveBlocked]=useState(Boolean(saved.error));
+  const rootHistory = useHistory<Project>(() => saved.data?.project ?? createEmptyProject());
   const [editingSequenceId, setEditingSequenceId] = useState<string | null>(null);
+  const documentEpoch=useRef(0);
   const projectView = useCallback((root: Project): Project => editingSequenceId && root.sequences?.[editingSequenceId] ? { ...root.sequences[editingSequenceId], sequences: root.sequences } : root, [editingSequenceId]);
   const currentProject = useCallback(() => projectView(rootHistory.current()), [projectView, rootHistory.current]);
   const applyToProject = useCallback((fn: (p: Project) => Project) => rootHistory.apply((root) => {
@@ -96,7 +108,7 @@ export function App() {
   const viewedProject = useMemo(() => projectView(rootHistory.value), [projectView, rootHistory.value]);
   const history = { ...rootHistory, value: viewedProject, current: currentProject, apply: applyToProject };
   const project = history.value;
-  const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
+  const [media, setMedia] = useState<MediaItem[]>(saved.data?.media ?? []);
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
   const [selectedIds, rawSetSelectedIds] = useState<string[]>([]);
   const [isolatedSelection, setIsolatedSelection] = useState(false);
@@ -168,12 +180,14 @@ export function App() {
 
   // Autoguardado en el navegador
   useEffect(() => {
+    if(autosaveBlocked)return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ project: rootHistory.value, media }));
+      setStorageIssue("");
     } catch {
-      /* sin almacenamiento disponible */
+      setStorageIssue("No se pudo autoguardar en el navegador. Descarga una copia con Guardar para conservar tu trabajo.");
     }
-  }, [rootHistory.value, media]);
+  }, [rootHistory.value, media, autosaveBlocked]);
   useEffect(() => { localStorage.setItem("ugc-studio:bin-view", binView); }, [binView]);
   useEffect(() => { localStorage.setItem("ugc-studio:monitor-layout", monitorLayout); }, [monitorLayout]);
 
@@ -257,7 +271,9 @@ export function App() {
     playerRef.current?.seekTo(at); setFrame(at); selectAtPlayhead(at);
   }, [selectAtPlayhead, history.current]);
 
-  const assistantContext = (): AssistantContext => ({
+  const assistantContext = (): AssistantContext => {
+    const epoch=documentEpoch.current;
+    return guardAssistantSession({
     getProject: history.current,
     commit: (next) => history.apply(() => next),
     selectedClipId: selectedId,
@@ -268,10 +284,16 @@ export function App() {
     onSeek: seek,
     showVisualResult: setVisualResult,
     registerMedia: (items) => setMedia((list) => [...list, ...items.filter((item) => !list.some((m) => m.src === item.src))]),
-  });
+    },()=>documentEpoch.current===epoch);
+  };
+  const applyForSession=()=>{
+    const epoch=documentEpoch.current;
+    return guardAssistantSession({apply:history.apply},()=>documentEpoch.current===epoch).apply;
+  };
 
   const importFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+    const epoch=documentEpoch.current;
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
@@ -283,6 +305,7 @@ export function App() {
         const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps).catch(() =>
           readDurationInFrames(src, project.fps),
         );
+        if(documentEpoch.current!==epoch)throw new Error("Cambiaste de proyecto durante la importación. Vuelve a importar el archivo en el montaje actual.");
         // Si es el mismo video que faltaba (mismo nombre), se reconecta en vez de duplicarse.
         const lost = media.find((m) => m.name === name && missing.has(m.src));
         if (lost) {
@@ -335,8 +358,9 @@ export function App() {
   };
 
   const addFoley = async (file: { name: string; src: string }) => {
+    const apply=applyForSession();
     const durationInFrames = await readDurationInFrames(file.src, project.fps).catch(() => project.fps);
-    history.apply((p) => ops.addAudioClip(p, { src: file.src, name: file.name, durationInFrames }, "A2", frame));
+    apply((p) => ops.addAudioClip(p, { src: file.src, name: file.name, durationInFrames }, "A2", frame));
   };
 
   const addText = (at = frame) => {
@@ -352,45 +376,44 @@ export function App() {
   });
   const remove = (ripple: boolean) => {
     if (!selectedIds.length) return;
-    history.apply((p) => ops.editSelection(p, selectedIds, linkedSelection, (current) => ops.deleteClips(current, selectedIds, ripple)));
-    setSelectedIds([]);
+    const before=history.current(),next=ops.editSelection(before,selectedIds,linkedSelection,current=>ops.deleteClips(current,selectedIds,ripple));
+    history.apply(()=>next);
+    const remaining=selectedIds.filter(id=>ops.findClip(next,id));
+    setSelectedIds(remaining);
+    if(remaining.length)setFeedback("La selección contiene pistas bloqueadas. Desbloquea la pista y su pareja de audio/video para borrarlas.");
   };
 
+  const exportController=useRef<AbortController|null>(null);
+  useEffect(()=>()=>exportController.current?.abort(),[]);
   const startRender = async () => {
+    if(exportController.current)return;
+    const controller=new AbortController();exportController.current=controller;
     setRender({ progress: 0 });
-    const res = await fetch("/api/render", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project, preset }),
-    });
-    const { id } = await res.json();
-    const poll = async () => {
-      const job = await (await fetch(`/api/render/${id}`)).json();
-      setRender({ progress: job.progress, url: job.url, error: job.error });
-      if (job.status === "rendering") setTimeout(poll, 700);
-    };
-    poll();
+    try{await exportProject(project,preset,setRender,{signal:controller.signal});}
+    catch(error){if(!controller.signal.aborted)setRender({progress:0,error:error instanceof Error?error.message:String(error)});}
+    finally{exportController.current=null;}
   };
 
   const saveProjectFile = () => {
-    const blob = new Blob([JSON.stringify({ project: rootHistory.current(), media }, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${project.name}.ugcproj.json`;
-    a.click();
+    downloadText(JSON.stringify({project:rootHistory.current(),media},null,2),`${project.name}.ugcproj.json`);
   };
 
   const openProjectFile = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    recording.cancel();
-    const data = JSON.parse(await file.text());
-    setEditingSequenceId(null); rootHistory.apply(() => normalizeProject(data.project));
+    try{
+    const data = parseProjectFile(await file.text());
+    documentEpoch.current++;
+    recording.cancel();transport("stop");sourceRef.current?.command("stop");
+    setEditingSequenceId(null); rootHistory.reset(data.project);
     setMedia(data.media ?? []);
     setSelectedIds([]); setSelectedMedia([]); setSourceSrc(null);
     migratedAudio.current.clear(); setRevealTrackId(null);
     setTool("select"); seek(0);
     setMarkRange({start:null,end:null});
+    setAutosaveBlocked(false);setStorageIssue("");
+    }catch(error){setFeedback(`No se abrió el archivo. ${error instanceof Error?error.message:String(error)} Se conserva el montaje actual.`);}
+    finally{if(openInput.current)openInput.current.value="";}
   };
 
   const transport=useShuttle({current:()=>playerRef.current?.getCurrentFrame()??frame,seek,play:()=>playerRef.current?.play(),pause:()=>playerRef.current?.pause(),toggle:()=>playerRef.current?.toggle(),rate:setPlaybackRate,fps:project.fps,end:duration});
@@ -408,7 +431,7 @@ export function App() {
     if(transport(id)){sourceRef.current?.command("stop");return;}
     if(id==="shortcuts"||id==="find"){setShortcutsOpen(true);return;}
     if(id==="help"){setActionDialog("help");return;}
-    if(id==="newProject"){if(window.confirm("¿Crear un proyecto nuevo? Guarda primero una copia si quieres conservar este montaje. Puedes cancelar aquí.")){recording.cancel();transport("stop");setEditingSequenceId(null);rootHistory.apply(()=>createEmptyProject());setMedia([]);setSelectedIds([]);setSelectedMedia([]);setSourceSrc(null);setMarkRange({start:null,end:null});setFrame(0);playerRef.current?.seekTo(0);}return;}
+    if(id==="newProject"){if(window.confirm("¿Crear un proyecto nuevo? Guarda primero una copia si quieres conservar este montaje. Puedes cancelar aquí.")){documentEpoch.current++;recording.cancel();transport("stop");setEditingSequenceId(null);rootHistory.reset(createEmptyProject());setAutosaveBlocked(false);setStorageIssue("");setMedia([]);setSelectedIds([]);setSelectedMedia([]);setSourceSrc(null);setMarkRange({start:null,end:null});setFrame(0);playerRef.current?.seekTo(0);}return;}
     if(id==="open"){openInput.current?.click();return;}if(id==="import"){fileInput.current?.click();return;}
     if(["save","saveAs","saveCopy"].includes(id)){saveProjectFile();return;}
     if(id==="export"){setActionDialog("export");return;}
@@ -459,8 +482,7 @@ export function App() {
     if(/^step(Left|Right)[15]$/.test(id)){transport("stop");seek(frame+(id.includes("Left")?-1:1)*Number(id.at(-1)));return;}
     if(id==="start"||id==="end"){seek(id==="start"?0:duration-1);return;}
     if(["nextEdit","prevEdit","nextEditAll","prevEditAll","nextCaption","prevCaption"].includes(id)){const forward=id.startsWith("next"),captions=id.includes("Caption"),targets=[destinationTrack(project,"video"),destinationTrack(project,"audio")],points=[...new Set(project.tracks.filter(t=>captions?t.kind==="caption":id.endsWith("All")||targets.includes(t.id)).flatMap(t=>t.clips.flatMap(c=>captions?[c.from]:[c.from,c.from+c.durationInFrames])))].sort((a,b)=>a-b);const point=forward?points.find(p=>p>frame):points.reverse().find(p=>p<frame);if(point!==undefined)seek(point);return;}
-    if(id==="markIn"){setMarkRange(r=>({start:frame,end:r.end!==null&&r.end<=frame?null:r.end}));return;}if(id==="markOut"){setMarkRange(r=>({start:r.start!==null&&r.start>frame?null:r.start,end:frame+1}));return;}
-    if(id==="clearIn"||id==="clearOut"||id==="clearMarks"){setMarkRange(r=>({start:id!=="clearOut"?null:r.start,end:id!=="clearIn"?null:r.end}));return;}
+    if(["markIn","markOut","clearIn","clearOut","clearMarks"].includes(id)){setMarkRange(r=>updateMonitorRange(r,id,frame,duration));return;}
     if(id==="goIn"||id==="goOut"){seek(id==="goIn"?markRange.start??0:(markRange.end??duration)-1);return;}
     if(id==="markClip"||id==="markSelection"){const clips=id==="markClip"?[clipAtPlayhead(project,frame)].filter(c=>Boolean(c)):project.tracks.flatMap(t=>t.clips).filter(c=>selectedIds.includes(c.id));if(clips.length)setMarkRange({start:Math.min(...clips.map(c=>c!.from)),end:Math.max(...clips.map(c=>c!.from+c!.durationInFrames))});return;}
     const markers=project.markers??[];
@@ -484,9 +506,17 @@ export function App() {
     const scope=el.closest<HTMLElement>("[data-shortcut-scope]")?.dataset.shortcutScope as CommandScope|undefined;
     if(scope){activeScope.current=scope;if(scope==="timeline"||scope==="bin")selectionPanel.current=scope;}
   };
+  const focusClickedPanel=(target:EventTarget|null)=>{
+    captureScope(target);
+    if(!(target instanceof Element))return;
+    // Los clips y los recuadros cancelan mousedown para arrastrar: hay que trasladar
+    // el foco explícitamente, sin robarlo a campos, botones o controles accesibles.
+    if(target.closest('input,textarea,select,button,a,summary,[contenteditable]:not([contenteditable="false"]),[role=slider],[role=separator],[data-command-ui],dialog'))return;
+    target.closest<HTMLElement>('[data-shortcut-scope]')?.focus({preventScroll:true});
+  };
 
   return (
-    <div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style} onPointerDownCapture={e=>captureScope(e.target)} onFocusCapture={e=>captureScope(e.target)} onPointerOver={e=>{const panel=(e.target as HTMLElement).closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel)hoveredPanel.current=panel;}}>
+    <div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style} onPointerDownCapture={e=>focusClickedPanel(e.target)} onFocusCapture={e=>captureScope(e.target)} onPointerOver={e=>{const panel=(e.target as HTMLElement).closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel)hoveredPanel.current=panel;}}>
       <div className="app-chrome">
       <MenuBar run={runCommand} hint={shortcuts.hint} enabled={canRun}/>
       <header className="topbar">
@@ -521,6 +551,7 @@ export function App() {
       </div>
       {shortcutsOpen&&<ShortcutEditor settings={shortcuts.settings} onSave={shortcuts.setSettings} onClose={()=>setShortcutsOpen(false)}/>}
       {feedback&&<div className="command-feedback" role="status">{feedback}</div>}
+      {storageIssue&&<div className="storage-warning" role="alert">{storageIssue}{autosaveBlocked&&<> El original se conserva sin sobrescribir. Abre una copia válida para continuar el autoguardado. {saved.raw&&<button onClick={()=>downloadText(saved.raw!,"Recuperacion-autoguardado.json")}>Descargar copia de recuperación</button>}</>}</div>}
       {actionDialog&&<ActionDialog title={actionDialog==="export"?"Exportar medios":actionDialog==="gain"?"Ganancia de audio":"Atajos y compatibilidad"} onClose={()=>setActionDialog(null)}>
         {actionDialog==="export"?<><p>{project.name} · {formatTimecode(duration,project.fps)} · {project.width}×{project.height}</p><label>Formato<select aria-label="Formato de exportación" value={preset} onChange={e=>setPreset(e.target.value as Preset)}><option value="h264-high">MP4 H.264 · Alta calidad</option><option value="h264-draft">MP4 H.264 · Borrador rápido</option><option value="prores-hq">MOV ProRes 422 HQ</option></select></label><p>Se guarda localmente en UGC Studio/Exportaciones.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button className="primary" onClick={()=>{setActionDialog(null);void startRender();}}>Iniciar exportación</button></footer></>:
         actionDialog==="gain"?<><label>Ajustar ganancia (dB)<input aria-label="Ajustar ganancia en decibelios" type="number" min={-60} max={12} step={1} value={gain} onChange={e=>setGain(Number(e.target.value))}/></label><p>Se aplica a la selección y a su audio enlazado. El control actual limita el volumen al 100%.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button onClick={()=>{if(!Number.isFinite(gain))return;const ids=ops.linkedIds(project,selectedIds);history.apply(p=>ids.reduce((next,id)=>{const c=ops.findClip(next,id)?.clip;return c&&(c.kind==="audio"||c.kind==="video"&&!c.linkedClipId)?ops.updateClip(next,id,{volume:Math.max(0,Math.min(1,c.volume*10**(Math.max(-60,Math.min(12,gain))/20)))}):next;},p));setActionDialog(null);}}>Aplicar</button></footer></>:
@@ -540,7 +571,7 @@ export function App() {
           ) : (
             <span>Exportando… {Math.round(render.progress * 100)}%</span>
           )}
-          <button onClick={() => setRender(null)}>×</button>
+          <button aria-label="Cerrar estado de exportación" disabled={!render.url&&!render.error} title={!render.url&&!render.error?"Espera a que termine la exportación":"Cerrar"} onClick={() => setRender(null)}>×</button>
         </div>
       )}
 
@@ -611,10 +642,10 @@ export function App() {
         ))}{binSelection.box && <div className="selection-marquee" aria-hidden style={{ left: binSelection.box.x, top: binSelection.box.y, width: binSelection.box.width, height: binSelection.box.height }} />}</div></>}
         {binTab === "proyecto" && Object.values(project.sequences ?? {}).length > 0 && <section className="bin-sequences" aria-label="Secuencias del proyecto"><strong>Secuencias</strong>{Object.values(project.sequences ?? {}).map((sequence) => <div className="bin-sequence" key={sequence.id} draggable={sequence.id !== editingSequenceId} onDragStart={(e) => { e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify({ src: "", kind: "video", inFrame: 0, outFrame: sequence.durationInFrames, mode: "auto", sequenceId: sequence.id })); e.dataTransfer.effectAllowed = "copy"; }}>
           <span>▤ {sequence.name} · {formatTimecode(sequence.durationInFrames, project.fps)}</span>
-          <button aria-label={`Abrir secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} onClick={() => { recording.cancel(); setEditingSequenceId(sequence.id); setSelectedIds([]); seek(0); }}>Abrir</button>
+          <button aria-label={`Abrir secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} onClick={() => { documentEpoch.current++; recording.cancel(); setEditingSequenceId(sequence.id); setSelectedIds([]); seek(0); }}>Abrir</button>
           <button aria-label={`Colocar secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} title={timelinePreferences.nestSequences ? "Colocar como bloque anidado" : "Colocar como clips individuales"} onClick={() => { const target = destinationTrack(project, "video"); if (target) history.apply((p) => ops.placeSequence(p, sequence.id, target, frame, timelinePreferences.nestSequences, editingSequenceId ?? undefined)); }}>Colocar</button>
         </div>)}</section>}
-        <AIPanel project={project} apply={history.apply} />
+        <AIPanel project={project} apply={applyForSession()} />
       </aside>
 
       <main className="monitor dock-panel" {...workspace.panelProps("monitor")}>
@@ -697,7 +728,7 @@ export function App() {
       </aside>
 
       <section className="timeline-area dock-panel" {...workspace.panelProps("timeline")} data-shortcut-scope="timeline" tabIndex={-1} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
-        {editingSequenceId && <div className="sequence-navigation"><span>Editando secuencia: {project.name}</span><button onClick={() => { recording.cancel(); setEditingSequenceId(null); setSelectedIds([]); seek(0); }}>Volver al montaje</button></div>}
+        {editingSequenceId && <div className="sequence-navigation"><span>Editando secuencia: {project.name}</span><button onClick={() => { documentEpoch.current++; recording.cancel(); setEditingSequenceId(null); setSelectedIds([]); seek(0); }}>Volver al montaje</button></div>}
         <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
         <TimelineToolbar hint={shortcuts.hint} project={project} frame={frame} preferences={timelinePreferences} onPreferences={updateTimelinePreferences} onSeek={seek} onMarker={(marker) => history.apply((p) => ops.setMarker(p, marker))} onDeleteMarker={(id) => history.apply((p) => ops.deleteMarker(p, id))} onLink={(linked) => history.apply((p) => ops.linkClips(p, linked ? selectedIds : ops.linkedIds(p, selectedIds), linked))} canLink={selectedIds.length === 2 && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "video") && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "audio")} canUnlink={selectedIds.some((id) => { const clip = ops.findClip(project, id)?.clip; return clip && (clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId; })} hasSelection={selectedIds.length > 0} onCreateSequence={(name) => history.apply((p) => ops.createSequence(p, selectedIds, name))}/>
         {(recording.state || recording.error) && <div className="recording-status" role="status">

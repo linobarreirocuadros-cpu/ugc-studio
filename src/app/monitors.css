@@ -36,7 +36,13 @@
 .app .monitor-navigator button { position:absolute; right:0; top:0; min-height:14px; height:14px; padding:0 3px; font-size:9px; }
 .monitor-transport { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:1px; }
 .app .monitor-transport button { width:20px; height:20px; min-height:20px; padding:3px; display:grid; place-items:center; font-size:12px; background:transparent; border-color:transparent; }
-.app .monitor-transport button:hover,.app .monitor-transport button[aria-pressed=true] { background:#7392b52c; border-color:#7392b566; }
+.app .monitor-transport button:hover:not(:disabled) { background:#7392b52c; border-color:#7392b566; }
+.app .monitor-transport button[aria-pressed=true] { position:relative; color:#d3eaff; background:linear-gradient(145deg,#428ce760,#3b538354); border-color:#86bfffaa; box-shadow:inset 0 0 6px #8ec5ff20,0 0 5px #448de72c; }
+.app .monitor-transport button[aria-pressed=true]::after { content:""; position:absolute; right:2px; bottom:2px; width:3px; height:3px; border-radius:50%; background:#a6d6ff; box-shadow:0 0 4px #77baff; }
+.app .monitor-transport button:disabled { opacity:.3; cursor:default; }
+.monitor-range-info { display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; color:#bcd8f5; font-size:8px; font-variant-numeric:tabular-nums; }
+.storage-warning { padding:5px 10px; background:#4a311dde; color:#f1d2a6; border:1px solid #e7ac5c70; border-radius:6px; font-size:9px; }
+.app .timeline-toolbar button[aria-expanded=true],.app .timeline-toolbar button[aria-pressed=true],.app .track-header button[aria-pressed=true] { color:#d3eaff; border-color:#86bfffaa; box-shadow:inset 0 0 5px #8ec5ff18,0 0 4px #448de72c; }
 .app .monitor-transport button svg { width:12px; height:12px; }
 .monitor-viewer:fullscreen { background:#080a0d; padding:10px; height:100%; }
 .clip-copy-preview { opacity:.65; border:1px dashed #cde7ff; pointer-events:none; z-index:5; }

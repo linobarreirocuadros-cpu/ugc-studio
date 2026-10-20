@@ -118,24 +118,27 @@ export function ChatPanel({ ctx,onActivity }: { ctx: () => Omit<ToolContext, "on
   const send = async (text: string) => {
     if (!text.trim() || busy || !settings) return;
     const engine = { provider: settings.provider, model: settings.models[settings.provider] };
+    const requestContext=ctx();
     followLatest.current=true;
     setInput("");
     setBusy(true);
     push({ role: "user", text });
     try {
       let reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, userText: text, ...engine });
+      requestContext.getProject();
       if (settings?.provider === "ollama") setOllamaStatus({ state: "ready" });
       for (let step = 0; step < MAX_STEPS; step++) {
         if (reply.text) push({ role: "assistant", text: reply.text });
         if (reply.toolCalls.length === 0) break;
         const results = [];
         for (const call of reply.toolCalls) {
+          requestContext.getProject();
           push({ role: "status", text: `${TOOL_LABEL[call.name] ?? call.name}…` });
           try {
             const content = await executeTool(call.name, call.input, {
-              ...ctx(),
+              ...requestContext,
               getEditPlan: () => editPlanRef.current,
-              setEditPlan: updatePlan,
+              setEditPlan: plan=>{requestContext.getProject();updatePlan(plan);},
               onStatus: (s) => push({ role: "status", text: s }),
             });
             if (call.name !== "get_project_state") push({ role: "action", text: `✓ ${TOOL_LABEL[call.name] ?? call.name}` });
@@ -147,6 +150,7 @@ export function ChatPanel({ ctx,onActivity }: { ctx: () => Omit<ToolContext, "on
           }
         }
         reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, toolResults: results, ...engine });
+        requestContext.getProject();
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
