@@ -454,8 +454,10 @@ export function App() {
   return (
     <div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style}>
       <header className="topbar">
+        <div className="studio-brand" aria-label="UGC Studio"><span className="studio-mark" aria-hidden><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h9M5 12h14M10 17h9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg></span><span>UGC <b>Studio</b></span></div>
         <input
           className="project-name"
+          aria-label="Nombre del proyecto"
           value={project.name}
           onChange={(e) => history.apply((p) => ({ ...p, name: e.target.value }))}
         />
@@ -469,14 +471,14 @@ export function App() {
           <input ref={openInput} type="file" accept=".json" hidden onChange={(e) => openProjectFile(e.target.files)} />
         </div>
         <div className="export">
-          <button onClick={workspace.reset} title="Restaurar posiciones y tamaños iniciales de los paneles">Restablecer paneles</button>
+          <button className="workspace-reset" aria-label="Restablecer paneles" onClick={workspace.reset} title="Restaurar posiciones y tamaños iniciales de los paneles"><svg viewBox="0 0 20 20" fill="none" aria-hidden><path d="M4 7a6 6 0 1 1 0 6M4 3v4h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg><span>Restablecer paneles</span></button>
           <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
             <option value="h264-high">MP4 H.264 · Alta calidad</option>
             <option value="h264-draft">MP4 H.264 · Borrador rápido</option>
             <option value="prores-hq">MOV ProRes 422 HQ</option>
           </select>
           <button className="primary" onClick={startRender} disabled={render?.progress !== undefined && !render.url && !render.error}>
-            Exportar
+            Exportar <svg className="export-icon" viewBox="0 0 20 20" fill="none" aria-hidden><path d="M6 14 14 6M6 6h8v8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
         </div>
       </header>

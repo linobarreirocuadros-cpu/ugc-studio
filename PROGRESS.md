@@ -12,6 +12,8 @@ enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
 local de voz desde el timeline implementados; captura con micrófono físico pendiente de confirmar.
 Barra superior con seis controles, marcadores persistentes y secuencias editables/anidadas o como clips.
+Primera pasada visual: paneles grafito separados con esquinas redondeadas, controles y estados
+con degradados suaves; paleta definitiva pendiente del criterio y siguientes referencias de Lino.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -20,6 +22,45 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Primera pasada de diseño de interfaz (Codex)
+
+**Decisiones e implementación**
+- Lino pidió un aspecto sobrio, paneles separados/redondeados y degradados basados en sus
+  imágenes. Las referencias de botones se interpretaron visualmente, conservando las funciones
+  y textos del editor. No se han aprobado nuevos espacios ni una distribución definitiva.
+- Tema centralizado en `src/app/studio-theme.css`: grafito, acentos azul/cian y violeta suaves,
+  bordes finos, superficies de 15 px de radio, controles compactos y degradado en acciones
+  principales. Paleta provisional: Lino indicó que responderá con imágenes de referencia.
+- Barra de proyecto con identificador UGC Studio, exportación destacada y restablecimiento
+  compacto en ventanas estrechas. Biblioteca, visores, inspector, chat, timeline, clips y medidor
+  comparten el nuevo estilo. El campo del chat conserva espacio al reducir la altura del panel;
+  el selector de motor tiene desplazamiento interno. Foco visible y movimiento reducido.
+- Se añadieron márgenes/separación real entre paneles. Separadores alineados con las tarjetas,
+  límites coherentes entre ratón/teclado y comienzo desde las dimensiones visibles al redimensionar.
+  Se conserva la distribución local guardada. Sin dependencias o servicios nuevos.
+- No se cambiaron el JSON del montaje, sus operaciones ni los estilos de la composición de video.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**43/43**), `npm run build` y `git diff --check` correctos.
+  Continúa el aviso previo de paquetes de más de 500 kB en la compilación.
+- Revisión visual en navegador: proyecto principal con su distribución y prueba aislada a
+  1280×720; también se observó la variante estrecha del navegador principal. Dos visores,
+  selección, clips/ondas, medidor y campo del chat visibles; sin errores de consola en la prueba.
+- Intercambiar Proyecto/Inspector y devolverlos mediante selector; cambiar tamaños con teclado;
+  alternar dos visores/pestañas y propiedades/chat; ajustar altura de pistas. Menú de ajustes
+  dentro del viewport (límite inferior 708 px en una ventana de 720 px).
+- Captura de la app real con montaje de prueba guardada fuera del repo en visualizations.
+
+**Pendientes y siguiente paso**
+- Recibir/revisar las próximas referencias de Lino y validar paleta, contraste, densidad y comodidad
+  del diseño con él. Esta pasada no acredita su aprobación estética final.
+- Probar arrastre físico de cabeceras y tamaños de pantalla adicionales; la comprobación de
+  reubicación en esta sesión fue por selector, y la de tamaño por teclado.
+- No se repitió exportación ni se hizo una nueva prueba de chat/modelos o micrófono físico:
+  las verificaciones de esta entrega se centran en presentación y navegación.
+- Siguiente paso para Codex: afinar el tema desde la revisión visual de Lino y mantener sus
+  preferencias de dos visores, paneles reubicables y edición reflejada en el timeline.
 
 ### 2026-10-20 — Barra del timeline, marcadores y secuencias editables (Codex)
 
