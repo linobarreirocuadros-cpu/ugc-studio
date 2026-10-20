@@ -103,6 +103,8 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 
 ## Herramientas de edición manual y gestión de medios (en curso)
 - [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
+- [x] Selección múltiple por recuadro en timeline y Proyecto (lista/cuadrícula), Ctrl/Shift+clic,
+      movimiento/borrado conjunto reversible y selección independiente entre paneles
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en A0 Voz
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles

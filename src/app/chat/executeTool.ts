@@ -145,6 +145,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
       return JSON.stringify({
         duracion_s: round(getProjectDuration(project) / fps),
         clip_seleccionado: ctx.selectedClipId ?? null,
+        clips_seleccionados: ctx.selectedClipIds ?? (ctx.selectedClipId ? [ctx.selectedClipId] : []),
         cabezal_s: round((ctx.currentFrame ?? 0) / fps),
         pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, clips: t.clips.map((c) => clipSummary(c, fps)) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",

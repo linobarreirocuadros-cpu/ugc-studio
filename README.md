@@ -24,6 +24,12 @@ npm run dev   # http://localhost:5173
 - **Previsualizar y elegir un fragmento**: un clic en un archivo lo abre en el monitor **Origen**. Reproduce hasta el punto deseado y marca **I · Entrada** y **O · Salida**. El monitor **Programa** muestra la edición. Puedes usar **Dos visores** o **Pestañas**.
 - **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Insertar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. El audio extraído de un video entra en **A0 Voz**; allí se muestra su onda.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
+- **Seleccionar varios**: mantén el clic izquierdo en un espacio vacío de Proyecto o del timeline
+  y arrastra el recuadro sobre los elementos. Funciona en lista y cuadrícula. Shift/Ctrl+clic
+  suma o quita elementos; Esc limpia la selección. Ctrl/Cmd+A selecciona todo en el panel activo.
+  En el timeline puedes mover el grupo o borrarlo con Supr; Ctrl/Cmd+Z deshace el conjunto.
+  La regla de tiempo sigue sirviendo para mover el cabezal. Arrastrar desde un clip lo mueve;
+  arrastrar desde un archivo de Proyecto lo lleva al timeline.
 - **Exportar**: elige calidad arriba a la derecha → Exportar.
 
 Tus videos importados y exportaciones se guardan en la carpeta **`UGC Studio`** dentro de tu

@@ -5,6 +5,7 @@ Fase 2 (chat con IA) construida, con primera visión local y limpieza de audio i
 ChatGPT conectado por Sign in with ChatGPT oficial y probado con GPT-6.1-Sol; selector de motor/modelo
 dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer y exportación.
 Transcripción precisa local con faster-whisper large-v3 instalada y probada en este PC.
+Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -344,8 +345,52 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
 - Continúan pendientes validación de reproducción sin bucles por Lino, miniaturas de timeline,
   diseño de espacios con su criterio, instalador en equipo limpio y avisos previos de multer.
 
+### 2026-10-20 — Selección múltiple con el mouse (Codex)
+
+**Implementado**
+- Recuadro de selección al mantener clic izquierdo y arrastrar desde un espacio vacío del
+  timeline o de la zona de archivos de Proyecto. Funciona en lista y cuadrícula, en ambos
+  sentidos, seleccionando los elementos que toca. El recuadro no mueve el cabezal.
+- Shift/Ctrl/Cmd+clic añade o quita elementos. Arrastrar con modificador suma al conjunto previo;
+  clic vacío limpia, Esc limpia y Ctrl/Cmd+A selecciona todo en el panel activo. Esc durante un
+  recuadro y pérdida de foco cancelan el gesto y recuperan la selección anterior. Desplazamiento
+  automático en bordes; coordenadas del contenido limitadas para arrastres fuera del panel.
+- Mover varios clips conserva sus distancias, posiciones entre pistas y orden de composición.
+  Límite en frame cero para todo el grupo; cambio vertical solo si todas las pistas destino
+  son compatibles. Los tiradores siguen recortando un solo clip. Movimiento y borrado de grupo
+  usan ops puras y una transacción de Deshacer. Ripple calcula la unión de huecos por pista.
+- Selecciones independientes entre Proyecto y timeline, contador visible y estado accesible.
+  Supr en Proyecto no borra una selección anterior del timeline. Abrir otro proyecto limpia
+  las selecciones; se eliminan identificadores que ya no existen. El inspector indica la
+  selección múltiple y el chat recibe todos sus IDs; acciones locales de un solo clip rechazan
+  una selección ambigua en lugar de procesar otro clip por descarte.
+- El payload de arrastre de Proyecto admite varios archivos, en su orden del panel, y la
+  inserción los agrupa en una operación. Una mezcla de audio/video requiere pista de audio;
+  se avisa si se intenta colocarla completa en video. El monitor Origen conserva su rango individual.
+
+**Pruebas realizadas**
+- Interfaz real en copia aislada: recuadro seleccionó cuatro clips de dos pistas; arrastre de
+  grupo los desplazó 30 frames manteniendo distancias. Un Deshacer recuperó las posiciones.
+  Supr eliminó los cuatro y un Deshacer los recuperó. No se cambió el proyecto de trabajo de Lino.
+- Proyecto en lista: seleccionó tres archivos con recuadro. Ctrl+clic quitó uno; Supr en ese
+  panel no borró clips del montaje. Cuadrícula: otro recuadro seleccionó dos archivos.
+- Timeline: recuadro en sentido inverso, Ctrl+clic para pasar de cuatro a cinco y volver a cuatro.
+- Pruebas de operaciones: límite conjunto al frame cero, pistas incompatibles, traslado a V2
+  sin duplicación, pureza y ripple con huecos solapados sin descontarlos dos veces.
+- npm run typecheck, 17 pruebas npm test, npm run build y git diff --check sin errores. Build
+  mantiene el aviso previo de chunks grandes.
+
+**Pendiente de validar**
+- Arrastre nativo de varios archivos desde Proyecto: la automatización de navegador no produjo
+  un drop HTML5 en dos intentos; no se declara probado este gesto. Revisar manualmente con Lino.
+- Cancelar a mitad de gesto y selección con desplazamiento automático prolongado; dispositivos
+  táctiles/lápiz no cubiertos. Esta selección funciona con clic izquierdo de mouse.
+- Las acciones de audio/visión individuales siguen requiriendo un clip o ID explícito. La
+  selección múltiple no crea vínculos permanentes entre video y audio ni propiedades de grupo.
+
 ## Siguiente paso sugerido para Codex
 
+Validar con Lino el gesto de selección en su flujo y el arrastre nativo de varios archivos.
 Recoger la revisión editorial de Lino del resumen de 15 s y de la nueva transcripción. Ajustar
 con ejemplos concretos y verificar reproducción. Después priorizar vínculo individual de video/audio
 derivado y export con ese audio. Revisar con Lino el prototipo de espacios antes de rediseñar;

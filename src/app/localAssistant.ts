@@ -7,6 +7,7 @@ export type AssistantContext = {
   getProject: () => Project;
   commit: (next: Project) => void;
   selectedClipId?: string | null;
+  selectedClipIds?: string[];
   currentFrame?: number;
   onSeek?: (frame: number) => void;
   showVisualResult?: (result: VisualResult) => void;
@@ -16,6 +17,7 @@ type SourceClip = VideoClip | AudioClip;
 export const clipStamp = (clip: SourceClip, fps: number) => JSON.stringify([clip.id, clip.src, clip.from, clip.trimStart, clip.durationInFrames, fps]);
 
 export function sourceClip(ctx: AssistantContext, id?: string, videoOnly = false): SourceClip {
+  if (!id && (ctx.selectedClipIds?.length ?? 0) > 1) throw new Error("Hay varios clips seleccionados. Selecciona uno para esta acción o indica su identificador en el chat.");
   const project = ctx.getProject();
   const requested = id || ctx.selectedClipId;
   const selected = requested ? ops.findClip(project, requested)?.clip : null;

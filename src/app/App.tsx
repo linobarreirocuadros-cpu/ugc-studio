@@ -22,6 +22,7 @@ import { MEDIA_DRAG_TYPE, Timeline, formatTimecode, type MediaDrag } from "./Tim
 import { useHistory } from "./useHistory";
 import { LocalAssistantPanel } from "./LocalAssistantPanel";
 import type { AssistantContext, VisualResult } from "./localAssistant";
+import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -82,7 +83,12 @@ export function App() {
   const project = history.value;
   const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const selectionPanel = useRef<"timeline" | "bin">("timeline");
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);
+  const binSelection = useMarqueeSelection({ selected: selectedMedia, onSelect: setSelectedMedia });
   const [frame, setFrame] = useState(0);
   const [pxPerFrame, setPxPerFrame] = useState(2);
   const [uploading, setUploading] = useState(false);
@@ -102,6 +108,11 @@ export function App() {
   const duration = getProjectDuration(project);
   const selected = selectedId ? ops.findClip(project, selectedId)?.clip ?? null : null;
   const sourceMedia = media.find((m) => m.src === sourceSrc) ?? null;
+  useEffect(() => {
+    const valid = new Set(project.tracks.flatMap((t) => t.clips).map((c) => c.id));
+    setSelectedIds((ids) => ids.every((id) => valid.has(id)) ? ids : ids.filter((id) => valid.has(id)));
+  }, [project]);
+  useEffect(() => { setSelectedMedia((ids) => ids.filter((id) => media.some((m) => m.src === id))); }, [media]);
 
   // Autoguardado en el navegador
   useEffect(() => {
@@ -191,6 +202,7 @@ export function App() {
     getProject: history.current,
     commit: (next) => history.apply(() => next),
     selectedClipId: selectedId,
+    selectedClipIds: selectedIds,
     currentFrame: frame,
     onSeek: seek,
     showVisualResult: setVisualResult,
@@ -234,8 +246,19 @@ export function App() {
     history.apply((p) => ops.addSourceRange(p, m, trackId, at, inFrame, outFrame, videoOnly));
   };
   const dropMedia = (dragged: MediaDrag, trackId: string, at: number) => {
-    const m = media.find((item) => item.src === dragged.src);
-    if (m && !missing.has(m.src)) addSource(m, trackId, at, dragged.inFrame, dragged.outFrame, dragged.mode === "video");
+    const items = dragged.items ?? [dragged];
+    const track = project.tracks.find((t) => t.id === trackId);
+    if (items.some((item) => missing.has(item.src) || !media.some((m) => m.src === item.src))) return;
+    if (track?.kind === "video" && items.some((item) => item.kind === "audio" || item.mode === "audio")) { alert("Para colocar la selección en una pista de video, selecciona solo videos. También puedes colocarla completa como audio en una pista de audio."); return; }
+    history.apply((p) => {
+      let next = p, cursor = at;
+      for (const item of items) {
+        const m = media.find((entry) => entry.src === item.src)!;
+        next = ops.addSourceRange(next, m, trackId, cursor, item.inFrame, item.outFrame, item.mode === "video");
+        cursor += item.outFrame - item.inFrame;
+      }
+      return next;
+    });
   };
   const startMediaDrag = (e: React.DragEvent, m: MediaItem, inFrame = 0, outFrame = m.durationInFrames, mode: MediaDrag["mode"] = "auto") => {
     const payload: MediaDrag = { src: m.src, kind: m.kind ?? "video", inFrame, outFrame, mode };
@@ -256,9 +279,9 @@ export function App() {
 
   const split = () => history.apply((p) => ops.splitAt(p, frame));
   const remove = (ripple: boolean) => {
-    if (!selectedId) return;
-    history.apply((p) => (ripple ? ops.rippleDeleteClip(p, selectedId) : ops.deleteClip(p, selectedId)));
-    setSelectedId(null);
+    if (!selectedIds.length) return;
+    history.apply((p) => ops.deleteClips(p, selectedIds, ripple));
+    setSelectedIds([]);
   };
 
   // Atajos de teclado estilo Premiere
@@ -277,7 +300,13 @@ export function App() {
         e.preventDefault();
         split();
       } else if (e.key === "Delete" || e.key === "Backspace") {
-        remove(e.shiftKey);
+        e.preventDefault();
+        if (selectionPanel.current === "timeline") remove(e.shiftKey);
+      } else if (e.key === "Escape") {
+        selectionPanel.current === "timeline" ? setSelectedIds([]) : setSelectedMedia([]);
+      } else if (mod && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        selectionPanel.current === "timeline" ? setSelectedIds(project.tracks.flatMap((t) => t.clips).map((c) => c.id)) : setSelectedMedia(media.map((m) => m.src));
       } else if (e.key === "ArrowLeft") {
         seek(Math.max(0, frame - (e.shiftKey ? 5 : 1)));
       } else if (e.key === "ArrowRight") {
@@ -322,6 +351,7 @@ export function App() {
     const data = JSON.parse(await file.text());
     history.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
+    setSelectedIds([]); setSelectedMedia([]); setSourceSrc(null);
   };
 
   return (
@@ -389,17 +419,28 @@ export function App() {
         </div>
         {binTab === "foley" && <FoleyPanel onAdd={addFoley} />}
         {binTab === "proyecto" && media.length === 0 && <p className="hint">Importa tus clips UGC, voces en off o música.</p>}
-        {binTab === "proyecto" && <div className={`bin-media ${binView}`}>{media.map((m) => (
+        {binTab === "proyecto" && <><p className="selection-hint" role="status">{selectedMedia.length ? `${selectedMedia.length} archivo${selectedMedia.length === 1 ? "" : "s"} seleccionado${selectedMedia.length === 1 ? "" : "s"}` : "Arrastra desde un espacio vacío para seleccionar"}</p><div ref={binSelection.ref} onMouseDownCapture={() => { selectionPanel.current = "bin"; }} onMouseDown={binSelection.onMouseDown} className={`bin-media ${binView}`} role="listbox" aria-label="Archivos del proyecto" aria-multiselectable>{media.map((m) => (
           <div
             key={m.src}
-            className={`bin-item ${sourceSrc === m.src ? "source-selected" : ""} ${missing.has(m.src) ? "missing" : ""}`}
+            className={`bin-item ${selectedMedia.includes(m.src) ? "source-selected" : ""} ${missing.has(m.src) ? "missing" : ""}`}
+            data-selection-id={m.src}
+            role="option"
+            aria-selected={selectedMedia.includes(m.src)}
+            aria-label={m.name}
             draggable={!missing.has(m.src)}
-            onDragStart={(e) => startMediaDrag(e, m)}
-            onClick={() => setSourceSrc(m.src)}
+            onDragStart={(e) => {
+              const ids = selectedMedia.includes(m.src) ? selectedMedia : [m.src];
+              setSelectedMedia(ids);
+              const items: MediaDrag[] = media.filter((item) => ids.includes(item.src)).map((item) => ({ src: item.src, kind: item.kind ?? "video", inFrame: 0, outFrame: item.durationInFrames, mode: "auto" }));
+              if (items.some((item) => missing.has(item.src))) { e.preventDefault(); return; }
+              e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify({ ...items[0], items }));
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+            onClick={(e) => { setSelectedMedia(e.shiftKey || e.ctrlKey || e.metaKey ? toggleSelection(selectedMedia, m.src) : [m.src]); setSourceSrc(m.src); }}
             onDoubleClick={() => addMedia(m)}
             title="Clic: abrir en Origen · Arrastrar: colocar en la línea de tiempo · Doble clic: añadir"
           >
-            {m.kind === "audio" ? <div className="bin-audio">♪</div> : <video src={m.proxySrc ?? m.src} muted preload="metadata" />}
+            {m.kind === "audio" ? <div className="bin-audio">♪</div> : <video src={m.proxySrc ?? m.src} muted preload="metadata" draggable={false} />}
             <div>
               <div className="bin-name">{m.name}</div>
               <div className="bin-dur">
@@ -421,7 +462,7 @@ export function App() {
               {missing.has(m.src) && <div className="bin-missing">⚠ Archivo no encontrado. Impórtalo de nuevo y se reconecta solo.</div>}
             </div>
           </div>
-        ))}</div>}
+        ))}{binSelection.box && <div className="selection-marquee" aria-hidden style={{ left: binSelection.box.x, top: binSelection.box.y, width: binSelection.box.width, height: binSelection.box.height }} />}</div></>}
         <AIPanel project={project} apply={history.apply} />
       </aside>
 
@@ -481,7 +522,7 @@ export function App() {
           <LocalAssistantPanel mode="audio" ctx={assistantContext} project={project} result={visualResult} />
         </div>
         {rightTab === "propiedades" && <>
-        {!selected && <p className="hint">Selecciona un clip en la línea de tiempo.</p>}
+        {!selected && <p className="hint">{selectedIds.length > 1 ? `${selectedIds.length} clips seleccionados. Arrastra para moverlos juntos; Supr los borra. Ctrl/Cmd+Z deshace la operación.` : "Selecciona un clip en la línea de tiempo."}</p>}
         {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         {selected?.kind === "caption" && (
           <CaptionInspector
@@ -503,15 +544,16 @@ export function App() {
         </>}
       </aside>
 
-      <section className="timeline-area">
+      <section className="timeline-area" onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
+        <div className="timeline-selection-status" role="status">{selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Arrastra desde un espacio vacío para seleccionar"} · Shift/Ctrl+clic: sumar/quitar · Esc: quitar selección</div>
         <Timeline
           project={project}
           frame={frame}
-          selectedId={selectedId}
+          selectedIds={selectedIds}
           pxPerFrame={pxPerFrame}
           onSeek={seek}
-          onSelect={setSelectedId}
-          onMove={(id, from, trackId) => history.apply((p) => ops.moveClip(p, id, from, trackId))}
+          onSelect={setSelectedIds}
+          onMove={(ids, delta, offset) => history.apply((p) => ops.moveClips(p, ids, delta, offset))}
           onTrim={(id, edge, delta) => history.apply((p) => ops.trimClip(p, id, edge, delta))}
           onDropMedia={dropMedia}
           waveforms={waveforms}

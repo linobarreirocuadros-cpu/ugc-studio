@@ -209,6 +209,34 @@ export const deleteClip = (project: Project, clipId: string): Project =>
     clips: track.clips.filter((c) => c.id !== clipId),
   }));
 
+/** Un único desplazamiento para conservar las distancias del grupo, también al llegar a cero. */
+export const moveClips = (project: Project, ids: string[], deltaFrames: number, trackOffset = 0): Project => {
+  const selected = new Set(ids);
+  const clips = project.tracks.flatMap((t) => t.clips).filter((c) => selected.has(c.id));
+  if (!clips.length || !Number.isFinite(deltaFrames) || !Number.isInteger(trackOffset)) return project;
+  const delta = Math.max(-Math.min(...clips.map((c) => c.from)), Math.round(deltaFrames));
+  const validOffset = project.tracks.every((track, index) => !track.clips.some((c) => selected.has(c.id)) || project.tracks[index + trackOffset]?.kind === track.kind) ? trackOffset : 0;
+  if (!delta && !validOffset) return project;
+  return { ...project, tracks: project.tracks.map((track, index) => ({ ...track, clips: !validOffset ? track.clips.map((c) => selected.has(c.id) ? { ...c, from: c.from + delta } : c) : [
+    ...track.clips.filter((c) => !selected.has(c.id)),
+    ...(project.tracks[index - validOffset]?.clips ?? []).filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from + delta })),
+  ] })) };
+};
+
+/** Borrado de selección en una transacción; ripple cierra la unión de sus huecos por pista. */
+export const deleteClips = (project: Project, ids: string[], ripple = false): Project => {
+  const selected = new Set(ids);
+  return mapTracks(project, (track) => {
+    const ranges: { start: number; end: number }[] = [];
+    if (ripple) for (const clip of track.clips.filter((c) => selected.has(c.id)).sort((a, b) => a.from - b.from)) {
+      const last = ranges.at(-1), end = clip.from + clip.durationInFrames;
+      if (last && clip.from <= last.end) last.end = Math.max(last.end, end);
+      else ranges.push({ start: clip.from, end });
+    }
+    return { ...track, clips: track.clips.filter((c) => !selected.has(c.id)).map((c) => ({ ...c, from: c.from - ranges.reduce((sum, r) => sum + (r.end <= c.from ? r.end - r.start : 0), 0) })) };
+  });
+};
+
 /** Borra el clip y corre hacia la izquierda los clips que venían después (como "Ripple Delete"). */
 export const rippleDeleteClip = (project: Project, clipId: string): Project => {
   const found = findClip(project, clipId);
