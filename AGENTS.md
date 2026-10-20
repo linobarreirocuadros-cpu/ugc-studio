@@ -20,6 +20,11 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - Lino quiere espacios de trabajo fáciles de cambiar desde una barra inferior, inspirados
   en la organización de Resolve. Nombres, número de espacios y diseño final requieren su criterio.
 - Sigue vigente: dos visores Origen/Programa por defecto y opción de alternar por pestañas.
+  `MonitorViewer.tsx` comparte zoom con rueda bajo puntero, Shift acelerado, pan central/Mano,
+  Ajustar/porcentajes, regla temporal con rango visible y controles fuera de la imagen.
+  Calidad Full usa originales; 1/2..1/16 genera versiones locales con FFmpeg en `previewQuality.ts`.
+  Son preferencias de vista: no cambiar Project ni la resolución de exportación. Tipografía de
+  overlays permanece nítida; no es un render rasterizado de toda la composición a baja resolución.
 - Nombres aprobados el 2026-10-20: B1, B2… y Audio 1, Audio 2…; pistas genéricas y ampliables.
   Los IDs internos V1/V2/A0/A1/A2 se conservan por compatibilidad. El audio original del video
   se representa como AudioClip enlazado, con el video silenciado para evitar duplicación.
@@ -49,6 +54,9 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   solo 116 comandos adaptados están disponibles y 104 están reservados por funciones pendientes.
   Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
   Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
+  Con Selección: Alt+clic aísla imagen/audio temporalmente, conservando su enlace; el movimiento
+  posterior respeta esa selección. Alt+arrastrar duplica con IDs/enlaces nuevos, preview y una
+  transacción de historial. `duplicateClipsWithSelection` devuelve solo los IDs de las copias.
 - La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
   reconocer acciones o sonidos requiere modelos y análisis adicionales.
 - La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.

@@ -368,6 +368,29 @@ export const copyClips = (project: Project, ids: string[], linked = true): Proje
   return structuredClone({ ...project, tracks: project.tracks.map(t => ({ ...t, clips: t.clips.filter(c => selected.has(c.id)) })) });
 };
 
+/** Alt+arrastrar: copia con IDs/enlaces nuevos y la misma sobrescritura que una colocación. */
+export const duplicateClipsWithSelection = (project: Project, ids: string[], deltaFrames: number, trackOffset = 0, followLinks = true): {project:Project;ids:string[]} => {
+  const unchanged={project,ids:[] as string[]};
+  const selected = new Set(followLinks ? linkedIds(project, ids) : ids), vertical = new Set(ids);
+  const clips = project.tracks.flatMap(t => t.clips).filter(c => selected.has(c.id));
+  if (!clips.length || !Number.isFinite(deltaFrames) || !Number.isInteger(trackOffset)) return unchanged;
+  if (project.tracks.some(t => t.locked && t.clips.some(c => selected.has(c.id)))) return unchanged;
+  const offset = project.tracks.every((t,i) => !t.clips.some(c => vertical.has(c.id)) || project.tracks[i+trackOffset]?.kind === t.kind) ? trackOffset : 0;
+  if (project.tracks.some((t,i) => t.clips.some(c => vertical.has(c.id)) && project.tracks[i+offset]?.locked)) return unchanged;
+  const start = Math.min(...clips.map(c => c.from)), delta = Math.max(-start,Math.round(deltaFrames));
+  if (!delta && !offset) return unchanged;
+  const identities=new Map(clips.map(c=>[c.id,newId()]));
+  const placed=mapTracks(project,(t)=>({...t,clips:[...t.clips,...project.tracks.flatMap((source,index)=>source.clips.filter(c=>selected.has(c.id)&&project.tracks[vertical.has(c.id)?index+offset:index]?.id===t.id).map(c=>{
+    const copy=structuredClone({...c,id:identities.get(c.id)!,from:c.from+delta});
+    if(copy.kind==="audio"||copy.kind==="video")copy.linkedClipId=copy.linkedClipId?identities.get(copy.linkedClipId):undefined;
+    if(copy.kind==="audio"&&copy.derivedFrom){const parent=identities.get(copy.derivedFrom.clipId);copy.derivedFrom=parent?{...copy.derivedFrom,clipId:parent}:undefined;}
+    return copy;
+  }))]}));
+  const next=overwritePlaced(project,placed,[...identities.values()]);
+  return {project:next,ids:[...identities.values()].filter(id=>findClip(next,id))};
+};
+export const duplicateClips = (project:Project,ids:string[],deltaFrames:number,trackOffset=0,followLinks=true):Project => duplicateClipsWithSelection(project,ids,deltaFrames,trackOffset,followLinks).project;
+
 /** Pega en las mismas pistas, manteniendo offsets y remapeando las relaciones de los clips. */
 export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string): Project => {
   const clips = clipboard.tracks.flatMap(t => t.clips);

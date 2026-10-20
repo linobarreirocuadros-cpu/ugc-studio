@@ -1,0 +1,44 @@
+/* Controles de monitor fuera de la imagen: no cambian de escala con su zoom. */
+.monitor-view .source-pane,.monitor-view .program-pane { align-items:stretch; overflow:auto; }
+.monitor-view .source-monitor { min-height:160px; align-items:stretch; }
+.monitor-view .program-preview { display:flex; min-height:160px; align-items:stretch; }
+.monitor-viewer { display:flex; flex-direction:column; flex:1 1 0; min-width:0; min-height:140px; width:100%; container:viewer / inline-size; }
+.monitor-stage { flex:1 1 0; min-height:40px; min-width:0; position:relative; overflow:hidden; background:#080a0d; touch-action:none; }
+.monitor-stage.pan-tool { cursor:grab; }
+.monitor-stage.pan-tool:active { cursor:grabbing; }
+.monitor-image video { display:block; }
+.monitor-safe-guides { position:absolute; left:50%; top:50%; pointer-events:none; }
+.monitor-safe-guides i { position:absolute; inset:5%; border:1px solid #fff9; }
+.monitor-safe-guides i+i { inset:10%; border-style:dashed; }
+.monitor-audio-placeholder { height:100%; display:grid; place-items:center; color:var(--muted); font-size:32px; }
+.monitor-controls { flex:0 0 auto; width:100%; padding-top:4px; display:flex; flex-direction:column; gap:3px; border-top:1px solid #9cbde218; }
+.monitor-readouts { display:flex; flex-wrap:wrap; align-items:center; gap:3px; }
+.app .monitor-readouts input { width:76px; min-width:0; padding:1px 2px; font-size:8px; color:var(--pale-sky); background:transparent; font-variant-numeric:tabular-nums; }
+.app .monitor-readouts select { padding:1px 2px; font-size:8px; min-width:0; width:56px; }
+.monitor-duration { font-size:8px; margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
+.monitor-status { font-size:8px; color:#ddc68e; line-height:1.3; max-height:30px; overflow:auto; }
+.monitor-ruler { position:relative; height:24px; margin:0 7px; cursor:ew-resize; touch-action:none; background:repeating-linear-gradient(90deg,#a1bad238 0 1px,transparent 1px 2%); background-size:100% 5px; background-repeat:no-repeat; background-position:bottom; overflow:hidden; }
+.monitor-tick { position:absolute; top:0; font-size:7px; color:var(--muted); transform:translateX(-50%); pointer-events:none; white-space:nowrap; }
+.monitor-tick:first-of-type { transform:none; }
+.monitor-tick:last-of-type { transform:translateX(-100%); }
+.monitor-playhead { position:absolute; top:12px; bottom:0; border-left:1px solid #90c6ff; pointer-events:none; }
+.monitor-playhead::before { content:""; position:absolute; left:-4px; top:0; border-top:5px solid #90c6ff; border-inline:4px solid transparent; }
+.monitor-range { position:absolute; top:10px; bottom:0; background:#b7cce626; border-inline:1px solid #c4d5ec99; pointer-events:none; }
+.app .monitor-marker { position:absolute; bottom:0; min-height:0; padding:0; font-size:8px; border:0; background:transparent; transform:translateX(-50%); }
+.monitor-navigator { position:relative; height:16px; margin:0 5px; }
+.monitor-navigation-track { position:absolute; left:0; right:23px; top:6px; height:3px; background:#aacbff19; border-radius:2px; }
+.monitor-navigation-track > span { position:absolute; top:0; bottom:0; background:#a6bdd980; }
+.app .monitor-navigator input { position:absolute; left:0; top:0; width:calc(100% - 23px); height:16px; min-height:16px; margin:0; pointer-events:none; }
+.app .monitor-navigator input::-webkit-slider-runnable-track { background:transparent; }
+.app .monitor-navigator input::-moz-range-track { background:transparent; }
+.app .monitor-navigator input::-webkit-slider-thumb { pointer-events:auto; cursor:ew-resize; width:8px; height:8px; margin-top:-2.5px; }
+.app .monitor-navigator input::-moz-range-thumb { pointer-events:auto; cursor:ew-resize; width:8px; height:8px; }
+.app .monitor-navigator button { position:absolute; right:0; top:0; min-height:14px; height:14px; padding:0 3px; font-size:9px; }
+.monitor-transport { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:1px; }
+.app .monitor-transport button { width:20px; height:20px; min-height:20px; padding:3px; display:grid; place-items:center; font-size:12px; background:transparent; border-color:transparent; }
+.app .monitor-transport button:hover,.app .monitor-transport button[aria-pressed=true] { background:#7392b52c; border-color:#7392b566; }
+.app .monitor-transport button svg { width:12px; height:12px; }
+.monitor-viewer:fullscreen { background:#080a0d; padding:10px; height:100%; }
+.clip-copy-preview { opacity:.65; border:1px dashed #cde7ff; pointer-events:none; z-index:5; }
+@container viewer (max-width:260px) { .monitor-tick:nth-of-type(2),.monitor-tick:nth-of-type(4) { display:none; } .monitor-duration { flex:1; text-align:right; } }
+@container viewer (max-width:190px) { .monitor-duration { display:none; } .monitor-readouts input { width:70px; } .monitor-readouts select { width:calc(50% - 2px); } }

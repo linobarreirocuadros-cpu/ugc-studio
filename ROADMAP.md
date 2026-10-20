@@ -137,6 +137,14 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
       cabeceras responsivas y tipografía/iconos reducidos; preferencias locales persistentes
 - [ ] Validar con Lino comodidad de zonas/guía y cancelación de arrastre; ventanas flotantes y pestañas separables
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
+- [x] Zoom de imagen con rueda/porcentajes, pan con Mano o botón central y doble clic para Ajustar;
+      controles externos, timecode editable, regla navegable, rango visible, I/O y márgenes seguros
+- [x] Full original y 1/2, 1/4, 1/8, 1/16 con versiones locales reales y caché FFmpeg;
+      transporte de Programa con edición anterior/siguiente, marcador, match frame, mute y loop
+- [x] Alt+clic selecciona solo imagen/audio sin desenlazar; Alt+arrastrar duplica selección con
+      enlaces nuevos, preview, sobrescritura, candados y Deshacer en un paso
+- [ ] Validar Alt+arrastrar con mouse físico de Lino y comodidad de controles/zoom de monitores;
+      ampliar herramientas de monitor (captura de fotograma, personalización de botones y más modos)
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en Audio 1
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles
 - [x] Comprobar integridad y reproducción local del video UGC original en un proyecto aislado

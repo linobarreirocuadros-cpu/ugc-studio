@@ -1,5 +1,5 @@
-import { Player, type PlayerRef } from "@remotion/player";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { type PlayerRef } from "@remotion/player";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as ops from "../project/ops";
 import {
   createEmptyProject,
@@ -18,7 +18,7 @@ import { AIPanel, CAPTION_PRESETS } from "./AIPanel";
 import { FoleyPanel, openFolder } from "./FoleyPanel";
 import { ChatPanel } from "./chat/ChatPanel";
 import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
-import { ProjectComposition } from "../remotion/ProjectComposition";
+import { ProgramMonitor } from "./ProgramMonitor";
 import { SourceMonitor, type SourceHandle } from "./SourceMonitor";
 import { MEDIA_DRAG_TYPE, Timeline, formatTimecode, type MediaDrag } from "./Timeline";
 import { useHistory } from "./useHistory";
@@ -72,39 +72,6 @@ const readHasAudio = async (src: string) => {
   }
 };
 
-// El cabezal actualiza App en cada frame. Mantener el Player aislado evita volver a
-// sincronizar el elemento <video> 30 veces por segundo durante la reproducción.
-const PreviewPlayer = memo(function PreviewPlayer({
-  playerRef,
-  project,
-  duration,
-  playbackRate,
-}: {
-  playerRef: RefObject<PlayerRef | null>;
-  project: Project;
-  duration: number;
-  playbackRate: number;
-}) {
-  const inputProps = useMemo(() => ({ project, preview: true }), [project]);
-  return (
-    <Player
-      ref={playerRef}
-      component={ProjectComposition}
-      inputProps={inputProps}
-      bufferStateDelayInMilliseconds={300}
-      acknowledgeRemotionLicense
-      durationInFrames={duration}
-      fps={project.fps}
-      compositionWidth={project.width}
-      compositionHeight={project.height}
-      style={{ height: "100%", aspectRatio: `${project.width} / ${project.height}`, maxWidth: "100%" }}
-      controls
-      playbackRate={playbackRate}
-      clickToPlay={false}
-    />
-  );
-});
-
 export function App() {
   const workspace = useWorkspace();
   const shortcuts=useShortcuts();
@@ -129,7 +96,9 @@ export function App() {
   const project = history.value;
   const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, rawSetSelectedIds] = useState<string[]>([]);
+  const [isolatedSelection, setIsolatedSelection] = useState(false);
+  const setSelectedIds: typeof rawSetSelectedIds = useCallback((ids) => { if(typeof ids !== "function") setIsolatedSelection(false); rawSetSelectedIds(ids); },[]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   const [revealTrackId, setRevealTrackId] = useState<string | null>(null);
   const migratedAudio = useRef(new Set<string>());
@@ -143,7 +112,8 @@ export function App() {
   const [tool, setTool] = useState<TimelineTool>("select");
   const [timelinePreferences, setTimelinePreferences] = useState(() => { try { return normalizeTimelinePreferences(JSON.parse(localStorage.getItem("ugc-studio:timeline") ?? "null")); } catch { return normalizeTimelinePreferences(null); } });
   const updateTimelinePreferences = (patch: Partial<TimelinePreferences>) => setTimelinePreferences((p) => normalizeTimelinePreferences({ ...p, ...patch }));
-  const { snapping, linkedSelection } = timelinePreferences;
+  const { snapping } = timelinePreferences;
+  const linkedSelection = timelinePreferences.linkedSelection && !isolatedSelection;
   const setSnapping = (fn: (value: boolean) => boolean) => setTimelinePreferences((p) => ({ ...p, snapping: fn(p.snapping) }));
   useEffect(() => { try { localStorage.setItem("ugc-studio:timeline", JSON.stringify(timelinePreferences)); } catch { /* mantener ajustes de la sesión */ } }, [timelinePreferences]);
   const programRef = useRef<HTMLDivElement>(null);
@@ -474,7 +444,7 @@ export function App() {
     if(id==="matchFrame"){
       const clip=selected??clipAtPlayhead(project,frame);if(clip&&(clip.kind==="video"||clip.kind==="audio")&&!clip.sequenceId){const m=media.find(m=>m.src===clip.src);if(m){setSourceSrc(m.src);setMonitorTab("source");focusPanel("source","monitor");requestAnimationFrame(()=>sourceRef.current?.seek(clip.trimStart+Math.max(0,frame-clip.from)));}}return;
     }
-    if(id==="snap"){setSnapping(v=>!v);return;}if(id==="linkedSelection"){updateTimelinePreferences({linkedSelection:!linkedSelection});return;}if(id==="followPlayhead"){updateTimelinePreferences({selectionFollowsPlayhead:!timelinePreferences.selectionFollowsPlayhead});return;}
+    if(id==="snap"){setSnapping(v=>!v);return;}if(id==="linkedSelection"){setIsolatedSelection(false);updateTimelinePreferences({linkedSelection:!timelinePreferences.linkedSelection});return;}if(id==="followPlayhead"){updateTimelinePreferences({selectionFollowsPlayhead:!timelinePreferences.selectionFollowsPlayhead});return;}
     if(id==="selectAtPlayhead"){const clip=clipAtPlayhead(project,frame);setSelectedIds(clip?(linkedSelection?ops.linkedIds(project,[clip.id]):[clip.id]):[]);return;}
     if(id==="expandTracks"||id==="minimizeTracks"){updateTimelinePreferences({trackHeight:id==="expandTracks"?120:36});return;}
     if(id==="zoomIn"||id==="zoomOut"){previousZoom.current=null;setPxPerFrame(z=>Math.max(.02,Math.min(20,z*(id==="zoomIn"?1.25:.8))));return;}if(id==="fit"){fitTimeline();return;}
@@ -657,6 +627,7 @@ export function App() {
             <SourceMonitor
               ref={sourceRef}
               hint={shortcuts.hint}
+              onActivate={()=>transport("stop")}
               key={sourceMedia?.src ?? "empty"}
               media={sourceMedia}
               fps={project.fps}
@@ -665,10 +636,8 @@ export function App() {
             />
           </div>
           <div className="program-pane" data-shortcut-scope="program" tabIndex={-1} style={{ display: monitorLayout === "tabs" && monitorTab !== "program" ? "none" : undefined }}>
-            <div className="monitor-label">Programa</div>
-            <div className="program-preview" ref={programRef}><PreviewPlayer playerRef={playerRef} project={project} duration={duration} playbackRate={playbackRate} /></div>
-            <div className="timecode">{formatTimecode(frame, project.fps)} / {formatTimecode(duration, project.fps)}</div>
-            {(markRange.start!==null||markRange.end!==null)&&<div className="monitor-marks">Entrada: {formatTimecode(markRange.start??0,project.fps)} · Salida: {formatTimecode((markRange.end??duration)-1,project.fps)}</div>}
+            <div className="monitor-label" title={project.name}>Programa · {project.name}</div>
+            <ProgramMonitor project={project} duration={duration} frame={frame} playerRef={playerRef} programRef={programRef} playbackRate={playbackRate} onSeek={seek} onCommand={id=>runCommand(id,"program")} hint={shortcuts.hint} marks={markRange}/>
           </div>
         </div>
       </main>
@@ -746,10 +715,12 @@ export function App() {
           markRange={markRange}
           onTrackHeight={height=>updateTimelinePreferences({trackHeight:height})}
           onSeek={seek}
-          onSelect={setSelectedIds}
-          onMove={(ids, delta, offset) => history.apply((p) => ops.editSelection(p, ids, linkedSelection, (current) => ops.moveClips(current, ids, delta, offset)))}
-          onTrim={(id, edge, delta, ripple) => history.apply((p) => ops.editSelection(p, [id], linkedSelection, (current) => (ripple ? ops.rippleTrimClip : ops.trimClip)(current, id, edge, delta)))}
-          onSlip={(id, delta) => history.apply((p) => ops.editSelection(p, [id], linkedSelection, (current) => ops.slipClip(current, id, delta)))}
+          isolatedSelection={isolatedSelection}
+          onSelect={(ids,isolated=false)=>{setSelectedIds(ids);setIsolatedSelection(isolated);}}
+          onDuplicate={(ids,delta,offset,follow)=>{const before=history.current(),result=ops.duplicateClipsWithSelection(before,ids,delta,offset,follow);if(result.project===before)return;history.apply(()=>result.project);setSelectedIds(result.ids);setIsolatedSelection(!follow);}}
+          onMove={(ids, delta, offset, follow) => history.apply((p) => ops.editSelection(p, ids, follow, (current) => ops.moveClips(current, ids, delta, offset)))}
+          onTrim={(id, edge, delta, ripple, follow) => history.apply((p) => ops.editSelection(p, [id], follow, (current) => (ripple ? ops.rippleTrimClip : ops.trimClip)(current, id, edge, delta)))}
+          onSlip={(id, delta, follow) => history.apply((p) => ops.editSelection(p, [id], follow, (current) => ops.slipClip(current, id, delta)))}
           onSplit={(id, at) => history.apply((p) => ops.editSelection(p, id ? [id] : p.tracks.flatMap((t) => t.clips.map((c) => c.id)), linkedSelection, (current) => ops.splitAt(current, at, id)))}
           onAddText={addText}
           onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))}

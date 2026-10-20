@@ -57,9 +57,36 @@ no disparan comandos. No se interceptan teclas cuando el navegador no las entreg
 
 La base de Windows de Adobe documenta rueda horizontal, Ctrl para vertical y Alt para zoom.
 No hay una equivalencia universal de todos los gestos: cambia según zona, plataforma, versión
-y preferencias. Shift queda explícito y editable. Esta entrega trata de la rueda del timeline;
-la ampliación/pan de la imagen en los monitores sigue pendiente. Con la herramienta Zoom,
+y preferencias. Shift queda explícito y editable. La tabla anterior trata de la rueda del timeline.
+Con la herramienta Zoom,
 Alt+clic aleja. Se conservan selección múltiple y Shift+cuchilla para cortar todas las pistas.
+
+### Gestos y controles de los monitores
+
+Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe.com/premiere/desktop/get-started/source-and-program-monitor-adjustments/adjust-the-magnification-for-the-source-and-program-monitors.html).
+
+- Sobre la imagen: rueda amplía/reduce bajo el puntero; Shift+rueda acelera. Botón central
+  sostenido o botón Mano + arrastre desplazan la imagen ampliada. Doble clic vuelve a Ajustar.
+- El selector Ajustar/porcentaje cambia solo la ampliación de vista. Full usa el video original;
+  1/2, 1/4, 1/8 y 1/16 preparan versiones locales reales, con caché y aviso durante la preparación.
+  Las dimensiones se redondean a píxeles pares; no cambia duración, FPS, montaje ni exportación.
+  Textos y subtítulos de la composición conservan su nitidez. Los gestos de imagen son fijos por ahora.
+- El timecode permite buscar con Enter. La regla del monitor mueve el mismo cabezal del timeline;
+  en Origen solo mueve el archivo. Los dos extremos de la barra inferior acotan el tiempo visible;
+  ↔ restaura toda la duración. Las marcas I/O usan los mismos comandos y límites existentes.
+- Transporte por frames, I/O y pantalla completa en ambos. Programa añade anterior/siguiente
+  edición, marcador, localizar fotograma, repetición y mute de monitor. El mute no silencia pistas
+  en la exportación. Márgenes seguros 90%/80% son guías de vista.
+
+### Alt en clips del timeline (herramienta Selección)
+
+- **Alt+clic:** selecciona solo la parte pulsada, imagen o audio, sin borrar el enlace.
+  Su siguiente arrastre o edición actúa sobre esa selección; el desfase se muestra en frames.
+  Un clic normal sin mover vuelve a seleccionar la pareja.
+- **Alt+arrastrar desde una selección normal:** copia los clips y sus parejas. Desde una selección
+  aislada copia solo esa parte. Los originales quedan en su sitio salvo el tramo sobrescrito si
+  colocas encima de ellos. La copia usa la misma sobrescritura y candados del editor.
+  Mantén Alt desde el inicio del arrastre. Esc cancela y Ctrl+Z deshace la colocación en un paso.
 
 ## Investigación y alcance real (2026-10-20)
 
@@ -112,6 +139,9 @@ Alt+clic aleja. Se conservan selección múltiple y Shift+cuchilla para cortar t
 - `useShortcuts.ts`: preferencias locales versionadas/revisión 2, fuera de Project JSON.
 - `ShortcutEditor.tsx`, `MenuBar.tsx`, `PremiereReference.tsx`: interfaz y referencia completa.
 - `gesturePreferences.ts` + listener no pasivo de `Timeline.tsx`: rueda y anclaje de zoom.
+- `MonitorViewer.tsx`, `ProgramMonitor.tsx`, `usePreviewQuality.ts` y `server/previewQuality.ts`:
+  controles de monitor y preparación local de las resoluciones. `duplicateClipsWithSelection`
+  en ops mantiene identidades/enlaces y excluye de la selección los fragmentos sobrescritos.
 - `App.tsx`: ejecución de comandos mediante operaciones del proyecto. `SourceMonitor.tsx`
   expone controles de Origen; `useShuttle.ts` gestiona transporte. `copyClips`, `pasteClips` e
   `insertSourceRange` son operaciones puras de `src/project/ops.ts`, una transacción de historial.

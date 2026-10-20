@@ -8,6 +8,8 @@ Transcripción precisa local con faster-whisper large-v3 instalada y probada en 
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
 Barra de herramientas y espacio con cinco paneles acoplables por bordes, guía de destino,
 separadores por división y ampliación/restauración. Medidor dBFS independiente, vertical/horizontal.
+Monitores con zoom/pan, controles externos, regla y resolución Full/1/2/1/4/1/8/1/16 local;
+Alt+clic aísla audio/video y Alt+arrastrar copia, con validación física de este último pendiente.
 Timeline con anchos internos ajustables para herramientas y cabeceras; herramientas en una columna
 por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, sin scroll en la columna.
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
@@ -28,6 +30,50 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Monitores navegables y gestos Alt de timeline (Codex)
+
+**Implementado**
+- Visor compartido en Origen/Programa: rueda con zoom bajo el puntero, Shift acelerado, Mano o
+  botón central para pan, Ajustar/10..1600%, doble clic para ajustar y pantalla completa. Controles
+  pequeños fuera de la imagen; no escalan con el zoom. Se conservan Dos visores/Pestañas.
+- Timecode editable, regla con cabezal y dos tiradores para acotar el tiempo visible. Programa
+  comparte cabezal y marcas/markers del timeline; Origen conserva sus I/O y acciones de colocación.
+  Transporte por frames, I/O, navegación de ediciones/match frame/marker en Programa, sonido,
+  repetición de Programa y guías de márgenes de acción/títulos (90%/80%) solo para visualizar.
+- Selector Full, 1/2, 1/4, 1/8 y 1/16: Full usa originales; FFmpeg crea versiones reales de los
+  medios de video, en serie y con caché por ruta/tamaño/fecha/divisor. Mensaje de preparación/error
+  y Full temporal hasta terminar. `previewSources` se propaga a secuencias anidadas; solo se preparan
+  fuentes referenciadas/visibles. No altera Project, FPS, duración ni resolución de exportación.
+  Los overlays siguen dibujándose nítidos; no se reduce todo el compositor a una textura raster.
+- Alt+clic aísla una parte enlazada; mover, recortar, cortar, copiar y borrar respetan esa selección.
+  El enlace se conserva y el desfase se indica en frames. Clic normal sin arrastrar recupera la pareja.
+- Alt+arrastrar desde Selección duplica con preview, IDs/enlaces nuevos, candados y sobrescritura.
+  `duplicateClipsWithSelection` selecciona solo las copias, excluyendo fragmentos de vecinos.
+  Una transacción de historial; Esc cancela. Partir de una selección aislada copia solo esa parte.
+
+**Pruebas realizadas**
+- `npm test`: 64 pruebas correctas. Cinco nuevas: copia de pareja a otra pista, audio aislado,
+  protección de candados/sin desplazamiento, movimiento independiente reversible y copia sobre
+  vecino conservando extremos/selección correcta. `npm run typecheck` y `npm run build` correctos
+  (Vite conserva el aviso de tamaño de bundles).
+- Prueba aislada con AssortedTapes: Alt+clic de video y de audio, clic normal para recuperar pareja,
+  arrastre independiente +10 f con aviso de desfase y Deshacer restaurando posiciones. Rueda real,
+  zoom 100%, Mano + arrastre, búsqueda 3:00 compartida con timeline, avance a 3:01, reproducción
+  y medidor activo, pantalla completa y regreso mediante su botón. Sin errores de consola de QA.
+- Las cuatro versiones fueron generadas y examinadas con ffprobe: 540×960, 270×480, 134×240 y
+  66×120 codificados (redondeo par/SAR); todas conservan 24000/1001 FPS y duración de video
+  26.109417 s. En Programa se comprobó 1/4 y cambio a 1/16 conservando el tiempo de búsqueda.
+- Revisión visual a 1280×720 y 756×589; controles se redistribuyen al estrechar el monitor.
+  El proyecto real de Lino se conservó: las operaciones de prueba se hicieron en otro origen local.
+
+**Pendiente / alcance**
+- Probar Alt+arrastrar con el mouse físico de Lino: la automatización disponible permitió Alt+clic
+  y arrastre, pero no su combinación sostenida; la operación de copia sí pasó pruebas automáticas.
+- Valorar comodidad, fluidez y escucha en trabajo real. No se probaron exportación, loops largos
+  ni todas las combinaciones manuales de anidación/calidad en esta sesión. No se declara paridad
+  completa con Premiere: captura de fotogramas, botones personalizables y otros modos faltan.
+- Siguiente paso: revisión de estos gestos con Lino y ajustar sensaciones de zoom/transporte.
 
 ### 2026-10-20 — Densidad global a escala de la barra de herramientas (Codex)
 

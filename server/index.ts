@@ -15,6 +15,7 @@ import { registerVision } from "./vision";
 import { registerAudioProcessing } from "./audioProcessing";
 import { registerTranscription } from "./transcription";
 import { localMedia } from "./localTasks";
+import { registerPreviewQuality } from "./previewQuality";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
@@ -38,6 +39,7 @@ app.use(express.json({ limit: "20mb" }));
 app.use("/media", express.static(MEDIA_DIR));
 app.use("/out", express.static(OUT_DIR));
 app.use("/library", express.static(FOLEY_DIR));
+registerPreviewQuality(app, DATA_DIR);
 
 const upload = multer({
   storage: multer.diskStorage({

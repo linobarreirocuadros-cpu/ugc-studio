@@ -10,6 +10,7 @@ import "./workspace.css";
 import "./timeline-panels.css";
 import "./shortcuts.css";
 import "./compact-ui.css";
+import "./monitors.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

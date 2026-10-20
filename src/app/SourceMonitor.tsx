@@ -1,3 +1,5 @@
+import { MonitorViewer, transportActions, monitorIcon } from "./MonitorViewer";
+import { usePreviewQuality, type PreviewQuality } from "./usePreviewQuality";
 import { useImperativeHandle, useRef, useState, type DragEvent, type Ref } from "react";
 import { formatTimecode, type MediaDrag } from "./Timeline";
 import { useShuttle } from "./useShuttle";
@@ -12,27 +14,32 @@ type SourceMedia = {
   kind?: "video" | "audio";
 };
 
-export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint }: {
+export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint, onActivate }: {
   media: SourceMedia | null;
   fps: number;
   onInsert: (trackId: string, inFrame: number, outFrame: number, videoOnly: boolean) => void;
   onDragStart: (event: DragEvent, inFrame: number, outFrame: number, mode: MediaDrag["mode"]) => void;
   ref?:Ref<SourceHandle>; hint:(id:string)=>string;
+  onActivate:()=>void;
 }) {
   const [position, setPosition] = useState(0);
   const [inFrame, setInFrame] = useState(0);
   const [outFrame, setOutFrame] = useState(media?.durationInFrames ?? 1);
   const mediaRef=useRef<HTMLMediaElement|null>(null);
+  const [quality,setQuality]=useState<PreviewQuality>(1),[playing,setPlaying]=useState(false),[dimensions,setDimensions]=useState({width:1920,height:1080});
+  const preview=usePreviewQuality(media?.kind!=="audio"&&media?[media.src]:[],quality);
+  const restore=useRef(0);
+  const resolvedSrc=media?(preview.sources[media.src]??media.src):"";
+  const actions=[...transportActions,{id:"mute",label:"Silenciar / activar sonido",icon:monitorIcon(<path d="M3 9h4l5-5v16l-5-5H3zm12-1c5 0 5 8 0 8"/>)}];
   const isAudio = media?.kind === "audio";
   const current = Math.max(0, Math.min((media?.durationInFrames ?? 1) - 1, position));
 
-  const markIn = () => setInFrame(Math.min(current, outFrame - 1));
-  const markOut = () => setOutFrame(Math.max(inFrame + 1, current + 1));
   const currentFrame=()=>Math.round((mediaRef.current?.currentTime??position/fps)*fps);
   const seek=(frame:number)=>{const at=Math.max(0,Math.min((media?.durationInFrames??1)-1,frame));if(mediaRef.current)mediaRef.current.currentTime=at/fps;setPosition(at);};
   const shuttle=useShuttle({current:currentFrame,seek,play:()=>{void mediaRef.current?.play().catch(()=>{});},pause:()=>mediaRef.current?.pause(),toggle:()=>{const p=mediaRef.current;if(p){if(p.paused)void p.play().catch(()=>{});else p.pause();}},rate:rate=>{if(mediaRef.current)mediaRef.current.playbackRate=rate;},fps,end:media?.durationInFrames??1});
-  useImperativeHandle(ref,()=>({range:()=>({inFrame,outFrame}),seek,command:(id)=>{
+  const command=(id:string)=>{
     if(!media)return false;
+    if(id==="mute"){if(mediaRef.current)mediaRef.current.muted=!mediaRef.current.muted;return true;}
     if(shuttle(id))return true;
     if(id==="markIn")setInFrame(Math.min(currentFrame(),outFrame-1));
     else if(id==="markOut")setOutFrame(Math.max(inFrame+1,currentFrame()+1));
@@ -46,27 +53,17 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint }: 
     else if(/^step(Left|Right)[15]$/.test(id))seek(currentFrame()+(id.includes("Left")?-1:1)*Number(id.at(-1)));
     else return false;
     return true;
-  }}));
+  };
+  useImperativeHandle(ref,()=>({range:()=>({inFrame,outFrame}),seek,command}));
 
   return (
     <div className="source-monitor">
       <div className="monitor-label">Origen{media ? ` · ${media.name}` : ""}</div>
-      <div className="source-preview">
-        {!media ? <p className="hint">Selecciona un archivo en Proyecto para verlo aquí.</p> :
-          isAudio ? (
-            <audio ref={el=>{mediaRef.current=el;}} src={media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
-          ) : (
-            <video ref={el=>{mediaRef.current=el;}} src={media.proxySrc ?? media.src} controls preload="metadata" onTimeUpdate={(e) => setPosition(Math.round(e.currentTarget.currentTime * fps))} />
-          )}
-      </div>
+      {!media ? <div className="source-preview"><p className="hint">Selecciona un archivo en Proyecto para verlo aquí.</p></div> :
+        <MonitorViewer name="Origen" width={dimensions.width} height={dimensions.height} frame={current} duration={media.durationInFrames} fps={fps} playing={playing} quality={quality} onQuality={q=>{restore.current=currentFrame();mediaRef.current?.pause();setQuality(q);}} pending={preview.pending} error={preview.error} onSeek={seek} onCommand={command} actions={actions} hint={hint} marks={{start:inFrame,end:outFrame}}>
+          {style=>isAudio?<><div className="monitor-audio-placeholder">Audio</div><audio ref={el=>{mediaRef.current=el;}} src={media.src} preload="metadata" onPlay={()=>{onActivate();setPlaying(true);}} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onTimeUpdate={e=>setPosition(Math.round(e.currentTarget.currentTime*fps))}/></>:<video ref={el=>{mediaRef.current=el;}} src={resolvedSrc} style={{...style,objectFit:"contain"}} preload="auto" playsInline onPlay={()=>{onActivate();setPlaying(true);}} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onTimeUpdate={e=>{const f=Math.round(e.currentTarget.currentTime*fps);setPosition(f);restore.current=f;}} onLoadedMetadata={e=>{const video=e.currentTarget;if(quality===1)setDimensions({width:video.videoWidth||1920,height:video.videoHeight||1080});video.currentTime=restore.current/fps;}}/>}
+        </MonitorViewer>}
       {media && <>
-        <div className="source-timecode">{formatTimecode(current, fps)} / {formatTimecode(media.durationInFrames, fps)}</div>
-        <div className="source-markers">
-          <button onClick={markIn} title={`Marcar entrada · ${hint("markIn")}`}>Entrada</button>
-          <button onClick={markOut} title={`Marcar salida · ${hint("markOut")}`}>Salida</button>
-          <button onClick={() => { setInFrame(0); setOutFrame(media.durationInFrames); }} title="Usar el archivo completo">Limpiar</button>
-        </div>
-        <div className="source-range">Rango: {formatTimecode(inFrame, fps)} → {formatTimecode(outFrame, fps)}</div>
         <div className="source-actions">
           {!isAudio && <>
             <button onClick={() => onInsert("V1", inFrame, outFrame, false)} title="Sobrescribir en la pista B destino y añadir su sonido enlazado">Colocar video</button>
