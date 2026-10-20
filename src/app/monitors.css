@@ -48,3 +48,15 @@
 .clip-copy-preview { opacity:.65; border:1px dashed #cde7ff; pointer-events:none; z-index:5; }
 @container viewer (max-width:260px) { .monitor-tick:nth-of-type(2),.monitor-tick:nth-of-type(4) { display:none; } .monitor-duration { flex:1; text-align:right; } }
 @container viewer (max-width:190px) { .monitor-duration { display:none; } .monitor-readouts input { width:70px; } .monitor-readouts select { width:calc(50% - 2px); } }
+
+/* Zonas de arrastre del rango I/O: accesos compactos y selección de la minirregla. */
+.monitor-range-drags { display:flex; align-items:center; gap:1px; flex:0 0 auto; }
+.app .monitor-range-drags button { display:grid; place-items:center; width:19px; height:19px; min-height:19px; padding:3px; background:transparent; border-color:transparent; cursor:grab; }
+.app .monitor-range-drags button:hover:not(:disabled) { background:#7392b52c; border-color:#7392b566; color:#cde7ff; }
+.app .monitor-range-drags button:disabled { opacity:.25; cursor:default; }
+.monitor-stage.range-draggable,.monitor-range.range-draggable { cursor:grab; }
+.monitor-range.range-draggable { pointer-events:auto; min-width:6px; z-index:2; }
+.monitor-range.range-draggable:active,.app .monitor-range-drags button:active { cursor:grabbing; }
+.monitor-range-drop-preview { position:fixed; z-index:125; pointer-events:none; border:1px solid #a6d6ffbb; border-radius:5px; background:#4389d74d; box-shadow:inset 0 0 10px #7fbfff20,0 0 9px #69b5ff22; overflow:hidden; white-space:nowrap; padding:3px; font-size:8px; color:#e1f1ff; }
+.monitor-range-dragging,.monitor-range-dragging * { cursor:grabbing !important; user-select:none !important; }
+.monitor-stage.range-draggable,.monitor-range.range-draggable,.monitor-range-drags button { touch-action:none; }

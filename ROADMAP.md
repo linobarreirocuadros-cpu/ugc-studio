@@ -124,6 +124,12 @@ a estar validado para entregas de agencia.
       flujo profesional completamente gratuito; elegir LICENSE propia con Lino
 
 ## Herramientas de edición manual y gestión de medios (en curso)
+- [x] Regla temporal fija al desplazar pistas; cabeceras y regla sincronizadas en ambos ejes
+- [x] Cabezal arrastrable desde cualquier altura del timeline, incluso sobre clips de audio/video
+- [x] Arrastrar I/O desde imagen/minirregla e iconos de Origen/Programa: video, audio o ambos;
+      guía de destino, copia editable de capas/cortes del Programa y Deshacer en una operación
+- [x] Glow sutil para panel activo por clic/foco de teclado, con soporte de movimiento reducido
+- [ ] Validar con Lino comodidad del agarre y controles de rango, tacto e intensidad del glow
 - [x] Primera pasada visual basada en referencias de Lino: paneles grafito separados/redondeados,
       degradados suaves, jerarquía de botones, biblioteca, chat y timeline coherentes
 - [x] Aplicar paleta indicada por Lino: Pale Sky, Dusty Denim, Deep Lilac, Midnight Violet,

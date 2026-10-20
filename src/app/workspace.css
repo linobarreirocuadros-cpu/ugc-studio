@@ -86,3 +86,8 @@ body.workspace-resizing:has(.dock-divider.y.active), body.workspace-resizing:has
   .timeline-selection-status { display: none; }
 }
 @media (max-width: 900px) { .topbar { overflow-x: auto; } .topbar > * { flex-shrink: 0; } }
+
+/* El foco de trabajo sigue clic o teclado, sin animaciones en bucle. */
+.workspace-canvas > .dock-panel { transition:border-color 160ms ease-out,box-shadow 160ms ease-out; }
+.workspace-canvas > .dock-panel[data-active="true"] { border-color:#8bbcf66b; box-shadow:inset 0 0 0 1px #a8d4ff0b,inset 0 1px #bddcff12,0 0 11px #5a9ee91a,0 5px 20px #00000024; }
+@media (prefers-reduced-motion:reduce) { .workspace-canvas > .dock-panel { transition:none; } }

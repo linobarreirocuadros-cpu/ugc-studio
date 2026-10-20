@@ -39,10 +39,11 @@ import { MenuBar } from "./MenuBar";
 import { ActionDialog } from "./ActionDialog";
 import { useShuttle } from "./useShuttle";
 import type { Panel } from "./workspaceLayout";
-import { updateMonitorRange } from "./monitorRange";
-import { parseProjectFile, type ProjectMedia } from "../project/projectFile";
+import { updateMonitorRange, sourceRange, type MonitorDragMode } from "./monitorRange";
+import { assertProject, parseProjectFile, type ProjectMedia } from "../project/projectFile";
 import { exportProject } from "./exportJob";
 import { guardAssistantSession } from "./assistantSession";
+import { useMonitorDrag } from "./useMonitorDrag";
 
 type MediaItem = ProjectMedia;
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -336,6 +337,16 @@ export function App() {
     history.apply((p) => ops.addSourceRange(p, m, trackId, at, inFrame, outFrame, videoOnly));
   };
   const dropMedia = (dragged: MediaDrag, trackId: string, at: number) => {
+    if(dragged.timelineRange){
+      try{
+        if(dragged.timelineRange.documentEpoch!==documentEpoch.current)throw new Error("El documento cambió desde que empezaste a arrastrar.");
+        assertProject(dragged.timelineRange.project);
+        const before=history.current(),next=ops.placeTimelineRange(before,dragged.timelineRange.project,trackId,at,dragged.mode??"auto",editingSequenceId??undefined);
+        if(next===before)setFeedback("No se pudo colocar el rango: comprueba su contenido, el tipo de pista y los candados de destino.");
+        else history.apply(()=>next);
+      }catch(error){setFeedback(error instanceof Error?error.message:String(error));}
+      return;
+    }
     if (dragged.sequenceId) { history.apply((p) => ops.placeSequence(p, dragged.sequenceId!, trackId, at, timelinePreferences.nestSequences, editingSequenceId ?? undefined)); return; }
     const items = dragged.items ?? [dragged];
     const track = project.tracks.find((t) => t.id === trackId);
@@ -355,6 +366,21 @@ export function App() {
     const payload: MediaDrag = { src: m.src, kind: m.kind ?? "video", inFrame, outFrame, mode };
     e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copy";
+  };
+  const programRangeDrag=(mode:MonitorDragMode):MediaDrag=>{
+    const {inFrame,outFrame}=sourceRange(markRange,duration);
+    return {src:"",kind:mode==="audio"?"audio":"video",mode,inFrame:0,outFrame:outFrame-inFrame,timelineRange:{project:ops.copyTimelineRange(project,inFrame,outFrame,mode),documentEpoch:documentEpoch.current}};
+  };
+  const startProgramRangeDrag=(e:React.DragEvent,mode:MonitorDragMode)=>{
+    const payload=programRangeDrag(mode);
+    if(!payload.timelineRange!.project.tracks.some(t=>t.clips.length)){e.preventDefault();setFeedback("El rango no contiene ese tipo de contenido.");return;}
+    transport("stop");sourceRef.current?.command("stop");e.dataTransfer.setData(MEDIA_DRAG_TYPE,JSON.stringify(payload));e.dataTransfer.effectAllowed="copy";
+  };
+  const placeProgramRange=(mode:MonitorDragMode)=>{const target=destinationTrack(project,mode==="audio"?"audio":"video");if(target)dropMedia(programRangeDrag(mode),target,frame);else setFeedback("Desbloquea una pista destino para colocar el rango.");};
+  const rangeDrag=useMonitorDrag({pxPerFrame,session:documentEpoch.current,root:()=>workspace.appRef.current,onDrop:dropMedia,onActivate:element=>{workspace.activatePanel(element);activeScope.current="timeline";selectionPanel.current="timeline";element.closest<HTMLElement>("[data-shortcut-scope]")?.focus({preventScroll:true});}});
+  const startRangePointer=(e:React.PointerEvent,payload:MediaDrag,clickToPlace=false)=>{
+    transport("stop");sourceRef.current?.command("stop");
+    rangeDrag.start(e,payload,clickToPlace?()=>{const target=destinationTrack(history.current(),payload.mode==="audio"?"audio":"video");if(target)dropMedia(payload,target,frame);else setFeedback("Desbloquea una pista destino para colocar el rango.");}:undefined);
   };
 
   const addFoley = async (file: { name: string; src: string }) => {
@@ -502,6 +528,7 @@ export function App() {
     window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
   });
   const captureScope=(target:EventTarget|null)=>{
+    workspace.activatePanel(target);
     const el=target as HTMLElement;if(el.closest("[data-command-ui],dialog"))return;
     const scope=el.closest<HTMLElement>("[data-shortcut-scope]")?.dataset.shortcutScope as CommandScope|undefined;
     if(scope){activeScope.current=scope;if(scope==="timeline"||scope==="bin")selectionPanel.current=scope;}
@@ -575,7 +602,7 @@ export function App() {
         </div>
       )}
 
-      <div className="workspace-canvas" ref={workspace.canvasRef}>
+      {rangeDrag.overlay}<div className="workspace-canvas" ref={workspace.canvasRef}>
       <aside className="panel bin dock-panel" {...workspace.panelProps("bin")} data-shortcut-scope="bin" tabIndex={-1}>
         <div className="panel-title">
           <div className="tabs">
@@ -670,11 +697,12 @@ export function App() {
               fps={project.fps}
               onInsert={(trackId, inFrame, outFrame, videoOnly) => { const target = destinationTrack(project, trackId === "A0" ? "audio" : "video"); if (sourceMedia && target) addSource(sourceMedia, target, frame, inFrame, outFrame, videoOnly); }}
               onDragStart={(e, inFrame, outFrame, mode) => sourceMedia && startMediaDrag(e, sourceMedia, inFrame, outFrame, mode)}
+              onRangePointerDown={(e,inFrame,outFrame,mode,click)=>{if(sourceMedia)startRangePointer(e,{src:sourceMedia.src,kind:sourceMedia.kind??"video",inFrame,outFrame,mode},click);}}
             />
           </div>
           <div className="program-pane" data-shortcut-scope="program" tabIndex={-1} style={{ display: monitorLayout === "tabs" && monitorTab !== "program" ? "none" : undefined }}>
             <div className="monitor-label" title={project.name}>Programa · {project.name}</div>
-            <ProgramMonitor project={project} duration={duration} frame={frame} playerRef={playerRef} programRef={programRef} playbackRate={playbackRate} onSeek={seek} onCommand={id=>runCommand(id,"program")} hint={shortcuts.hint} marks={markRange}/>
+            <ProgramMonitor project={project} duration={duration} frame={frame} playerRef={playerRef} programRef={programRef} playbackRate={playbackRate} onSeek={seek} onCommand={id=>runCommand(id,"program")} hint={shortcuts.hint} marks={markRange} onRangeDrag={startProgramRangeDrag} onRangePlace={placeProgramRange} onRangePointerDown={(e,mode,click)=>startRangePointer(e,programRangeDrag(mode),click)}/>
           </div>
         </div>
       </main>
@@ -754,6 +782,7 @@ export function App() {
           markRange={markRange}
           onTrackHeight={height=>updateTimelinePreferences({trackHeight:height})}
           onSeek={seek}
+          onScrubStart={()=>{transport("stop");sourceRef.current?.command("stop");}}
           isolatedSelection={isolatedSelection}
           onSelect={(ids,isolated=false)=>{setSelectedIds(ids);setIsolatedSelection(isolated);}}
           onDuplicate={(ids,delta,offset,follow)=>{const before=history.current(),result=ops.duplicateClipsWithSelection(before,ids,delta,offset,follow);if(result.project===before)return;history.apply(()=>result.project);setSelectedIds(result.ids);setIsolatedSelection(!follow);}}

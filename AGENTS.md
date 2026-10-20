@@ -25,6 +25,10 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   Calidad Full usa originales; 1/2..1/16 genera versiones locales con FFmpeg en `previewQuality.ts`.
   Son preferencias de vista: no cambiar Project ni la resolución de exportación. Tipografía de
   overlays permanece nítida; no es un render rasterizado de toda la composición a baja resolución.
+  I/O puede arrastrarse desde imagen, selección de la minirregla o iconos de video/audio/ambos.
+  `useMonitorDrag.tsx` usa puntero, guía y autoscroll; clic/Enter coloca en el cabezal. Origen
+  coloca medios; Programa copia capas/cortes mediante copyTimelineRange/placeTimelineRange.
+  No aplanar el Programa a un archivo ni cambiar el proyecto al iniciar/cancelar el arrastre.
 - Nombres aprobados el 2026-10-20: B1, B2… y Audio 1, Audio 2…; pistas genéricas y ampliables.
   Los IDs internos V1/V2/A0/A1/A2 se conservan por compatibilidad. El audio original del video
   se representa como AudioClip enlazado, con el video silenciado para evitar duplicación.
@@ -47,6 +51,9 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 2
   con migración de las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
   Ventanas flotantes y separación de pestañas siguen pendientes.
+  Panel activo: glow azul sutil por clic/foco, fuera del JSON, sin pulso ni cambio por hover.
+  Regla del timeline fuera del scroll vertical; sincronizar X con pistas e Y con cabeceras,
+  compensando barras. El cabezal se puede agarrar a toda su altura y debe ganar al recuadro.
 - Atajos: mapa único Windows/QWERTY en `src/app/commands.ts`, menús en español y editor visual
   en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
   US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.

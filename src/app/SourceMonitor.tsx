@@ -1,6 +1,6 @@
 import { MonitorViewer, transportActions, monitorIcon } from "./MonitorViewer";
 import { usePreviewQuality, type PreviewQuality } from "./usePreviewQuality";
-import { useImperativeHandle, useLayoutEffect, useRef, useState, type DragEvent, type Ref } from "react";
+import { useImperativeHandle, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent, type Ref } from "react";
 import { type MediaDrag } from "./Timeline";
 import { useShuttle } from "./useShuttle";
 import { sourceRange, updateMonitorRange, type MonitorRange } from "./monitorRange";
@@ -13,13 +13,15 @@ type SourceMedia = {
   name: string;
   durationInFrames: number;
   kind?: "video" | "audio";
+  hasAudio?:boolean;
 };
 
-export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint, onActivate }: {
+export function SourceMonitor({ media, fps, onInsert, onDragStart, onRangePointerDown, ref, hint, onActivate }: {
   media: SourceMedia | null;
   fps: number;
   onInsert: (trackId: string, inFrame: number, outFrame: number, videoOnly: boolean) => void;
   onDragStart: (event: DragEvent, inFrame: number, outFrame: number, mode: MediaDrag["mode"]) => void;
+  onRangePointerDown:(event:PointerEvent,inFrame:number,outFrame:number,mode:MediaDrag["mode"],clickToPlace?:boolean)=>void;
   ref?:Ref<SourceHandle>; hint:(id:string)=>string;
   onActivate:()=>void;
 }) {
@@ -60,19 +62,9 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart, ref, hint, on
     <div className="source-monitor">
       <div className="monitor-label">Origen{media ? ` · ${media.name}` : ""}</div>
       {!media ? <div className="source-preview"><p className="hint">Selecciona un archivo en Proyecto para verlo aquí.</p></div> :
-        <MonitorViewer name="Origen" width={dimensions.width} height={dimensions.height} frame={current} duration={media.durationInFrames} fps={fps} playing={playing} quality={quality} onQuality={q=>{restore.current=currentFrame();mediaRef.current?.pause();setQuality(q);}} pending={preview.pending} error={preview.error} onSeek={seek} onCommand={command} actions={actions} hint={hint} marks={marks}>
+        <MonitorViewer name="Origen" width={dimensions.width} height={dimensions.height} frame={current} duration={media.durationInFrames} fps={fps} playing={playing} quality={quality} onQuality={q=>{restore.current=currentFrame();mediaRef.current?.pause();setQuality(q);}} pending={preview.pending} error={preview.error} onSeek={seek} onCommand={command} actions={actions} hint={hint} marks={marks} rangeKinds={{video:!isAudio,audio:isAudio||media.hasAudio!==false}} onRangeDrag={(e,mode)=>{mediaRef.current?.pause();onDragStart(e,inFrame,outFrame,mode);}} onRangePointerDown={(e,mode,click)=>onRangePointerDown(e,inFrame,outFrame,mode,click)} onRangePlace={mode=>onInsert(mode==="audio"?"A0":"V1",inFrame,outFrame,mode==="video")}>
           {style=>isAudio?<><div className="monitor-audio-placeholder">Audio</div><audio ref={el=>{mediaRef.current=el;}} src={media.src} preload="metadata" onPlay={()=>{onActivate();setPlaying(true);}} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onTimeUpdate={e=>setPosition(Math.round(e.currentTarget.currentTime*fps))}/></>:<video ref={el=>{mediaRef.current=el;}} src={resolvedSrc} style={{...style,objectFit:"contain"}} preload="auto" playsInline onPlay={()=>{onActivate();setPlaying(true);}} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onTimeUpdate={e=>{if(pendingRestore.current!==null)return;const f=Math.round(e.currentTarget.currentTime*fps);setPosition(f);restore.current=f;}} onSeeked={e=>{pendingRestore.current=null;const f=Math.round(e.currentTarget.currentTime*fps);restore.current=f;setPosition(f);}} onLoadedMetadata={e=>{const video=e.currentTarget;if(quality===1)setDimensions({width:video.videoWidth||1920,height:video.videoHeight||1080});const at=pendingRestore.current??restore.current;video.currentTime=at/fps;if(at===0){pendingRestore.current=null;setPosition(0);}}}/>}
         </MonitorViewer>}
-      {media && <>
-        <div className="source-actions">
-          {!isAudio && <>
-            <button onClick={() => onInsert("V1", inFrame, outFrame, false)} title="Sobrescribir en la pista B destino y añadir su sonido enlazado">Colocar video</button>
-            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "video")} onClick={() => onInsert("V1", inFrame, outFrame, true)} title="Arrastra a una pista B; clic para sobrescribir en la pista destino sin sonido">Solo video ↗</button>
-            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A0", inFrame, outFrame, false)} title="Arrastra a una pista Audio; clic para sobrescribir en la pista Audio destino">Solo audio ↗</button>
-          </>}
-          {isAudio && <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A0", inFrame, outFrame, false)}>Insertar audio ↗</button>}
-        </div>
-      </>}
     </div>
   );
 }

@@ -15,6 +15,8 @@ Monitores con zoom/pan, controles externos, regla y resolución Full/1/2/1/4/1/8
 Alt+clic aísla audio/video y Alt+arrastrar copia, con validación física de este último pendiente.
 Timeline con anchos internos ajustables para herramientas y cabeceras; herramientas en una columna
 por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, sin scroll en la columna.
+Regla del timeline fija durante scroll vertical, cabezal arrastrable a cualquier altura y glow sutil
+del panel activo. Rangos I/O de Origen/Programa arrastrables como video, audio o ambos, con guía.
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
 configurable. 116 comandos disponibles, 104 reservas pendientes y 629 asignaciones de Premiere 2026
 auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
@@ -35,6 +37,51 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Regla fija, cabezal, rangos de monitor y panel activo (Codex)
+
+**Implementado y decisiones**
+- Regla fuera del viewport vertical de pistas. Un solo scroll para audio/video, cabeceras
+  sincronizadas en Y y regla sincronizada en X; compensar el ancho/alto de barras de scroll.
+  Conservar zoom bajo puntero, rueda configurable, Mano y selección por recuadro.
+- Cabezal con zona de agarre de 9 px a toda la altura del contenido, también encima de clips.
+  Captura de puntero, arrastre y regla accesibles por teclado; buscar detiene ambos monitores.
+- Tres iconos compactos junto al zoom de cada monitor: solo video, solo audio y ambos. Se puede
+  arrastrar también desde la imagen o desde el rango marcado de la minirregla. Sin marcas se usa
+  el rango completo. Clic/Enter en los iconos coloca en el cabezal y pistas destino.
+- `useMonitorDrag.tsx`: arrastre interno por puntero, guía de colocación, autoscroll al borde y
+  cancelación por Escape/pérdida de foco. Sustituye la dependencia de drag HTML5 para este flujo;
+  el arrastre nativo de Proyecto continúa disponible. Táctil preparado, no probado en dispositivo.
+- Origen usa `addSourceRange`. Programa usa `copyTimelineRange`/`placeTimelineRange` en ops:
+  copia las capas activas del intervalo, conserva cortes, huecos interiores/iniciales, trim,
+  palabras y enlaces; IDs nuevos al colocar, pistas compatibles adicionales cuando hacen falta,
+  sobrescritura y candados. Solo imagen no lleva audio embebido. Todo en un paso de Deshacer.
+- Glow de panel por clic o foco de teclado, nunca por hover; borde azul y luz difusa con
+  transición de 160 ms, sin pulso y respetando movimiento reducido. Estado fuera de Project.
+- Fechas de AGENTS/ROADMAP/PROGRESS comprobadas en el repo antes de trabajar. Paleta conservada;
+  montajes de prueba separados en 5174; proyecto principal de Lino en 5173 conservado.
+
+**Pruebas realizadas**
+- UI: añadir cinco pistas Audio de prueba y desplazar hasta Audio 8: scrollTop 174 en pistas y
+  cabeceras, regla fija en Y=421.5. Rueda horizontal: scrollLeft 258 en regla y pistas.
+- Cabezal arrastrado sobre audio ocupado y sobre pistas inferiores desplazadas; Programa, regla
+  y timeline actualizan juntos (329 → 223 frames en la segunda prueba).
+- Origen, rango 02:00–03:29: arrastrar solo video a B2 (60 frames), solo audio a Audio 3 y ambos
+  a B2/Audio 2; pareja visible, sin modificar los originales de B1 fuera de la colocación.
+- Programa, rango 04:00–08:29 que cruza cortes y capas: arrastrar el rango a B2 crea B3 y capas
+  de audio conservando el montaje editable; 10 → 18 clips, un Deshacer vuelve a 10. Solo audio
+  no incrementa videos; solo video por Enter no incrementa audios. Foco pasa a timeline al soltar.
+- Glow comprobado entre Monitores, Timeline e Inspector al escribir en el chat. Guía de arrastre
+  retirada al terminar. Capturas locales `ugc-studio-regla-fija.png` y
+  `ugc-studio-rangos-panel-activo.png` en visualizaciones de esta conversación.
+- 73/73 pruebas, typecheck y build aprobados. Cuatro regresiones nuevas cubren rangos entre
+  cortes, palabras, enlaces/IDs, huecos, salida por señal, candados, fps y ciclos de secuencias.
+
+**Pendiente**
+- Criterio de Lino sobre intensidad del glow y comodidad de iconos/agarre. Probar tacto y
+  combinaciones adicionales de cancelación/autoscroll. No se repitió exportación: no cambió la
+  composición ni el modelo persistido; las colocaciones usan las operaciones del proyecto.
+- Siguen vigentes las condiciones de MVP y continuidad audiovisual de `QUALITY_AUDIT.md`.
 
 ### 2026-10-20 — Control de calidad y reparación de flujos críticos (Codex)
 

@@ -1,4 +1,5 @@
 export type MonitorRange = { start: number | null; end: number | null };
+export type MonitorDragMode = "auto"|"video"|"audio";
 
 /** Salida exclusiva: marcar el fotograma 29 incluye los frames 0..29. */
 export function updateMonitorRange(range: MonitorRange, command: string, frame: number, duration: number): MonitorRange {

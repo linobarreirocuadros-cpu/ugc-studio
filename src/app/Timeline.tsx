@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Clip, Project, Track } from "../project/types";
 import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled } from "../project/types";
 import { TrackControls } from "./TrackControls";
@@ -33,6 +33,7 @@ export type MediaDrag = {
   mode: "auto" | "video" | "audio";
   sequenceId?: string;
   items?: Omit<MediaDrag, "items">[];
+  timelineRange?: { project: Project; documentEpoch: number };
 };
 export const MEDIA_DRAG_TYPE = "application/x-ugc-source";
 
@@ -49,6 +50,7 @@ type Props = {
   markRange: {start:number|null;end:number|null};
   onTrackHeight:(height:number)=>void;
   onSeek: (frame: number) => void;
+  onScrubStart: () => void;
   isolatedSelection: boolean;
   onSelect: (clipIds: string[], isolated?: boolean) => void;
   onDuplicate: (clipIds: string[], deltaFrames: number, trackOffset: number, followLinks: boolean) => void;
@@ -67,7 +69,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const selectionIds = (ids: string[], follow = preferences.linkedSelection) => follow ? linkedIds(project, ids) : ids;
@@ -80,19 +82,23 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
     setDragState(d);
   };
   const scrollRef = useRef<HTMLDivElement>(null);
+  const timelineRef=useRef<HTMLDivElement>(null),rulerRef=useRef<HTMLDivElement>(null),headersRef=useRef<HTMLDivElement>(null);
+  const [scrollbars,setScrollbars]=useState({x:0,y:0});
+  const syncScroll=()=>{const scroll=scrollRef.current;if(!scroll)return;if(rulerRef.current)rulerRef.current.scrollLeft=scroll.scrollLeft;if(headersRef.current)headersRef.current.scrollTop=scroll.scrollTop;};
+  useLayoutEffect(()=>{const scroll=scrollRef.current;if(!scroll)return;const sync=()=>{syncScroll();const x=scroll.offsetHeight-scroll.clientHeight,y=scroll.offsetWidth-scroll.clientWidth;setScrollbars(p=>p.x===x&&p.y===y?p:{x,y});};const observer=new ResizeObserver(sync);observer.observe(scroll);sync();return()=>observer.disconnect();},[project,pxPerFrame]);
   const displaySelected = selectionIds(selectedIds, preferences.linkedSelection && !isolatedSelection);
   const hasLinkedAudio = project.tracks.some((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
   useLayoutEffect(() => {
-    const viewport = scrollRef.current?.parentElement;
+    const viewport = scrollRef.current;
     if (!viewport) return;
     const reversed = [...project.tracks].reverse();
     const index = revealTrackId ? reversed.findIndex((t) => t.id === revealTrackId) : reversed.findIndex((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
-    if (index >= 0) viewport.scrollTop = Math.max(0, 24 + (index + 1) * TRACK_H - viewport.clientHeight);
+    if (index >= 0) viewport.scrollTop = Math.max(0, (index + 1) * TRACK_H - viewport.clientHeight);
   }, [hasLinkedAudio, revealTrackId, TRACK_H]);
   const [cutFrame, setCutFrame] = useState<number | null>(null);
   const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
   useEffect(()=>{
-    const horizontal=scrollRef.current,vertical=horizontal?.parentElement;if(!horizontal||!vertical)return;
+    const horizontal=scrollRef.current,vertical=horizontal,root=timelineRef.current;if(!horizontal||!vertical||!root)return;
     const wheel=(e:WheelEvent)=>{
       if((e.target as HTMLElement).closest("input,select,textarea,[role=separator]"))return;
       const action=gestures[wheelModifier(e)];if(action==="none")return;
@@ -103,7 +109,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
       else if(action==="height")onTrackHeight(preferences.trackHeight+(delta<0?4:-4));
       else {onSeek(frame+Math.sign(delta)*(action==="fiveFrames"?5:1));}
     };
-    vertical.addEventListener("wheel",wheel,{passive:false});return()=>vertical.removeEventListener("wheel",wheel);
+    root.addEventListener("wheel",wheel,{passive:false});return()=>root.removeEventListener("wheel",wheel);
   },[gestures,pxPerFrame,frame,onZoom,onSeek,onTrackHeight,preferences.trackHeight]);
   const panCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => panCleanup.current?.(), []);
@@ -222,7 +228,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
     if (event.button !== 0) return;
     if (tool === "hand") {
       event.preventDefault(); event.stopPropagation();
-      const horizontal = scrollRef.current!, vertical = horizontal.parentElement!, x = event.clientX, y = event.clientY, left = horizontal.scrollLeft, top = vertical.scrollTop;
+      const horizontal = scrollRef.current!, vertical = horizontal, x = event.clientX, y = event.clientY, left = horizontal.scrollLeft, top = vertical.scrollTop;
       panCleanup.current?.();
       const move = (e: MouseEvent) => { horizontal.scrollLeft = left - (e.clientX - x); vertical.scrollTop = top - (e.clientY - y); };
       const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); window.removeEventListener("blur", up); panCleanup.current = null; };
@@ -247,34 +253,29 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
   const secondPx = project.fps * pxPerFrame;
   const labelEvery = secondPx < 30 ? 5 : secondPx < 60 ? 2 : 1;
   const totalSeconds = Math.ceil(width / secondPx);
+  const scrubStart=(e:PointerEvent<HTMLDivElement>)=>{if(e.button!==0||(e.target as Element).closest("button"))return;e.preventDefault();e.stopPropagation();onScrubStart();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);seekFromX(e.clientX);};
+  const scrubMove=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))seekFromX(e.clientX);};
+  const scrubEnd=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);};
 
   return (
-    <div className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px` } as CSSProperties}>
+    <div ref={timelineRef} className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px`,"--timeline-scrollbar":`${scrollbars.x}px`,"--timeline-vertical-scrollbar":`${scrollbars.y}px` } as CSSProperties}>
       <div ref={headerPane.ref} className="timeline-headers" style={headerPane.style}>
         <div className="ruler-spacer" />
-        {displayed.map((t) => (
+        <div className="track-headers-scroll" ref={headersRef}>{displayed.map((t) => (
           <div key={t.id} className={`track-header ${t.locked ? "locked" : ""}`} style={{ height: TRACK_H }}>
             <TrackControls track={t} targeted={(t.kind === "video" || t.kind === "audio") && destinationTrack(project, t.kind) === t.id} onChange={(patch) => onTrackChange(t.id, patch)} onRecord={() => onRecord(t.id)} recording={recordingTrack === t.id} recordingBusy={recordingTrack !== null}/>
           </div>
-        ))}
+        ))}</div>
       </div>
       {headerPane.separator}
-      <div className="timeline-scroll" ref={scrollRef}>
-        <div ref={marquee.ref} onMouseDownCapture={captureTool} onMouseDown={marquee.onMouseDown} onMouseMove={(e) => { if (tool === "razor") setCutFrame(frameFromX(e.clientX)); }} onMouseLeave={() => setCutFrame(null)} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative" }}>
+      <div className="timeline-content">
+        <div className="timeline-ruler-viewport" ref={rulerRef}>
           <div
             className="ruler"
+            style={{width}}
+            role="slider" tabIndex={0} aria-label="Regla del timeline" aria-valuemin={0} aria-valuemax={duration-1} aria-valuenow={frame} aria-valuetext={formatTimecode(frame,project.fps)}
             data-no-marquee
-            onMouseDown={(e) => {
-              if (e.button !== 0) return;
-              seekFromX(e.clientX);
-              const move = (ev: MouseEvent) => seekFromX(ev.clientX);
-              const up = () => {
-                window.removeEventListener("mousemove", move);
-                window.removeEventListener("mouseup", up);
-              };
-              window.addEventListener("mousemove", move);
-              window.addEventListener("mouseup", up);
-            }}
+            onPointerDown={scrubStart} onPointerMove={scrubMove} onPointerUp={scrubEnd} onPointerCancel={scrubEnd}
           >
             {(markRange.start!==null||markRange.end!==null)&&<span className="timeline-mark-range" aria-label="Rango de entrada y salida" style={{left:(markRange.start??0)*pxPerFrame,width:Math.max(0,(markRange.end??duration)-(markRange.start??0))*pxPerFrame}}/>}
             {Array.from({ length: totalSeconds }, (_, s) =>
@@ -285,11 +286,15 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
               ) : null,
             )}
             {preferences.showMarkers && (project.markers ?? []).map((marker) => <button key={marker.id} className="timeline-marker" style={{ left: marker.frame * pxPerFrame, color: marker.color }} title={`${marker.label} · ${formatTimecode(marker.frame, project.fps)}`} aria-label={`Ir al marcador ${marker.label}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => onSeek(marker.frame)}>◆</button>)}
+            <i className="ruler-playhead" aria-hidden style={{left:frame*pxPerFrame}}/>
           </div>
+        </div>
+      <div className="timeline-scroll" ref={scrollRef} onScroll={syncScroll}>
+        <div ref={marquee.ref} onMouseDownCapture={captureTool} onMouseDown={marquee.onMouseDown} onMouseMove={(e) => { if (tool === "razor") setCutFrame(frameFromX(e.clientX)); }} onMouseLeave={() => setCutFrame(null)} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative", minHeight:"100%" }}>
           {displayed.map((track, trackIndex) => (
             <div
               key={track.id}
-              data-track-index={trackIndex}
+              data-track-index={trackIndex} data-track-id={track.id} data-track-kind={track.kind}
               className={`track track-${track.kind} ${track.locked ? "locked" : ""} ${!trackOutputEnabled(project, track) ? "output-off" : ""} ${dropTrackId === track.id ? "drop-target" : ""}`}
               style={{ height: TRACK_H }}
               onDragOver={(e) => {
@@ -393,10 +398,11 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
               })}
             </div>
           ))}
-          <div className="playhead" style={{ left: frame * pxPerFrame }} />
+          <div className="playhead" role="slider" tabIndex={0} data-no-marquee aria-label="Cabezal del timeline" aria-valuemin={0} aria-valuemax={duration-1} aria-valuenow={frame} aria-valuetext={formatTimecode(frame,project.fps)} title="Arrastra el cabezal desde cualquier altura" style={{left:frame*pxPerFrame}} onPointerDown={scrubStart} onPointerMove={scrubMove} onPointerUp={scrubEnd} onPointerCancel={scrubEnd}/>
           {tool === "razor" && cutFrame !== null && <div className="razor-guide" style={{ left: cutFrame * pxPerFrame }} />}
           {marquee.box && <div className="selection-marquee" aria-hidden style={{ left: marquee.box.x, top: marquee.box.y, width: marquee.box.width, height: marquee.box.height }} />}
         </div>
+      </div>
       </div>
     </div>
   );

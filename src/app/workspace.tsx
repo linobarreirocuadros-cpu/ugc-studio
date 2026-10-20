@@ -14,6 +14,8 @@ export function useWorkspace() {
   const [target, setTarget] = useState<Target | null>(null);
   const [resizing, setResizing] = useState<string | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [activePanel,setActivePanel]=useState<Panel>("timeline");
+  const activatePanel=(target:EventTarget|null)=>{if(!(target instanceof Element))return;const panel=target.closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel&&PANELS.includes(panel))setActivePanel(panel);};
   const appRef = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLDivElement>(null);
   const cleanup = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
@@ -72,7 +74,7 @@ export function useWorkspace() {
     trackPointer(e => { const delta = (divider.axis === "x" ? e.clientX : e.clientY) - coordinate; setTree(setSplitRatio(original, divider.id, divider.ratio + delta / length)); }, cancel => { if (cancel) setTree(original); setResizing(null); });
     document.body.classList.add("workspace-resizing");
   };
-  const panelProps = (panel: Panel) => ({ "data-workspace-panel": panel, style: { ...geometry(maximized === panel ? { x: 0, y: 0, ...size } : layout.panels[panel]), display: maximized && maximized !== panel ? "none" : undefined } });
+  const panelProps = (panel: Panel) => ({ "data-workspace-panel": panel, "data-active":activePanel===panel?"true":undefined, style: { ...geometry(maximized === panel ? { x: 0, y: 0, ...size } : layout.panels[panel]), display: maximized && maximized !== panel ? "none" : undefined } });
   const handle = (panel: Panel) => <div className="panel-dock-controls" data-no-marquee>
     <button type="button" className="panel-grip" aria-label={`Mover panel ${PANEL_LABEL[panel]}`} title="Arrastra para acoplar; doble clic para ampliar" onPointerDown={e => startDrag(panel, e)} onDoubleClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>{[4, 8, 12].flatMap(y => [5, 10].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1"/>))}</svg></button>
     <select aria-label={`Posición de ${PANEL_LABEL[panel]}`} title="Acoplar o intercambiar panel" value="" onChange={e => { const value = e.target.value; if (value === "maximize") toggleMax(panel); else { const [kind, destination] = value.split(":"); setMaximized(null); setTree(t => dockPanel(t, panel, kind === "edge" ? "workspace" : destination as Panel, kind === "edge" ? destination as Edge : "center")); } }}>
@@ -89,5 +91,5 @@ export function useWorkspace() {
     {dragged && <div className="dock-drag-instructions" role="status">Borde: dividir · Centro: intercambiar · Borde exterior: ocupar todo el lado · Esc: cancelar</div>}
     {preview && target && <div className="dock-preview" style={geometry(preview)}><span>{target.edge === "center" ? "Intercambiar" : `Acoplar ${EDGE_LABEL[target.edge]}`} · {PANEL_LABEL[dragged!]}</span></div>}
   </>;
-  return { appRef, canvasRef, panelProps, handle, overlays, dragged, toggleMax, showPanel: (panel:Panel) => { if(maximized && maximized!==panel)setMaximized(null); }, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "var(--ui-chrome-height,74px) auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
+  return { activatePanel, appRef, canvasRef, panelProps, handle, overlays, dragged, toggleMax, showPanel: (panel:Panel) => { if(maximized && maximized!==panel)setMaximized(null); }, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "var(--ui-chrome-height,74px) auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
 }

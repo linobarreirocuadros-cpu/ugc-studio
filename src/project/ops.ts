@@ -5,6 +5,7 @@ import {
   getProjectDuration,
   destinationTrack,
   nameTracks,
+  trackOutputEnabled,
   DEFAULT_CAPTION_STYLE,
   DEFAULT_TEXT_STYLE,
   type CaptionClip,
@@ -392,7 +393,7 @@ export const duplicateClipsWithSelection = (project: Project, ids: string[], del
 export const duplicateClips = (project:Project,ids:string[],deltaFrames:number,trackOffset=0,followLinks=true):Project => duplicateClipsWithSelection(project,ids,deltaFrames,trackOffset,followLinks).project;
 
 /** Pega en las mismas pistas, manteniendo offsets y remapeando las relaciones de los clips. */
-export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string): Project => {
+export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string, origin?: number): Project => {
   const clips = clipboard.tracks.flatMap(t => t.clips);
   if (!clips.length || clipboard.fps !== project.fps || !Number.isFinite(at)) return project;
   // No crear referencias perdidas o recursivas entre secuencias al pegar entre montajes.
@@ -406,7 +407,7 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
     if (!target || target.locked) return project;
     destinations.set(source.id,target.id);
   }
-  const start = Math.min(...clips.map(c => c.from)), delta = Math.max(0,Math.round(at)) - start;
+  const start = origin ?? Math.min(...clips.map(c => c.from)), delta = Math.max(0,Math.round(at)) - start;
   const identities = new Map(clips.map(c => [c.id,newId()]));
   const placed = mapTracks(next,t => ({ ...t, clips: [...t.clips, ...clipboard.tracks.filter(s => destinations.get(s.id) === t.id).flatMap(s => s.clips.map(c => {
     const clip = structuredClone({ ...c, id: identities.get(c.id)!, from: c.from + delta });
@@ -415,6 +416,53 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
     return clip;
   }))] }));
   return overwritePlaced(project,placed,[...identities.values()]);
+};
+
+/** Copia I/O de Programa sin tocar originales; conserva capas, huecos, trim y palabras. */
+export const copyTimelineRange=(project:Project,start:number,end:number,mode:"auto"|"video"|"audio"="auto"):Project=>{
+  if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<=start||end>getProjectDuration(project))throw new Error("El rango marcado está fuera del montaje.");
+  const embedded:AudioClip[]=[];
+  const tracks=project.tracks.filter(t=>trackOutputEnabled(project,t)).map(t=>({...t,clips:t.clips.flatMap((c):Clip[]=>{
+    const a=Math.max(start,c.from),b=Math.min(end,c.from+c.durationInFrames);if(b<=a)return [];
+    const part=clipSlice(c,a,b,c.id);part.from-=start;
+    if(mode==="audio"&&part.kind!=="audio"){
+      if(part.kind==="video"&&!part.linkedClipId&&part.audioMode!=="none"&&part.volume>0&&!part.sequenceId)embedded.push({id:part.id,kind:"audio",src:part.src,name:part.name,from:part.from,durationInFrames:part.durationInFrames,trimStart:part.trimStart,sourceDurationInFrames:part.sourceDurationInFrames,volume:part.volume,fadeIn:0,fadeOut:0});
+      return [];
+    }
+    if(mode==="video"&&part.kind==="audio")return [];
+    if(mode==="video"&&part.kind==="video"){part.volume=0;part.audioMode="none";}
+    return part.kind==="caption"&&!part.words.length?[]:[part];
+  })}));
+  if(embedded.length)tracks.push({id:`range-audio-${newId()}`,kind:"audio",name:"Audio",clips:embedded});
+  const ids=new Set(tracks.flatMap(t=>t.clips.map(c=>c.id)));
+  return structuredClone({...project,markers:[],transcripts:{},tracks:tracks.map(t=>({...t,clips:t.clips.map(c=>{
+    if(c.kind!=="video"&&c.kind!=="audio")return c;
+    return {...c,linkedClipId:c.linkedClipId&&ids.has(c.linkedClipId)?c.linkedClipId:undefined};
+  })}))});
+};
+
+/** Coloca las capas del rango en pistas compatibles desde el destino, en un solo paso. */
+export const placeTimelineRange=(project:Project,clipboard:Project,trackId:string,at:number,mode:"auto"|"video"|"audio"="auto",hostId?:string):Project=>{
+  const target=project.tracks.find(t=>t.id===trackId);
+  if(!target||target.locked||!(target.kind==="video"||target.kind==="audio")||!Number.isFinite(at)||clipboard.fps!==project.fps||target.kind==="video"&&mode==="audio"||target.kind==="audio"&&mode==="video")return project;
+  const content=copyTimelineRange(clipboard,0,getProjectDuration(clipboard),target.kind==="audio"?"audio":mode);
+  let next=project;
+  const mapped:Track[]=[],used=new Set<string>();
+  const ordered=(p:Project,kind:Track["kind"])=>kind==="audio"?p.tracks.filter(t=>t.kind===kind).reverse():p.tracks.filter(t=>t.kind===kind);
+  for(const kind of ["video","audio","text","caption"] as const){
+    const sources=ordered(content,kind).filter(t=>t.clips.length);if(!sources.length)continue;
+    const base=kind===target.kind?trackId:kind==="video"||kind==="audio"?destinationTrack(next,kind):undefined;
+    let offset=base?ordered(next,kind).findIndex(t=>t.id===base):0;
+    if((kind==="video"||kind==="audio")&&!base)return project;
+    for(const source of sources){
+      let destination=kind==="video"||kind==="audio"?ordered(next,kind)[offset++]:next.tracks.find(t=>t.id===source.id&&t.kind===kind&&!used.has(t.id))??next.tracks.find(t=>t.kind===kind&&!used.has(t.id));
+      if(!destination&&(kind==="video"||kind==="audio")){next=addTrack(next,kind);destination=ordered(next,kind)[offset-1];}
+      if(!destination||destination.locked)return project;
+      used.add(destination.id);mapped.push({...source,id:destination.id});
+    }
+  }
+  const placed=pasteClips(next,{...content,tracks:mapped},at,hostId,0);
+  return placed===next?project:placed;
 };
 
 /** Abre espacio para Origen en las pistas destino y las que siguen ripple. Transacción atómica. */
