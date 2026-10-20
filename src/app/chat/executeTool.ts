@@ -12,13 +12,12 @@ import {
 } from "../../project/types";
 import { FONT_FAMILIES } from "../../remotion/fonts";
 import { transcribeMissing } from "../transcribe";
+import { processAudio, searchVisual, sourceClip, type AssistantContext } from "../localAssistant";
 
 export type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type FoleyFolder = { folder: string; files: { name: string; src: string }[] };
 
-export type ToolContext = {
-  getProject: () => Project;
-  commit: (next: Project) => void;
+export type ToolContext = AssistantContext & {
   undo: () => void;
   media: MediaItem[];
   fetchFoley: () => Promise<FoleyFolder[]>;
@@ -122,11 +121,48 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
       const foley = await ctx.fetchFoley().catch(() => []);
       return JSON.stringify({
         duracion_s: round(getProjectDuration(project) / fps),
+        clip_seleccionado: ctx.selectedClipId ?? null,
+        cabezal_s: round((ctx.currentFrame ?? 0) / fps),
         pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, clips: t.clips.map((c) => clipSummary(c, fps)) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: generate_captions o remove_silences la crean)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
         foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),
       });
+    }
+
+    case "search_visual": {
+      const query = str(input.query);
+      if (!query) throw new Error("Describe la acción u objeto que quieres encontrar.");
+      const result = await searchVisual(ctx, query, str(input.clip_id), ctx.onStatus);
+      return JSON.stringify({ clip_id: result.clipId, modelo: result.model, imagenes_analizadas: result.sampleCount,
+        rangos_aproximados: result.matches.map((m) => ({ inicio_s: m.from / fps, fin_s: m.end / fps, evidencia: m.description })),
+        aviso: "Análisis visual sin transcribir. Los rangos tienen resolución aproximada de 1 s. Las miniaturas están en la pestaña Visión. No se modificó el proyecto." });
+    }
+
+    case "split_clip_range": {
+      const clip = sourceClip(ctx, str(input.clip_id));
+      const a = f(input.start_s), b = f(input.end_s);
+      if (num(input.start_s) === undefined || num(input.end_s) === undefined || a < clip.from || b > clip.from + clip.durationInFrames || b <= a) throw new Error("El rango debe estar dentro del clip y tener inicio y fin válidos.");
+      const next = ops.splitClipRange(project, clip.id, a, b);
+      commit(next);
+      const targetTrack = ops.findClip(project, clip.id)!.track.id;
+      const inside = next.tracks.find((t) => t.id === targetTrack)?.clips.find((c) => c.from === a && c.durationInFrames === b - a && (c.kind === "video" || c.kind === "audio") && c.src === clip.src);
+      ctx.onSeek?.(a);
+      return JSON.stringify({ mensaje: "Cortes creados en los bordes; un solo paso de deshacer.", clip_del_rango: inside?.id, inicio_s: a / fps, fin_s: b / fps });
+    }
+
+    case "process_audio": {
+      const mode = str(input.mode);
+      if (mode !== "clean" && mode !== "separate" && mode !== "separate-clean") throw new Error("Modo de audio no válido.");
+      const result = await processAudio(ctx, mode, str(input.clip_id), ctx.onStatus);
+      return `${result.engine}: ${result.stems.map((s) => s.name).join(" y ")} creados en pistas nuevas. Sonido original silenciado, recuperable con Deshacer o restore_original_audio. Música y ambiente quedan juntos en Fondo y música.${mode === "separate-clean" ? " El fondo se creó silenciado para escuchar la voz aislada; su volumen es editable." : ""}`;
+    }
+
+    case "restore_original_audio": {
+      const clip = sourceClip(ctx, str(input.clip_id));
+      const id = clip.kind === "audio" ? clip.derivedFrom?.clipId ?? clip.id : clip.id;
+      commit(ops.restoreOriginalAudio(project, id));
+      return "Sonido original restaurado; pistas derivadas de ese proceso retiradas del timeline.";
     }
 
     case "remove_silences": {

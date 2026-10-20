@@ -7,13 +7,15 @@ acciones, gestos observables, voz y sonidos; toda edición reflejada en un timel
 base gratuita/local y proyecto open source. Organización por espacios con barra inferior.
 Las referencias a Premiere/Resolve sirven para aprender flujos, no para replicar productos.
 
-**Propuesta para discutir con Lino:** Medios · Edición · Audio · Crear · Exportar, con una
+**Rumbo aceptado para continuar (2026-10-19), con diseño detallado pendiente:**
+Medios · Edición · Audio · Crear · Exportar, con una
 conversación persistente y contexto de selección compartido. Edición conserva la preferencia
 ya confirmada de dos visores y opción de pestañas. Timeline con detalle ajustable; vista por
 planos y alternativas A/B como posibilidades posteriores. Nodos como vista avanzada opcional
-para generación/composición. Los nombres y la distribución no están aprobados ni implementados.
+para generación/composición. Los nombres y la distribución final se revisarán con Lino antes
+de rediseñar la interfaz. En esta entrega se añadieron paneles Visión/Audio al editor actual.
 
-### Orden de trabajo propuesto (pendiente de revisión de Lino)
+### Orden de trabajo (primera prueba y audio autorizados por Lino)
 
 1. **Fiabilidad:** validar reproducción, sincronía y arrastre con Lino; cerrar un flujo UGC real.
 2. **Primera edición con visión:** analizar un clip corto localmente, localizar un plano por su
@@ -26,24 +28,27 @@ para generación/composición. Los nombres y la distribución no están aprobado
 5. **Extensiones:** voz, música, motion y video generado por proveedores intercambiables,
    con colas, cancelación, estado de progreso y recursos persistidos fuera del repositorio.
 
-### Requisitos técnicos derivados (sin implementar)
+### Requisitos técnicos derivados
 
 - [x] Investigar la dirección de edición multimodal, nodos, herramientas locales y acceso a cuentas
-- [ ] Revisar con Lino la propuesta de espacios y la prioridad de la primera prueba con visión
-- [ ] Índice de medios con planos, fotogramas con tiempo, voz, eventos sonoros y evidencias de análisis
-- [ ] Persistir análisis por huella del medio, versión de modelo/esquema y tiempo del original;
-      mapearlo correctamente al timeline en frames, incluyendo recortes y fuentes con fps distinto
-- [ ] Adaptador de visión local: probar `qwen3-vl:4b` y después 8B, con muestras temporales limitadas;
-      el transporte actual del chat es textual y no envía imágenes/sonido al modelo
+- [x] Confirmar con Lino la prioridad de la primera prueba de visión y la limpieza/separación de audio
+- [ ] Diseñar con Lino la distribución final de espacios
+- [x] Índice visual por fotogramas con tiempos de origen, miniaturas y evidencia generada desde imagen
+- [ ] Detección de límites reales de planos, eventos sonoros y análisis audiovisual más completo
+- [x] Persistir análisis por huella de archivo/modelo/esquema y mapear rangos aproximados al timeline
+- [x] Visión local con `qwen3-vl:4b-instruct`, búsqueda semántica con `qwen3:8b` y verificación visual
+      de candidatos; las imágenes van directamente a Ollama, sin transcribir el video
+- [ ] Comparar la precisión de un modelo visual 8B frente al 4B probado
 - [ ] Analizar sonido no hablado; candidato CLAP para búsqueda/clasificación por ventanas,
       con refinamiento temporal para eventos y validación por Lino
 - [ ] Plan de edición validado antes de aplicar; transacciones reversibles, versiones y comparación A/B
 - [ ] Extender JSON/ops para efectos, capas de ajuste y keyframes; conservar parámetros editables
       de motion. Un video generado externamente es un clip renderizado, no capas recuperables
-- [ ] Ajustar el criterio editorial del asistente al brief y al estilo de Lino: ritmo, pausas
+- [x] Ajustar el criterio editorial del asistente al brief y al estilo de Lino: ritmo, pausas
       expresivas, continuidad y Foley motivado por la acción; revisar los presets UGC del prompt
 - [ ] Proveedores por capacidad, con requisitos de memoria/licencia y ejecución serial de trabajos
       pesados en la RTX 5070 de 12 GB; no prometer velocidad antes de medirla en este PC
+- [x] Cola serial de tareas locales con progreso, cancelación y protección frente a clips modificados
 - [ ] Revisar licencia propia del repositorio (no hay `LICENSE` en la raíz) y dependencias antes
       de prometer una distribución enteramente libre; elección de licencia pendiente de Lino
 - [ ] Revisar el alcance comercial de Remotion y evaluar independencia del motor de render;
@@ -58,7 +63,8 @@ para generación/composición. Los nombres y la distribución no están aprobado
 
 ### Evidencia consultada y límites
 
-Investigación documental; no se instalaron ni ejecutaron los modelos candidatos en esta sesión.
+La investigación inicial fue documental. La entrega posterior probó Qwen3-VL 4B Instruct,
+Qwen3 8B y Resemble Denoiser ONNX en este PC; ver resultados y límites en `PROGRESS.md`.
 El rumbo recomendado es una inferencia de producto, no una predicción demostrada del mercado.
 
 - [ExpressEdit (IUI 2024)](https://arxiv.org/abs/2403.17693): lenguaje y dibujo sobre imagen;
@@ -119,14 +125,15 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [ ] Miniaturas de video en la línea de tiempo
 
 ## Fase 2 — Chat de IA integrado (base implementada, pendiente validación editorial UGC)
-- [x] Panel "Chat IA"; 14 herramientas que usan `ops.ts` (subtítulos, silencios, textos, volumen, Foley…)
+- [x] Panel "Chat IA"; herramientas de proyecto y análisis (subtítulos, textos, Foley, visión y audio)
 - [x] Motores: Ollama (local, gratis, por defecto), Gemini / Groq / OpenRouter (gratis con límite),
       Claude y OpenAI (de pago, opcionales). Claves guardadas en `UGC Studio/config.json`
 - [x] Comandos de voz (micrófono → Whisper en el navegador → chat)
 - [x] Probar el chat con Ollama real en el PC del usuario (qwen3:8b: texto, duración y deshacer)
 - [x] Probar el chat con qwen3:30b-a3b en el PC del usuario (texto, posición y duración)
 - [x] Evitar el timeout de Ollama 30B al recibir su respuesta en flujo desde el servidor
-- [ ] Probar el chat con un video UGC real y ajustar el prompt según los resultados
+- [x] Probar el chat con un video UGC real: limpieza/separación de audio y Deshacer; ajustar criterio editorial
+- [ ] Validar con Lino la calidad editorial y del audio procesado en un trabajo real
 - [ ] Mostrar en el panel las respuestas en streaming mientras se escriben
 
 ## Fase 3 — Marcas, Foley y presets
@@ -142,7 +149,12 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [ ] Transiciones y efectos (zoom, shake, blur, color)
 
 ## Fase 5 — Integraciones
-- [ ] Limpieza de voz (DeepFilterNet / RNNoise) y separar voz/música (Demucs) — open source
+- [x] Extracción local de voz con Resemble Denoiser ONNX (pesos MIT) y residuo de fondo;
+      pistas nuevas y restauración del original. No hay tres stems independientes
+- [x] Reducción de ruido y nivelación local con FFmpeg, incluyendo opción de separar antes de limpiar
+- [x] Denoiser neuronal local para voz con ruido/música; modelo verificado por SHA-256
+- [ ] Restauración neuronal de distorsión y reducción de reverberación: evaluar calidad/pesos
+- [ ] Separar diálogo, música y efectos/ambiente como tres componentes independientes (hoy hay dos)
 - [ ] Quitar fondo sin pantalla verde (RobustVideoMatting / rembg) — open source
 - [ ] Animaciones Lottie (@remotion/lottie) con biblioteca de LottieFiles
 - [ ] ElevenLabs (voces, SFX)

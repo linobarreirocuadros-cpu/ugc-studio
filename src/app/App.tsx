@@ -20,6 +20,8 @@ import { ProjectComposition } from "../remotion/ProjectComposition";
 import { SourceMonitor } from "./SourceMonitor";
 import { MEDIA_DRAG_TYPE, Timeline, formatTimecode, type MediaDrag } from "./Timeline";
 import { useHistory } from "./useHistory";
+import { LocalAssistantPanel } from "./LocalAssistantPanel";
+import type { AssistantContext, VisualResult } from "./localAssistant";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -89,7 +91,8 @@ export function App() {
   const [sourceSrc, setSourceSrc] = useState<string | null>(null);
   const [monitorLayout, setMonitorLayout] = useState<"split" | "tabs">(() => localStorage.getItem("ugc-studio:monitor-layout") === "tabs" ? "tabs" : "split");
   const [monitorTab, setMonitorTab] = useState<"source" | "program">("program");
-  const [rightTab, setRightTab] = useState<"propiedades" | "chat">("chat");
+  const [rightTab, setRightTab] = useState<"propiedades" | "chat" | "vision" | "audio">("chat");
+  const [visualResult, setVisualResult] = useState<VisualResult | null>(null);
   const [preset, setPreset] = useState<Preset>("h264-high");
   const [render, setRender] = useState<{ progress: number; url?: string; error?: string } | null>(null);
   const playerRef = useRef<PlayerRef>(null);
@@ -183,6 +186,16 @@ export function App() {
     playerRef.current?.seekTo(f);
     setFrame(f);
   }, []);
+
+  const assistantContext = (): AssistantContext => ({
+    getProject: history.current,
+    commit: (next) => history.apply(() => next),
+    selectedClipId: selectedId,
+    currentFrame: frame,
+    onSeek: seek,
+    showVisualResult: setVisualResult,
+    registerMedia: (items) => setMedia((list) => [...list, ...items.filter((item) => !list.some((m) => m.src === item.src))]),
+  });
 
   const importFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -445,20 +458,27 @@ export function App() {
           <div className="tabs">
             <button className={rightTab === "chat" ? "active" : ""} onClick={() => setRightTab("chat")}>Chat IA</button>
             <button className={rightTab === "propiedades" ? "active" : ""} onClick={() => setRightTab("propiedades")}>Propiedades</button>
+            <button className={rightTab === "vision" ? "active" : ""} onClick={() => setRightTab("vision")}>Visión</button>
+            <button className={rightTab === "audio" ? "active" : ""} onClick={() => setRightTab("audio")}>Audio</button>
           </div>
         </div>
         {/* El chat queda montado al cambiar de pestaña para no perder la conversación */}
         <div style={{ display: rightTab === "chat" ? "contents" : "none" }}>
           <ChatPanel
             ctx={() => ({
-              getProject: history.current,
-              commit: (next) => history.apply(() => next),
+              ...assistantContext(),
               undo: history.undo,
               media,
               fetchFoley: () => fetch("/api/library").then((r) => r.json()).then((d) => d.folders ?? []),
               readDuration: (src) => readDurationInFrames(src, project.fps),
             })}
           />
+        </div>
+        <div style={{ display: rightTab === "vision" ? "contents" : "none" }}>
+          <LocalAssistantPanel mode="vision" ctx={assistantContext} project={project} result={visualResult} />
+        </div>
+        <div style={{ display: rightTab === "audio" ? "contents" : "none" }}>
+          <LocalAssistantPanel mode="audio" ctx={assistantContext} project={project} result={visualResult} />
         </div>
         {rightTab === "propiedades" && <>
         {!selected && <p className="hint">Selecciona un clip en la línea de tiempo.</p>}

@@ -17,6 +17,10 @@ type ChatReply = { text: string; toolCalls: { id: string; name: string; input: R
 type OllamaStatus = { state: "checking" | "ready" | "offline" | "missing"; detail?: string };
 
 const TOOL_LABEL: Record<string, string> = {
+  search_visual: "Buscando en las imágenes del video",
+  split_clip_range: "Cortando los bordes del rango",
+  process_audio: "Procesando audio local",
+  restore_original_audio: "Restaurando sonido original",
   get_project_state: "Revisando el proyecto",
   remove_silences: "Quitando silencios",
   generate_captions: "Generando subtítulos",

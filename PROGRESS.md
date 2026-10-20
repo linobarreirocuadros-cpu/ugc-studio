@@ -1,8 +1,10 @@
 # Progreso
 
 ## Estado actual
-Fase 2 (chat con IA) construida. Usuario: Windows 11, Ryzen 7 7700X, 32 GB RAM → recomendado
-Ollama con qwen3:30b-a3b (MoE, corre bien en CPU) o qwen3:8b.
+Fase 2 (chat con IA) construida, con primera visión local y limpieza de audio integradas.
+Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
+Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
+Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
 
 Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX/voz), Foley,
 tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y miniaturas.
@@ -199,10 +201,77 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
   ejecutaron pruebas audiovisuales o de IA adicionales; los resultados previos siguen separados.
   `npm run typecheck` y `git diff --check` completados sin errores.
 
+### 2026-10-20 — Primera visión local y tratamiento de voz dentro del editor (Codex)
+
+**Decisiones e implementación**
+- Lino autorizó continuar con la primera prueba visual y pidió limpiar audio sin salir del
+  editor. Se añadieron paneles Visión y Audio al inspector actual. El diseño de espacios con
+  barra inferior sigue pendiente de revisión visual con Lino; no se ha hecho ese rediseño.
+- Visión: muestreo de imágenes con tiempos de origen (~una por segundo, máximo 60 s), caché por
+  archivo/modelo/esquema, miniaturas, búsqueda semántica y segunda verificación mirando imágenes.
+  Usa Ollama exclusivamente local: `qwen3-vl:4b-instruct` y `qwen3:8b`; sin transcripción.
+  Muestra rangos aproximados, permite ir al Programa y crear dos cortes reversibles. Se invalida
+  la aplicación de una búsqueda cuando el clip cambia. El modelo 4B puede omitir coincidencias.
+- El alias visual `4b` descargó una variante thinking que agotaba el presupuesto de respuesta;
+  se sustituyó por la variante Instruct explícita. El modelo de chat de Lino sigue siendo 30B.
+- Audio: Resemble Denoiser ONNX extrae voz mono (duplicada a estéreo); el fondo se obtiene
+  restando esa voz al original estéreo. No equivale a separar música y ambiente independientes.
+  FFmpeg completo ofrece reducción de ruido y nivelación adicionales. Se incluye preparación
+  de dependencias en entorno propio y descarga de 43 MB fijada por revisión/SHA-256.
+- Se evaluó inicialmente Demucs, pero se retiró de la integración al encontrar la aclaración
+  del autor sobre pesos para fines científicos: [fuente](https://github.com/facebookresearch/demucs/issues/327).
+  La alternativa final tiene pesos originales MIT explícitos en la
+  [ficha de ResembleAI](https://huggingface.co/ResembleAI/resemble-enhance) y conversión
+  [ONNX MIT](https://github.com/skeskinen/resemble-denoise-onnx-inference).
+  Se conservaron ambos avisos de licencia. No confundir la licencia del código con la del modelo.
+- Todo resultado de audio se aplica con operaciones puras: silencia el original sin modificar
+  su archivo, crea pistas alineadas al rango visible y permite restaurar su volumen previo.
+  Reprocesar sustituye derivados, sin acumularlos en el timeline. Al separar y limpiar, el
+  fondo entra silenciado. Los WAV se añaden a Proyecto y conservan ondas editables.
+- Nuevas herramientas de chat: `search_visual`, `split_clip_range`, `process_audio` y
+  `restore_original_audio`. El prompt respeta brief, pausas expresivas y Foley motivado.
+  Se comparten selección/cabezal; resultados persistentes fuera del repo; cola serial con
+  progreso/cancelación. Cambiar rango/posición/volumen durante el proceso impide aplicar audio
+  sobre un estado distinto del analizado. No se integraron servicios de pago.
+
+**Pruebas realizadas**
+- Video UGC real de ~26 s en un proyecto de navegador aislado, conservando el proyecto de Lino.
+  La consulta por el teléfono devolvió dos rangos verificados visualmente (~4.82–8.72 y
+  ~10.62–14.52 s). Una búsqueda negativa por un perro en una playa no devolvió coincidencias.
+- Se generó un fragmento de 4 s SIN pista de audio y la búsqueda encontró el teléfono mirando
+  sus cuatro imágenes; comprobado que esta función no depende de texto hablado.
+- En la interfaz: miniaturas, búsqueda en caché, salto al monitor, cortes en bordes y Deshacer.
+  Chat Ollama 30B real también buscó el teléfono, llamó a `split_clip_range`, conservó los
+  tres fragmentos y confirmó la edición. Deshacer restauró el clip completo en un paso.
+  Audio: aplicación, restauración, cancelación y pistas con ondas. Chat Ollama 30B real ejecutó
+  separación/limpieza con el motor final y confirmó la acción; un Deshacer eliminó los dos
+  derivados, Rehacer los restituyó. Proyecto guardado: original volumen 0, voz 1, fondo 0,
+  inicio 0 y 783 frames para las tres piezas a 30 fps.
+- Resemble final + FFmpeg sobre 26.1 s: entrada, voz y residuo tienen exactamente 1,151,010
+  muestras estéreo a 44.1 kHz; voz final finita, pico ~0.844. La correlación del original
+  con la voz antes de nivelar detectó desplazamiento de 0 muestras en el tramo comprobado.
+  La reconstrucción voz+residuo antes de nivelar difiere menos de 2e-10. La conversión
+  STFT/ISTFT sola se comprobó con distintas longitudes (error máximo <1e-7).
+- Preparador de audio ejecutado en este PC; detección de dependencias/modelos y FFmpeg correcta.
+  `npm run typecheck`, ocho pruebas `npm test`, `npm run build` y `git diff --check` pasan.
+  Build mantiene el aviso de chunks grandes. No se añadieron videos, modelos ni claves al repo.
+
+**Pruebas pendientes y límites**
+- Lino debe comparar de oído voz/original y validar inteligibilidad, textura, artefactos,
+  sincronía labial y calidad de la mezcla. No se midió mejora perceptual ni se promete calidad
+  equivalente a Adobe Podcast. No se integra el enhancer/restaurador de Resemble; saturación
+  severa, reverberación y datos perdidos pueden no recuperarse.
+- Las pistas derivadas son independientes: mover/cortar el video después requiere ajustar
+  también su audio. Vinculación automática, tres stems y límites precisos de planos pendientes.
+- Audio limitado a 180 s por tarea; visión a 60 s. Modelos y análisis pueden tardar; el chat
+  y sus modelos no forman parte de la cola de trabajos audiovisuales. No hay benchmark general.
+- Pendientes anteriores: confirmación de Lino de reproducción sin bucles y arrastre, miniaturas
+  de timeline, export completo con derivados, Whisper real y avisos de dependencias `multer`.
+  No se verificó el instalador en un equipo limpio ni la ejecución en macOS/Linux.
+
 ## Siguiente paso sugerido para Codex
 
-Revisar con Lino la dirección propuesta y la distribución de espacios antes de rediseñar.
-La siguiente entrega técnica recomendada es una prueba pequeña de visión local sobre un video
-UGC: encontrar un plano por lo que muestra (también sin diálogo), enseñar su rango, editarlo
-mediante operaciones del proyecto y verificar Deshacer. Validar reproducción/sincronía y cerrar
-el fallo de bucle si Lino aún lo observa. Después ampliar el flujo a Foley y versiones de duración.
+Recoger la comparación de oído de Lino y su validación de reproducción. Priorizar vinculación
+de video/audio derivado para conservar sincronía al mover y cortar, y probar exportación con
+ese audio. Revisar con Lino el prototipo de espacios antes de rediseñar; después ampliar visión
+a límites de plano/eventos y Foley sincronizado. Mantener toda edición en JSON/ops y reversible.

@@ -23,6 +23,26 @@ const position = { type: "string", enum: ["arriba", "centro", "abajo"], descript
 
 export const TOOLS: ToolDef[] = [
   {
+    name: "search_visual",
+    description: "Busca acciones u objetos VISIBLEs en un clip mediante visión local, incluso sin diálogo. Devuelve rangos aproximados de 1 s y evidencia. No edita. Máximo 60 s de clip; usa el clip seleccionado si no indicas id.",
+    parameters: { type: "object", properties: { clip_id: { type: "string" }, query: { type: "string", description: "Qué se ve, por ejemplo: el plano donde enseña el teléfono" } }, required: ["query"], additionalProperties: false },
+  },
+  {
+    name: "split_clip_range",
+    description: "Crea cortes en los dos bordes de un rango de UN clip, sin desplazar otras pistas. Devuelve el id del fragmento para ediciones posteriores. Inicio/fin son tiempos de la línea de tiempo. Un paso de deshacer.",
+    parameters: { type: "object", properties: { clip_id: { type: "string" }, start_s: { type: "number" }, end_s: { type: "number" } }, required: ["clip_id", "start_s", "end_s"], additionalProperties: false },
+  },
+  {
+    name: "process_audio",
+    description: "Procesa localmente el audio del rango visible del clip: clean reduce ruido y nivela; separate separa voz y acompañamiento; separate-clean separa y limpia voz. Crea pistas editables y silencia el original; Deshacer lo restaura. Música y ambiente no se separan entre sí. Máximo 180 s. Usa la selección si no indicas id.",
+    parameters: { type: "object", properties: { clip_id: { type: "string" }, mode: { type: "string", enum: ["clean", "separate", "separate-clean"] } }, required: ["mode"], additionalProperties: false },
+  },
+  {
+    name: "restore_original_audio",
+    description: "Restaura el sonido original del clip y retira sus pistas de audio procesado. Usa la selección si no indicas id.",
+    parameters: { type: "object", properties: { clip_id: { type: "string" } }, additionalProperties: false },
+  },
+  {
     name: "get_project_state",
     description:
       "Devuelve el estado actual del proyecto: pistas, clips (con id, inicio y fin en segundos), transcripción con tiempos, archivos importados y sonidos de Foley disponibles. Úsala antes de editar si no conoces los ids o los tiempos.",
@@ -210,7 +230,7 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
-export const SYSTEM_PROMPT = `Eres el asistente de edición de UGC Studio, un editor de video para anuncios UGC verticales (9:16) de marcas, parecido a Premiere Pro.
+export const SYSTEM_PROMPT = `Eres el asistente de edición de UGC Studio, un editor de video para anuncios UGC verticales (9:16) dirigido por conversación y voz.
 El usuario es editor de video profesional y te habla en español. Responde en español, breve y directo.
 
 Cómo trabajas:
@@ -219,9 +239,13 @@ Cómo trabajas:
 - Los tiempos son en segundos. Pistas: V1 video principal, V2 B-roll encima, T1 textos, SUB subtítulos, A1 música, A2 efectos (Foley).
 - Si una herramienta devuelve un error, explícalo en pocas palabras y propone qué hacer.
 - Al terminar, confirma en 1 o 2 frases qué cambiaste. No repitas datos técnicos (ids) salvo que te los pidan.
+- El estado incluye selección y cabezal: úsalos para resolver referencias como "este clip".
+- Para encontrar acciones u objetos visibles usa search_visual. La transcripción no describe lo que se ve. No afirmes haber visto algo sin evidencia de esta herramienta. Los rangos son aproximados; comunica la incertidumbre y permite ajuste manual.
+- Usa process_audio para limpiar o separar el sonido, también cuando el usuario lo pide por voz. Con música mezclada, separate-clean aísla primero la voz. Los resultados no garantizan reparar saturación ni eliminar toda reverberación. Música y ambiente quedan juntos.
+- Para modificar un fragmento localizado, split_clip_range devuelve su id. No ejecutes cortes ni limpiezas cuando el usuario solo pide buscar o analizar.
 
-Buenas prácticas de UGC que aplicas cuando el usuario no especifica:
-- El hook (primeros 1 a 3 segundos) es lo más importante: texto grande y claro arriba o al centro.
-- Subtítulos legibles: 2 o 3 palabras por bloque, mayúsculas, contorno, en la zona media-baja (evitando la interfaz de TikTok/Reels abajo).
-- Música de fondo baja (15 a 25%) para no tapar la voz; efectos de sonido (whoosh, pop) en cortes y apariciones de texto.
-- Cortar silencios para mantener el ritmo.`;
+Criterio editorial:
+- Respeta el brief, las decisiones de Lino, la tipografía, composición, timing y easing solicitados.
+- Conserva pausas y gestos que aporten al relato. Recorta silencios cuando lo pida o cuando el objetivo del montaje lo requiera.
+- Propón Foley motivado por la acción y mezcla que preserve la voz. No añadas efectos automáticamente a todos los cortes.
+- Mantén subtítulos legibles y considera las zonas tapadas por las interfaces sociales. No impongas un estilo si el usuario no lo pidió.`;

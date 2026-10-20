@@ -139,6 +139,51 @@ export const updateClip = (project: Project, clipId: string, patch: Partial<Clip
     clips: track.clips.map((c) => (c.id === clipId ? ({ ...c, ...patch } as Clip) : c)),
   }));
 
+/** Dos cortes en un clip, en una sola operación de historial. No mueve otras pistas. */
+export const splitClipRange = (project: Project, clipId: string, start: number, end: number): Project => {
+  const clip = findClip(project, clipId)?.clip;
+  if (!clip || (clip.kind !== "video" && clip.kind !== "audio")) return project;
+  const a = Math.max(clip.from, Math.round(start)), b = Math.min(clip.from + clip.durationInFrames, Math.round(end));
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return project;
+  return splitAt(splitAt(project, b, clipId), a, clipId);
+};
+
+export type ProcessedStem = { role: "voice" | "background"; src: string; name: string };
+
+/** Los resultados corresponden solo al rango visible del clip: trimStart del WAV = 0. */
+export const applyProcessedAudio = (project: Project, clipId: string, stems: ProcessedStem[], mode: string): Project => {
+  const clip = findClip(project, clipId)?.clip;
+  if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || !stems.length) return project;
+  const prior = project.tracks.flatMap((t) => t.clips).find((c): c is AudioClip => c.kind === "audio" && c.derivedFrom?.clipId === clipId);
+  const originalVolume = prior?.derivedFrom?.originalVolume ?? clip.volume;
+  const clean = restoreOriginalAudio(project, clipId);
+  const tracks = clean.tracks.map((t) => ({ ...t, clips: t.clips.map((c) => c.id === clipId ? { ...c, volume: 0 } as Clip : c) }));
+  for (const stem of stems) {
+    const trackId = `A_LOCAL_${stem.role}_${clipId}`;
+    const audio: AudioClip = {
+      id: newId(), kind: "audio", src: stem.src, name: stem.name, from: clip.from,
+      durationInFrames: clip.durationInFrames, sourceDurationInFrames: clip.durationInFrames,
+      trimStart: 0, volume: stem.role === "background" && mode === "separate-clean" ? 0 : originalVolume,
+      fadeIn: clip.kind === "audio" ? clip.fadeIn : 0, fadeOut: clip.kind === "audio" ? clip.fadeOut : 0,
+      derivedFrom: { clipId, src: clip.src, originalVolume, mode },
+    };
+    const existing = tracks.find((t) => t.id === trackId);
+    if (existing) existing.clips.push(audio);
+    else tracks.unshift({ id: trackId, kind: "audio", name: stem.name, clips: [audio] });
+  }
+  return { ...clean, tracks };
+};
+
+export const restoreOriginalAudio = (project: Project, clipId: string): Project => {
+  const prior = project.tracks.flatMap((t) => t.clips).find((c): c is AudioClip => c.kind === "audio" && c.derivedFrom?.clipId === clipId);
+  if (!prior?.derivedFrom) return project;
+  const volume = prior.derivedFrom.originalVolume;
+  return { ...project, tracks: project.tracks.map((t) => ({ ...t, clips: t.clips
+    .filter((c) => !(c.kind === "audio" && c.derivedFrom?.clipId === clipId))
+    .map((c) => c.id === clipId ? { ...c, volume } as Clip : c) }))
+    .filter((t) => t.clips.length || ![ `A_LOCAL_voice_${clipId}`, `A_LOCAL_background_${clipId}` ].includes(t.id)) };
+};
+
 /** Mueve un clip en el tiempo y, opcionalmente, a otra pista del mismo tipo (ej. A1 → A2). */
 export const moveClip = (project: Project, clipId: string, from: number, toTrackId?: string): Project => {
   const found = findClip(project, clipId);

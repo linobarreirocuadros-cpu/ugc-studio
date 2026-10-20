@@ -6,3 +6,5 @@ out/*
 !out/.gitkeep
 .env
 *.log
+__pycache__/
+*.pyc

@@ -10,6 +10,9 @@ import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, selectComposition } from "@remotion/renderer";
 import type { Project } from "../src/project/types";
 import { registerChatRoutes } from "./llm";
+import { createLocalTasks } from "./localTasks";
+import { registerVision } from "./vision";
+import { registerAudioProcessing } from "./audioProcessing";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
@@ -218,6 +221,9 @@ app.post("/api/open-folder", (req, res) => {
 });
 
 registerChatRoutes(app, DATA_DIR);
+const enqueueLocal = createLocalTasks(app);
+registerVision(app, DATA_DIR, enqueueLocal);
+registerAudioProcessing(app, DATA_DIR, enqueueLocal);
 
 // --- Exportación ---------------------------------------------------------------
 

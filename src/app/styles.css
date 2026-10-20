@@ -274,3 +274,12 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
 .chat-buttons { display: flex; gap: 6px; justify-content: flex-end; }
 .chat-buttons .recording { background: #c0392b; border-color: #c0392b; color: white; }
 .chat-msg.failed { color: #ff9a9a; font-size: 11px; padding: 0 4px; }
+.inspector .panel-title .tabs { flex-wrap: wrap; }
+.local-assistant { padding: 12px; overflow-y: auto; min-height: 0; user-select: text; }
+.local-assistant p { line-height: 1.5; }
+.local-assistant form, .audio-local-actions { display: flex; flex-direction: column; gap: 8px; }
+.visual-results article { padding: 10px 0; border-top: 1px solid #444; }
+.visual-results img { width: 100%; max-height: 180px; object-fit: contain; background: #111; }
+.visual-results b { display: block; margin-top: 6px; color: #9bceff; }
+.local-progress { color: #9bceff; }
+.local-error { color: #ffb4b4; white-space: pre-wrap; }

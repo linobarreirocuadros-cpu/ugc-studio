@@ -8,8 +8,10 @@ Editor de video personal para editar videos UGC (anuncios verticales para marcas
 mediante chat y voz, con una línea de tiempo editable que refleja las operaciones de la IA.
 Premiere, DaVinci y Descript son referencias de flujo, no objetivos de réplica. La visión de
 Lino incluye comprender imagen, acciones, gestos observables y sonido, además de transcribir.
-El chat básico ya existe; el análisis multimodal sigue pendiente. La vista previa y el render
-actuales usan Remotion. Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
+Ya existen el chat, una primera búsqueda visual local por imágenes y procesamiento de audio
+local (separación de voz/acompañamiento y reducción de ruido). La comprensión audiovisual
+completa sigue en desarrollo. La vista previa y el render actuales usan Remotion.
+Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 
 ## Dirección de producto (aclarada por Lino el 2026-10-19)
 - Chat y voz como vías principales de edición, con selección visual y ajustes manuales.
@@ -53,6 +55,10 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `src/ai/tools.ts` — herramientas del chat (JSON Schema, tiempos en segundos) + system prompt
 - `src/app/chat/` — panel de chat y `executeTool.ts` (ejecuta herramientas en el navegador)
 - `server/llm.ts` — proveedores de IA, conversación en memoria, `/api/chat`, `/api/settings`, `/api/models`
+- `server/vision.ts` — muestras con tiempo, caché visual y búsqueda/verificación con Ollama local
+- `server/audioProcessing.ts` — FFmpeg y Resemble Denoiser ONNX (pesos MIT); resultados derivados
+- `server/localTasks.ts` — cola local serial, progreso/cancelación y resolución de medios locales
+- `scripts/` — preparación y separación de audio local; entornos/modelos fuera del repositorio
 - `server/` — servidor Express local: subida de archivos, proxies y export. Los datos viven en
   `~/UGC Studio/` (`media/`, `media/proxies/`, `Exportaciones/`), fuera del repo; se puede
   cambiar con la variable `UGC_DATA_DIR`.
@@ -61,6 +67,7 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `npm install` — instalar
 - `npm run dev` — app en http://localhost:5173 + servidor en :3001
 - `npm run typecheck` — revisar tipos (correrlo antes de cada commit)
+- `npm test` — comprobar sincronía/rangos/restauración y concurrencia de las operaciones nuevas
 
 ## Convenciones
 - TypeScript estricto, React con componentes funcionales.

@@ -27,6 +27,7 @@ export type AudioClip = {
   volume: number; // 0..1
   fadeIn: number; // frames
   fadeOut: number; // frames
+  derivedFrom?: { clipId: string; src: string; originalVolume: number; mode: string };
 };
 
 export type TextClip = {
