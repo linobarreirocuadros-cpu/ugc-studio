@@ -10,6 +10,14 @@
 - [x] Exportar: MP4 H.264 alta calidad / borrador, MOV ProRes 422 HQ
 - [x] Proxies automáticos para reproducción fluida
 
+## Flujo de edición tipo Premiere (en curso)
+- [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
+- [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
+- [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en A0 Voz
+- [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles
+- [ ] Validar con Lino el arrastre y la continuidad visual de la reproducción en sus videos
+- [ ] Audio y video vinculados al insertar un clip completo; desvincular y editar cada parte
+
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)
 - [x] Generar subtítulos automáticos (estilos: karaoke, palabra por palabra, bloque)
@@ -21,7 +29,8 @@
 - [x] Pistas de audio A1 (música) y A2 (efectos) con volumen y fade in/out
 - [x] Arrastrar clips entre pistas del mismo tipo
 - [x] Pista V2 para B-roll (botón "+ B-roll" en el panel, entra en silencio donde está el cabezal)
-- [ ] Waveform y miniaturas en la línea de tiempo
+- [x] Ondas de audio en las pistas, generadas localmente
+- [ ] Miniaturas de video en la línea de tiempo
 
 ## Fase 2 — Chat de IA integrado (hecho, falta probar con modelos reales)
 - [x] Panel "Chat IA"; 14 herramientas que usan `ops.ts` (subtítulos, silencios, textos, volumen, Foley…)
@@ -30,8 +39,9 @@
 - [x] Comandos de voz (micrófono → Whisper en el navegador → chat)
 - [x] Probar el chat con Ollama real en el PC del usuario (qwen3:8b: texto, duración y deshacer)
 - [x] Probar el chat con qwen3:30b-a3b en el PC del usuario (texto, posición y duración)
+- [x] Evitar el timeout de Ollama 30B al recibir su respuesta en flujo desde el servidor
 - [ ] Probar el chat con un video UGC real y ajustar el prompt según los resultados
-- [ ] Respuestas en streaming (ver el texto mientras se escribe)
+- [ ] Mostrar en el panel las respuestas en streaming mientras se escriben
 
 ## Fase 3 — Marcas, Foley y presets
 - [ ] Brand Kits: tipografías, colores, estilo de subtítulos, reglas, hooks que funcionan

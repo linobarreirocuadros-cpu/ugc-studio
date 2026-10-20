@@ -50,6 +50,7 @@ const upload = multer({
 // Usa el ffmpeg que trae Remotion, así no hay que instalar nada.
 
 const proxyJobs = new Map<string, Promise<string>>();
+const waveformJobs = new Map<string, Promise<string>>();
 
 const makeProxy = (filename: string) => {
   const existing = proxyJobs.get(filename);
@@ -82,6 +83,64 @@ const makeProxy = (filename: string) => {
   return job;
 };
 
+// Imagen de amplitud para las pistas de audio. Se calcula localmente y se guarda
+// junto a los proxies; no forma parte del proyecto ni modifica el archivo original.
+const makeWaveform = (filename: string) => {
+  const existing = waveformJobs.get(filename);
+  if (existing) return existing;
+  const outName = filename.replace(/\.[^.]+$/, "") + ".waveform.svg";
+  const outPath = path.join(PROXY_DIR, outName);
+  const job = (async () => {
+    if (!fs.existsSync(outPath)) {
+      const tmp = outPath + ".tmp.wav";
+      try {
+        // El FFmpeg incluido con Remotion no trae showwavespic; decodificamos a WAV
+        // mono y dibujamos la forma de onda nosotros, sin instalar otro programa.
+        await RenderInternals.callFf({
+          bin: "ffmpeg",
+          args: ["-y", "-i", path.join(MEDIA_DIR, filename), "-vn", "-ac", "1", "-ar", "4000", "-c:a", "pcm_s16le", "-f", "wav", tmp],
+          indent: false, logLevel: "error", binariesDirectory: null, cancelSignal: undefined,
+        });
+        const wav = fs.readFileSync(tmp);
+        let dataOffset = 0;
+        let dataLength = 0;
+        for (let pos = 12; pos + 8 <= wav.length;) {
+          const size = wav.readUInt32LE(pos + 4);
+          if (wav.toString("ascii", pos, pos + 4) === "data") {
+            dataOffset = pos + 8;
+            dataLength = Math.min(size, wav.length - dataOffset);
+            break;
+          }
+          pos += 8 + size + (size % 2);
+        }
+        if (!dataOffset || dataLength < 2) throw new Error("WAV sin muestras de audio");
+        const samples = Math.floor(dataLength / 2);
+        const width = 2400;
+        const peaks = Array.from({ length: width }, (_, i) => {
+          const start = Math.floor(i * samples / width);
+          const end = Math.max(start + 1, Math.floor((i + 1) * samples / width));
+          let peak = 0;
+          for (let j = start; j < end && j < samples; j++)
+            peak = Math.max(peak, Math.abs(wav.readInt16LE(dataOffset + j * 2)));
+          return peak;
+        });
+        const max = Math.max(1, ...peaks);
+        const bars = peaks.map((p, i) => {
+          const amplitude = Math.max(1, Math.round(p / max * 29));
+          return `M${i} ${32 - amplitude}v${amplitude * 2}`;
+        }).join("");
+        fs.writeFileSync(outPath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 64" preserveAspectRatio="none"><path d="${bars}" stroke="#8ee6af" stroke-width="1"/></svg>`);
+      } finally {
+        fs.rmSync(tmp, { force: true });
+      }
+    }
+    return `/media/proxies/${outName}`;
+  })();
+  job.catch(() => waveformJobs.delete(filename));
+  waveformJobs.set(filename, job);
+  return job;
+};
+
 app.post("/api/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
   const src = `/media/${req.file.filename}`;
@@ -108,6 +167,21 @@ app.post("/api/proxy", async (req, res) => {
     res.json({ proxySrc: await makeProxy(filename) });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+app.post("/api/waveform", async (req, res) => {
+  const src = String(req.body.src ?? "");
+  const filename = path.basename(src);
+  if (!src.startsWith("/media/") || !fs.existsSync(path.join(MEDIA_DIR, filename))) {
+    return res.status(404).json({ error: "Archivo no encontrado" });
+  }
+  try {
+    res.json({ waveformSrc: await makeWaveform(filename) });
+  } catch (err) {
+    // Algunos videos no contienen sonido; simplemente no muestran onda.
+    console.error("No se pudo crear la onda de audio:", err instanceof Error ? err.message : String(err));
+    res.json({ waveformSrc: null });
   }
 });
 

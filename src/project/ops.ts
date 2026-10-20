@@ -85,6 +85,31 @@ export const addAudioClip = (
     return { ...track, clips: [...track.clips, clip] };
   });
 
+/** Inserta un rango marcado en el monitor de origen, como video o solo audio. */
+export const addSourceRange = (
+  project: Project,
+  media: { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" },
+  trackId: string,
+  from: number,
+  inFrame = 0,
+  outFrame = media.durationInFrames,
+  videoOnly = false,
+): Project =>
+  mapTracks(project, (track) => {
+    if (track.id !== trackId || (track.kind !== "video" && track.kind !== "audio")) return track;
+    if (track.kind === "video" && media.kind === "audio") return track;
+    const start = Math.max(0, Math.min(media.durationInFrames - 1, Math.round(inFrame)));
+    const end = Math.max(start + 1, Math.min(media.durationInFrames, Math.round(outFrame)));
+    const common = {
+      id: newId(), src: media.src, name: media.name, from: Math.max(0, Math.round(from)),
+      trimStart: start, durationInFrames: end - start, sourceDurationInFrames: media.durationInFrames,
+    };
+    const clip: VideoClip | AudioClip = track.kind === "video"
+      ? { ...common, kind: "video", proxySrc: media.proxySrc, volume: trackId === "V1" && !videoOnly ? 1 : 0 }
+      : { ...common, kind: "audio", volume: trackId === "A1" ? 0.25 : 1, fadeIn: 0, fadeOut: 0 };
+    return { ...track, clips: [...track.clips, clip] };
+  });
+
 export const addTextClip = (
   project: Project,
   opts: { text: string; from: number; durationInFrames: number; style?: Partial<TextStyle>; id?: string },

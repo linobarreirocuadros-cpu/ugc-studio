@@ -18,7 +18,11 @@ npm install
 npm run dev   # http://localhost:5173
 ```
 
-- **Importar**: botón en el panel Proyecto. Doble clic en un clip para ponerlo en la línea de tiempo.
+## Uso básico
+
+- **Importar**: botón en el panel Proyecto. Usa ☰ para la vista de lista o ▦ para la cuadrícula.
+- **Previsualizar y elegir un fragmento**: un clic en un archivo lo abre en el monitor **Origen**. Reproduce hasta el punto deseado y marca **I · Entrada** y **O · Salida**. El monitor **Programa** muestra la edición. Puedes usar **Dos visores** o **Pestañas**.
+- **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Insertar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. El audio extraído de un video entra en **A0 Voz**; allí se muestra su onda.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
 - **Exportar**: elige calidad arriba a la derecha → Exportar.
 
@@ -27,8 +31,9 @@ carpeta de usuario (ej. `C:\Users\TuNombre\UGC Studio` o `/Users/TuNombre/UGC St
 Así, al descargar una versión nueva del programa, no pierdes nada.
 
 **Chat con IA (gratis):** instala [Ollama](https://ollama.com/download), abre PowerShell y escribe
-`ollama pull qwen3:30b-a3b` (o `qwen3:8b` si tu PC tiene 16 GB de RAM). En el editor, pestaña
-**Chat IA** → ⚙ → Motor "Ollama". También puedes usar Gemini/Groq/OpenRouter (gratis con
+`ollama pull qwen3:8b` para empezar; `qwen3:30b-a3b` ofrece otra opción, pero responde más lento.
+En el editor, pestaña **Chat IA** → ⚙ → Motor "Ollama". El panel indica si Ollama está conectado
+y muestra el tiempo de espera cuando el modelo está pensando. También puedes usar Gemini/Groq/OpenRouter (gratis con
 límite diario) o Claude/ChatGPT (de pago) pegando su clave.
 
 **Foley:** copia tus efectos de sonido a las carpetas de `UGC Studio/Foley` (Whoosh, Impactos,

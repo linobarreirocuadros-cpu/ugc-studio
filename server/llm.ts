@@ -223,26 +223,31 @@ async function stepOpenAI(
   userText?: string,
   toolResults?: { id: string; content: string }[],
 ): Promise<ChatReply> {
-  for (const r of toolResults ?? []) conv.messages.push({ role: "tool", tool_call_id: r.id, content: r.content });
-  if (userText) conv.messages.push({ role: "user", content: userText });
+  const pending: OpenAIMessage[] = [];
+  for (const r of toolResults ?? []) pending.push({ role: "tool", tool_call_id: r.id, content: r.content });
+  if (userText) pending.push({ role: "user", content: userText });
 
   const r = await fetch(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
     body: JSON.stringify({
       model: conv.model,
-      messages: conv.messages,
+      messages: [...conv.messages, ...pending],
       tools: TOOLS.map((t) => ({ type: "function", function: t })),
       tool_choice: "auto",
+      // Ollama puede tardar varios minutos con un modelo grande. En modo streaming
+      // envía cabeceras enseguida y evita el timeout de fetch antes del primer token.
+      ...(conv.provider === "ollama" ? { stream: true } : {}),
     }),
   });
   if (!r.ok) {
     const body = await r.text();
     throw new ChatError(`(${r.status}) ${body.slice(0, 300)}`);
   }
-  const data = (await r.json()) as { choices: { message: OpenAIMessage }[] };
-  const msg = data.choices?.[0]?.message;
-  if (!msg) throw new ChatError("El modelo no devolvió respuesta.");
+  const msg = conv.provider === "ollama"
+    ? await readOpenAIStream(r)
+    : ((await r.json()) as { choices: { message: OpenAIMessage }[] }).choices?.[0]?.message;
+  if (!msg || (!msg.content && !msg.tool_calls?.length)) throw new ChatError("El modelo no devolvió respuesta.");
 
   // Algunos modelos locales muestran su razonamiento entre <think>…</think>: no se muestra.
   const text = (msg.content ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
@@ -251,8 +256,48 @@ async function stepOpenAI(
     name: tc.function.name,
     input: safeJson(tc.function.arguments),
   }));
-  conv.messages.push({ role: "assistant", content: msg.content ?? "", ...(msg.tool_calls?.length ? { tool_calls: msg.tool_calls } : {}) });
+  conv.messages.push(...pending, { role: "assistant", content: msg.content ?? "", ...(msg.tool_calls?.length ? { tool_calls: msg.tool_calls } : {}) });
   return { text, toolCalls };
+}
+
+/** Reconstruye una respuesta OpenAI compatible a partir de eventos SSE de Ollama. */
+async function readOpenAIStream(response: Response): Promise<OpenAIMessage> {
+  if (!response.body) throw new ChatError("Ollama no abrió el flujo de respuesta.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const calls = new Map<number, { id: string; type: "function"; function: { name: string; arguments: string } }>();
+  let buffer = "";
+  let content = "";
+  const consume = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") return;
+    const choice = (JSON.parse(payload) as {
+      choices?: { delta?: { content?: string | null; tool_calls?: {
+        index: number; id?: string; function?: { name?: string; arguments?: string };
+      }[] } }[];
+    }).choices?.[0];
+    const delta = choice?.delta;
+    if (delta?.content) content += delta.content;
+    for (const call of delta?.tool_calls ?? []) {
+      const current = calls.get(call.index) ?? { id: "", type: "function" as const, function: { name: "", arguments: "" } };
+      if (call.id) current.id = call.id;
+      if (call.function?.name) current.function.name += call.function.name;
+      if (call.function?.arguments) current.function.arguments += call.function.arguments;
+      calls.set(call.index, current);
+    }
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) consume(line);
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) consume(buffer);
+  return { role: "assistant", content, ...(calls.size ? { tool_calls: [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call) } : {}) };
 }
 
 // --- Claude (SDK oficial de Anthropic) -------------------------------------------------------
@@ -322,7 +367,11 @@ function friendlyError(provider: ProviderId, err: unknown): string {
   if (err instanceof Anthropic.RateLimitError) return "Claude está limitando las peticiones. Espera un momento.";
   if (err instanceof Anthropic.APIError) return `Error de Claude (${err.status}): ${err.message}`;
   const msg = err instanceof Error ? err.message : String(err);
-  if (provider === "ollama" && /fetch failed|ECONNREFUSED/i.test(msg + String((err as { cause?: unknown })?.cause))) {
+  const cause = String((err as { cause?: unknown })?.cause ?? "");
+  if (provider === "ollama" && /HEADERS_TIMEOUT|UND_ERR_HEADERS_TIMEOUT|HeadersTimeoutError/i.test(msg + cause)) {
+    return "Ollama tardó demasiado en empezar a responder. El modelo de 30B puede ser lento con proyectos grandes; prueba qwen3:8b en ⚙.";
+  }
+  if (provider === "ollama" && /fetch failed|ECONNREFUSED/i.test(msg + cause)) {
     return "No pude conectar con Ollama. ¿Está instalado y abierto? (ollama.com)";
   }
   return msg;

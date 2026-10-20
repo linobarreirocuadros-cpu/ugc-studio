@@ -11,6 +11,15 @@ type Drag = {
   dy: number;
 };
 
+export type MediaDrag = {
+  src: string;
+  kind: "video" | "audio";
+  inFrame: number;
+  outFrame: number;
+  mode: "auto" | "video" | "audio";
+};
+export const MEDIA_DRAG_TYPE = "application/x-ugc-source";
+
 type Props = {
   project: Project;
   frame: number;
@@ -20,14 +29,17 @@ type Props = {
   onSelect: (clipId: string | null) => void;
   onMove: (clipId: string, from: number, trackId: string) => void;
   onTrim: (clipId: string, edge: "start" | "end", delta: number) => void;
+  onDropMedia: (media: MediaDrag, trackId: string, from: number) => void;
+  waveforms: Record<string, string>;
 };
 
 const HEADER_W = 76;
 const TRACK_H = 56;
 const SNAP_PX = 8;
 
-export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSelect, onMove, onTrim }: Props) {
+export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSelect, onMove, onTrim, onDropMedia, waveforms }: Props) {
   const [drag, setDragState] = useState<Drag | null>(null);
+  const [dropTrackId, setDropTrackId] = useState<string | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const setDrag = (d: Drag | null) => {
     dragRef.current = d;
@@ -155,8 +167,27 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
           {displayed.map((track, trackIndex) => (
             <div
               key={track.id}
-              className={`track track-${track.kind}`}
+              className={`track track-${track.kind} ${dropTrackId === track.id ? "drop-target" : ""}`}
               style={{ height: TRACK_H }}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(MEDIA_DRAG_TYPE) || (track.kind !== "video" && track.kind !== "audio")) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                setDropTrackId(track.id);
+              }}
+              onDragLeave={() => setDropTrackId(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTrackId(null);
+                try {
+                  const source = JSON.parse(e.dataTransfer.getData(MEDIA_DRAG_TYPE)) as MediaDrag;
+                  if (track.kind === "video" && (source.kind === "audio" || source.mode === "audio")) return;
+                  if (track.kind === "audio" && source.mode === "video") return;
+                  const rect = scrollRef.current!.getBoundingClientRect();
+                  const x = e.clientX - rect.left + scrollRef.current!.scrollLeft;
+                  onDropMedia(source, track.id, Math.max(0, Math.round(x / pxPerFrame)));
+                } catch { /* otros tipos de arrastre no son medios del proyecto */ }
+              }}
               onMouseDown={(e) => {
                 if (e.target === e.currentTarget) {
                   onSelect(null);
@@ -196,6 +227,15 @@ export function Timeline({ project, frame, selectedId, pxPerFrame, onSeek, onSel
                         setDrag({ clipId: clip.id, mode: "trim-start", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
+                    {clip.kind === "audio" && waveforms[clip.src] && (
+                      <img
+                        className="clip-waveform"
+                        src={waveforms[clip.src]}
+                        alt=""
+                        draggable={false}
+                        style={{ width: clip.sourceDurationInFrames * pxPerFrame, left: -clip.trimStart * pxPerFrame }}
+                      />
+                    )}
                     <span className="clip-label">{clipLabel(clip)}</span>
                     <div
                       className="trim-handle right"

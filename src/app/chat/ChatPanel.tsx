@@ -14,6 +14,7 @@ type SettingsView = {
 
 type UiMessage = { role: "user" | "assistant" | "action" | "failed" | "error" | "status"; text: string };
 type ChatReply = { text: string; toolCalls: { id: string; name: string; input: Record<string, unknown> }[]; error?: string };
+type OllamaStatus = { state: "checking" | "ready" | "offline" | "missing"; detail?: string };
 
 const TOOL_LABEL: Record<string, string> = {
   get_project_state: "Revisando el proyecto",
@@ -49,6 +50,9 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [waitSeconds, setWaitSeconds] = useState(0);
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>({ state: "checking" });
+  const [connectionCheck, setConnectionCheck] = useState(0);
   const [recording, setRecording] = useState(false);
   const conversationId = useRef(newConversationId());
   const recorder = useRef<MediaRecorder | null>(null);
@@ -65,6 +69,30 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
   }, []);
 
   useEffect(() => {
+    if (settings?.provider !== "ollama") return;
+    let cancelled = false;
+    setOllamaStatus({ state: "checking" });
+    fetch("/api/models?provider=ollama")
+      .then((r) => r.json())
+      .then((data: { models?: string[]; error?: string }) => {
+        if (cancelled) return;
+        if (data.error) setOllamaStatus({ state: "offline", detail: data.error });
+        else if (!data.models?.includes(settings.models.ollama ?? ""))
+          setOllamaStatus({ state: "missing", detail: settings.models.ollama });
+        else setOllamaStatus({ state: "ready" });
+      })
+      .catch(() => { if (!cancelled) setOllamaStatus({ state: "offline" }); });
+    return () => { cancelled = true; };
+  }, [settings?.provider, settings?.models.ollama, connectionCheck]);
+
+  useEffect(() => {
+    if (!busy) { setWaitSeconds(0); return; }
+    const start = Date.now();
+    const timer = window.setInterval(() => setWaitSeconds(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
+  useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages]);
 
@@ -79,6 +107,7 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
     push({ role: "user", text });
     try {
       let reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, userText: text });
+      if (settings?.provider === "ollama") setOllamaStatus({ state: "ready" });
       for (let step = 0; step < MAX_STEPS; step++) {
         if (reply.text) push({ role: "assistant", text: reply.text });
         if (reply.toolCalls.length === 0) break;
@@ -101,7 +130,11 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
         reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, toolResults: results });
       }
     } catch (e) {
-      push({ role: "error", text: e instanceof Error ? e.message : String(e) });
+      const message = e instanceof Error ? e.message : String(e);
+      if (settings?.provider === "ollama" && /conectar con Ollama|ECONNREFUSED|fetch failed/i.test(message)) {
+        setOllamaStatus({ state: "offline", detail: message });
+      }
+      push({ role: "error", text: message });
     } finally {
       setMessages((list) => list.filter((x) => x.role !== "status"));
       setBusy(false);
@@ -157,6 +190,21 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
         <button onClick={newChat} title="Nueva conversación">＋</button>
         <button onClick={() => setShowSettings((v) => !v)} title="Configuración">⚙</button>
       </div>
+
+      {settings?.provider === "ollama" && (
+        <div className={`chat-connection ${ollamaStatus.state}`} role="status">
+          {ollamaStatus.state === "checking" ? "Comprobando Ollama…" :
+            ollamaStatus.state === "ready" ? "● Ollama conectado en este equipo" :
+            ollamaStatus.state === "missing" ? `⚠ El modelo ${ollamaStatus.detail || "seleccionado"} no está descargado. Elige uno en ⚙.` :
+            "⚠ Ollama no responde. Ábrelo desde Inicio y vuelve a probar."
+          }
+          {ollamaStatus.state !== "ready" && ollamaStatus.state !== "checking" && (
+            <button type="button" onClick={() => setConnectionCheck((n) => n + 1)}>Comprobar</button>
+          )}
+        </div>
+      )}
+
+      {busy && <div className="chat-wait" role="status">Pensando… {waitSeconds} s{waitSeconds >= 20 ? " · El modelo local puede tardar en cargar." : ""}</div>}
 
       {showSettings && settings && (
         <ChatSettings

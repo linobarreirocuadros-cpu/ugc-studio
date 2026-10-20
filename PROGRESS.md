@@ -4,8 +4,8 @@
 Fase 2 (chat con IA) construida. Usuario: Windows 11, Ryzen 7 7700X, 32 GB RAM → recomendado
 Ollama con qwen3:30b-a3b (MoE, corre bien en CPU) o qwen3:8b.
 
-Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX), Foley,
-tipografías y V2 para B-roll. Falta: panel de transcripción, waveform y miniaturas.
+Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX/voz), Foley,
+tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
 
@@ -116,7 +116,35 @@ tipografías y V2 para B-roll. Falta: panel de transcripción, waveform y miniat
 - Pendiente: probar con un video UGC real y ajustar el prompt si las ediciones lo requieren.
   Tampoco se probó Whisper real en este PC.
 
+### 2026-10-19 — Reproducción, conexión de Ollama y flujo de medios (Codex)
+- Lino reportó saltos/bucles visuales en distintos videos y un mensaje de desconexión al escribir
+  al chat. Se encontró un video UGC suyo ya importado (23.976 fps; proyecto a 30 fps).
+- Reproducción: `App` actualizaba el cabezal en cada frame y reconstruía `inputProps` del
+  `Player` en cada actualización. Se aisló el reproductor con `React.memo` y se memoizaron
+  `inputProps`, siguiendo la guía oficial de Remotion y un reporte de saltos similares.
+  Ese video avanzó hasta el final en la prueba local; **Lino debe confirmar** que
+  desapareció el bucle visual en sus casos concretos. No se modificaron los originales ni proxies.
+- Chat: el registro mostró `UND_ERR_HEADERS_TIMEOUT` con Ollama 30B; se confundía con
+  desconexión. Ahora el servidor recibe la respuesta de Ollama por SSE y reconstruye texto y
+  llamadas a herramientas. En la interfaz aparece el estado de conexión y un contador de espera.
+  **Probado con Ollama real**: respuesta simple, `get_project_state` y respuesta posterior al
+  resultado de la herramienta. No se ha probado aún una edición del video UGC real mediante IA.
+- Proyecto: lista/cuadrícula, monitor de Origen junto a Programa por defecto y opción de pestañas
+  (preferencia explícita de Lino). Se pueden marcar entrada/salida y colocar el rango como video,
+  solo video o solo audio; se añadió A0 Voz a proyectos nuevos y antiguos. Los medios tienen
+  arrastre HTML hacia pistas compatibles. El arrastre **requiere validación manual** en el
+  navegador de Lino; la prueba automatizada de arrastre no produjo un drop verificable.
+- Ondas: el FFmpeg incluido con Remotion no trae `showwavespic`; se decodifica a WAV mono y
+  se crea un SVG local. Probado con el audio del video UGC: la onda apareció en A0,
+  y Deshacer restauró el proyecto. Se comprobó con una operación pura que un rango marcado
+  conserva inicio, duración y volumen correctos en V2/A0. Se exportó un proyecto de prueba de
+  1 s con solo audio extraído del video: el MP4 contenía una pista AAC de 1.003 s;
+  se retiró el archivo exportado de prueba. `npm run typecheck` y `npm run build` pasaron.
+- Pendiente: validación visual por Lino de la reproducción y del arrastre; miniaturas de video;
+  clips de video/audio vinculados; probar una edición real por chat y revisar avisos de `multer`.
+
 ## Siguiente paso sugerido
-Probar el chat con un video UGC real; ajustar el prompt según resultados y revisar la
-actualización de `multer` sin romper la importación de medios.
-Luego: HyperFrames (Fase 4) o Brand Kits (Fase 3).
+Pedir a Lino una comprobación breve de su video UGC: reproducir varios puntos, arrastrar
+un medio a V2 y comparar el resultado visual. Si el bucle persiste, capturar el segundo exacto
+y examinar el reloj interno del video. Luego probar una edición concreta por chat sobre una
+copia de un proyecto UGC y seguir con miniaturas y clips vinculados antes de Brand Kits o motion.

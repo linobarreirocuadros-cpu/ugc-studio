@@ -1,5 +1,5 @@
 import { Player, type PlayerRef } from "@remotion/player";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as ops from "../project/ops";
 import {
   createEmptyProject,
@@ -17,7 +17,8 @@ import { FoleyPanel, openFolder } from "./FoleyPanel";
 import { ChatPanel } from "./chat/ChatPanel";
 import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
 import { ProjectComposition } from "../remotion/ProjectComposition";
-import { Timeline, formatTimecode } from "./Timeline";
+import { SourceMonitor } from "./SourceMonitor";
+import { MEDIA_DRAG_TYPE, Timeline, formatTimecode, type MediaDrag } from "./Timeline";
 import { useHistory } from "./useHistory";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
@@ -43,16 +44,51 @@ const readDurationInFrames = (src: string, fps: number) =>
     v.src = src;
   });
 
+// El cabezal actualiza App en cada frame. Mantener el Player aislado evita volver a
+// sincronizar el elemento <video> 30 veces por segundo durante la reproducción.
+const PreviewPlayer = memo(function PreviewPlayer({
+  playerRef,
+  project,
+  duration,
+}: {
+  playerRef: RefObject<PlayerRef | null>;
+  project: Project;
+  duration: number;
+}) {
+  const inputProps = useMemo(() => ({ project, preview: true }), [project]);
+  return (
+    <Player
+      ref={playerRef}
+      component={ProjectComposition}
+      inputProps={inputProps}
+      bufferStateDelayInMilliseconds={300}
+      acknowledgeRemotionLicense
+      durationInFrames={duration}
+      fps={project.fps}
+      compositionWidth={project.width}
+      compositionHeight={project.height}
+      style={{ height: "100%", aspectRatio: `${project.width} / ${project.height}`, maxWidth: "100%" }}
+      controls
+      clickToPlay={false}
+    />
+  );
+});
+
 export function App() {
   const saved = useMemo(loadSaved, []);
   const history = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
   const project = history.value;
   const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
+  const [waveforms, setWaveforms] = useState<Record<string, string>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
   const [pxPerFrame, setPxPerFrame] = useState(2);
   const [uploading, setUploading] = useState(false);
   const [binTab, setBinTab] = useState<"proyecto" | "foley">("proyecto");
+  const [binView, setBinView] = useState<"list" | "grid">(() => localStorage.getItem("ugc-studio:bin-view") === "grid" ? "grid" : "list");
+  const [sourceSrc, setSourceSrc] = useState<string | null>(null);
+  const [monitorLayout, setMonitorLayout] = useState<"split" | "tabs">(() => localStorage.getItem("ugc-studio:monitor-layout") === "tabs" ? "tabs" : "split");
+  const [monitorTab, setMonitorTab] = useState<"source" | "program">("program");
   const [rightTab, setRightTab] = useState<"propiedades" | "chat">("chat");
   const [preset, setPreset] = useState<Preset>("h264-high");
   const [render, setRender] = useState<{ progress: number; url?: string; error?: string } | null>(null);
@@ -62,6 +98,7 @@ export function App() {
 
   const duration = getProjectDuration(project);
   const selected = selectedId ? ops.findClip(project, selectedId)?.clip ?? null : null;
+  const sourceMedia = media.find((m) => m.src === sourceSrc) ?? null;
 
   // Autoguardado en el navegador
   useEffect(() => {
@@ -71,6 +108,8 @@ export function App() {
       /* sin almacenamiento disponible */
     }
   }, [project, media]);
+  useEffect(() => { localStorage.setItem("ugc-studio:bin-view", binView); }, [binView]);
+  useEffect(() => { localStorage.setItem("ugc-studio:monitor-layout", monitorLayout); }, [monitorLayout]);
 
   // Detecta videos cuyo archivo ya no existe (p. ej. tras mover o actualizar el programa)
   const [missing, setMissing] = useState<Set<string>>(new Set());
@@ -110,6 +149,22 @@ export function App() {
         .catch(() => {});
     }
   }, [media, missing, history.apply]);
+
+  // Ondas visibles para música, Foley y audio extraído de video.
+  const waveformRequested = useRef(new Set<string>());
+  useEffect(() => {
+    const audioSources = project.tracks.flatMap((t) => t.clips)
+      .filter((c): c is AudioClip => c.kind === "audio" && c.src.startsWith("/media/"))
+      .map((c) => c.src);
+    for (const src of new Set(audioSources)) {
+      if (waveformRequested.current.has(src)) continue;
+      waveformRequested.current.add(src);
+      fetch("/api/waveform", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ src }) })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data?.waveformSrc) setWaveforms((w) => ({ ...w, [src]: data.waveformSrc })); })
+        .catch(() => {});
+    }
+  }, [project]);
 
   // Sincroniza el cabezal con el reproductor
   useEffect(() => {
@@ -161,6 +216,19 @@ export function App() {
   const addMedia = (m: MediaItem) =>
     history.apply((p) => (m.kind === "audio" ? ops.addAudioClip(p, m, "A1", frame) : ops.addVideoClip(p, m)));
   const addBroll = (m: MediaItem) => history.apply((p) => ops.addVideoClip(p, m, "V2", frame));
+
+  const addSource = (m: MediaItem, trackId: string, at: number, inFrame = 0, outFrame = m.durationInFrames, videoOnly = false) => {
+    history.apply((p) => ops.addSourceRange(p, m, trackId, at, inFrame, outFrame, videoOnly));
+  };
+  const dropMedia = (dragged: MediaDrag, trackId: string, at: number) => {
+    const m = media.find((item) => item.src === dragged.src);
+    if (m && !missing.has(m.src)) addSource(m, trackId, at, dragged.inFrame, dragged.outFrame, dragged.mode === "video");
+  };
+  const startMediaDrag = (e: React.DragEvent, m: MediaItem, inFrame = 0, outFrame = m.durationInFrames, mode: MediaDrag["mode"] = "auto") => {
+    const payload: MediaDrag = { src: m.src, kind: m.kind ?? "video", inFrame, outFrame, mode };
+    e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "copy";
+  };
 
   const addFoley = async (file: { name: string; src: string }) => {
     const durationInFrames = await readDurationInFrames(file.src, project.fps).catch(() => project.fps);
@@ -296,20 +364,27 @@ export function App() {
             <button className={binTab === "foley" ? "active" : ""} onClick={() => setBinTab("foley")}>Foley</button>
           </div>
           {binTab === "proyecto" && (
-            <button onClick={() => fileInput.current?.click()} disabled={uploading}>
-              {uploading ? "Optimizando…" : "Importar"}
-            </button>
+            <div className="bin-controls">
+              <button className={binView === "list" ? "active" : ""} onClick={() => setBinView("list")} title="Vista de lista">☰</button>
+              <button className={binView === "grid" ? "active" : ""} onClick={() => setBinView("grid")} title="Vista de cuadrícula">▦</button>
+              <button onClick={() => fileInput.current?.click()} disabled={uploading}>
+                {uploading ? "Optimizando…" : "Importar"}
+              </button>
+            </div>
           )}
           <input ref={fileInput} type="file" accept="video/*,audio/*" multiple hidden onChange={(e) => importFiles(e.target.files)} />
         </div>
         {binTab === "foley" && <FoleyPanel onAdd={addFoley} />}
         {binTab === "proyecto" && media.length === 0 && <p className="hint">Importa tus clips UGC, voces en off o música.</p>}
-        {binTab === "proyecto" && media.map((m) => (
+        {binTab === "proyecto" && <div className={`bin-media ${binView}`}>{media.map((m) => (
           <div
             key={m.src}
-            className={`bin-item ${missing.has(m.src) ? "missing" : ""}`}
+            className={`bin-item ${sourceSrc === m.src ? "source-selected" : ""} ${missing.has(m.src) ? "missing" : ""}`}
+            draggable={!missing.has(m.src)}
+            onDragStart={(e) => startMediaDrag(e, m)}
+            onClick={() => setSourceSrc(m.src)}
             onDoubleClick={() => addMedia(m)}
-            title={m.kind === "audio" ? "Doble clic: agregar en A1 donde está el cabezal" : "Doble clic: agregar al final de V1"}
+            title="Clic: abrir en Origen · Arrastrar: colocar en la línea de tiempo · Doble clic: añadir"
           >
             {m.kind === "audio" ? <div className="bin-audio">♪</div> : <video src={m.proxySrc ?? m.src} muted preload="metadata" />}
             <div>
@@ -333,27 +408,35 @@ export function App() {
               {missing.has(m.src) && <div className="bin-missing">⚠ Archivo no encontrado. Impórtalo de nuevo y se reconecta solo.</div>}
             </div>
           </div>
-        ))}
+        ))}</div>}
         <AIPanel project={project} apply={history.apply} />
       </aside>
 
       <main className="monitor">
-        <Player
-          ref={playerRef}
-          component={ProjectComposition}
-          inputProps={{ project, preview: true }}
-          bufferStateDelayInMilliseconds={300}
-          acknowledgeRemotionLicense
-          durationInFrames={duration}
-          fps={project.fps}
-          compositionWidth={project.width}
-          compositionHeight={project.height}
-          style={{ height: "100%", aspectRatio: `${project.width} / ${project.height}`, maxWidth: "100%" }}
-          controls
-          clickToPlay={false}
-        />
-        <div className="timecode">
-          {formatTimecode(frame, project.fps)} / {formatTimecode(duration, project.fps)}
+        <div className="monitor-toolbar">
+          <span>Monitores</span>
+          <button className={monitorLayout === "split" ? "active" : ""} onClick={() => setMonitorLayout("split")}>Dos visores</button>
+          <button className={monitorLayout === "tabs" ? "active" : ""} onClick={() => setMonitorLayout("tabs")}>Pestañas</button>
+          {monitorLayout === "tabs" && <>
+            <button className={monitorTab === "source" ? "active" : ""} onClick={() => setMonitorTab("source")}>Origen</button>
+            <button className={monitorTab === "program" ? "active" : ""} onClick={() => setMonitorTab("program")}>Programa</button>
+          </>}
+        </div>
+        <div className={`monitor-view ${monitorLayout === "tabs" ? "tabbed" : "split"}`}>
+          <div className="source-pane" style={{ display: monitorLayout === "tabs" && monitorTab !== "source" ? "none" : undefined }}>
+            <SourceMonitor
+              key={sourceMedia?.src ?? "empty"}
+              media={sourceMedia}
+              fps={project.fps}
+              onInsert={(trackId, inFrame, outFrame, videoOnly) => sourceMedia && addSource(sourceMedia, trackId, frame, inFrame, outFrame, videoOnly)}
+              onDragStart={(e, inFrame, outFrame, mode) => sourceMedia && startMediaDrag(e, sourceMedia, inFrame, outFrame, mode)}
+            />
+          </div>
+          <div className="program-pane" style={{ display: monitorLayout === "tabs" && monitorTab !== "program" ? "none" : undefined }}>
+            <div className="monitor-label">Programa</div>
+            <div className="program-preview"><PreviewPlayer playerRef={playerRef} project={project} duration={duration} /></div>
+            <div className="timecode">{formatTimecode(frame, project.fps)} / {formatTimecode(duration, project.fps)}</div>
+          </div>
         </div>
       </main>
 
@@ -410,6 +493,8 @@ export function App() {
           onSelect={setSelectedId}
           onMove={(id, from, trackId) => history.apply((p) => ops.moveClip(p, id, from, trackId))}
           onTrim={(id, edge, delta) => history.apply((p) => ops.trimClip(p, id, edge, delta))}
+          onDropMedia={dropMedia}
+          waveforms={waveforms}
         />
       </section>
     </div>

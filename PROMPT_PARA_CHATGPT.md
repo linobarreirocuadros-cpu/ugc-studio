@@ -1,6 +1,8 @@
 # Prompt de traspaso: UGC Studio
 
 > Copia todo lo que está debajo de la línea y pégalo como primer mensaje en ChatGPT (o en Codex).
+> Nota de actualización (2026-10-19): este texto es un traspaso histórico. Para el estado actual,
+> consulta primero `AGENTS.md`, `ROADMAP.md` y `PROGRESS.md` del repositorio.
 
 ---
 
@@ -14,7 +16,7 @@ Hola. Vas a continuar el desarrollo de un proyecto de software que empecé con o
 - Estoy aprendiendo a editar con **Remotion** (video con código React) usando IAs.
 - **No sé programar.** En la parte técnica necesito que me expliques todo paso a paso, en lenguaje simple, en español. Si tengo que hacer algo en mi computador (instalar algo, abrir una terminal, copiar un archivo), dime exactamente dónde hacer clic y qué escribir.
 - **Soy nuevo usando ChatGPT para un proyecto de software así.** No sé cuál es la mejor forma de organizarme dentro de ChatGPT (ver sección 10).
-- Mi computador: **Windows 11 Home**, procesador **AMD Ryzen 7 7700X** (8 núcleos), **32 GB de RAM**, placa ASUS TUF Gaming B850M-Plus WiFi. No he confirmado qué tarjeta gráfica tengo.
+- Mi computador: **Windows 11 Home**, procesador **AMD Ryzen 7 7700X** (8 núcleos), **32 GB de RAM**, **NVIDIA RTX 5070 de 12 GB**, placa ASUS TUF Gaming B850M-Plus WiFi.
 - Este proyecto es para mí, lo construyo poco a poco, sin apuro.
 
 ## 2. La visión: qué quiero construir
@@ -71,7 +73,7 @@ Quiero poder hacer trabajos UGC **de principio a fin de forma totalmente gratuit
 - Todos los tiempos internos van **en frames** (30 fps), no en segundos. Lienzo por defecto: **1080×1920**.
 - `Project`: `{ version: 1, name, fps, width, height, tracks: Track[], transcripts?: Record<src, Word[]> }`.
 - `Track`: `{ id, kind: "video" | "audio" | "text" | "caption", name, clips }`.
-- Pistas por defecto, en orden de dibujo (de abajo hacia arriba): `A2` "A2 SFX" (audio), `A1` "A1 Música" (audio), `V1` (video principal), `V2` "V2 B-roll" (video encima de V1), `T1` (textos), `S1` "SUB" (subtítulos). La línea de tiempo las muestra al revés (SUB arriba, A2 abajo). `normalizeProject()` agrega las pistas que falten en proyectos viejos.
+- Pistas por defecto, en orden de dibujo (de abajo hacia arriba): `A2` "A2 SFX", `A1` "A1 Música", `A0` "A0 Voz", `V1` (video principal), `V2` "V2 B-roll", `T1` (textos), `S1` "SUB" (subtítulos). La línea de tiempo las muestra al revés. `normalizeProject()` agrega las pistas que falten en proyectos viejos.
 - Tipos de clip:
   - `VideoClip`: `src` (original, para exportar), `proxySrc?` (copia liviana para la vista previa), `name`, `from`, `durationInFrames`, `trimStart`, `sourceDurationInFrames`, `volume`.
   - `AudioClip`: igual que video más `fadeIn` y `fadeOut` (en frames).
@@ -105,7 +107,7 @@ Quiero poder hacer trabajos UGC **de principio a fin de forma totalmente gratuit
 
 ### Servidor (`server/`)
 
-- `index.ts`: `POST /api/upload` (guarda el archivo y crea el proxy), `POST /api/proxy` (proxy para proyectos viejos), `GET /api/library` (lista Foley), `POST /api/open-folder` (abre carpetas en el Explorador de Windows o Finder), `POST /api/render` + `GET /api/render/:id` (exportar con progreso), estáticos `/media`, `/out`, `/library`. Variables de entorno opcionales: `UGC_DATA_DIR`, `REMOTION_BROWSER`, `PORT`.
+- `index.ts`: `POST /api/upload` (guarda el archivo y crea el proxy), `POST /api/proxy` (proxy para proyectos viejos), `POST /api/waveform` (onda de audio local), `GET /api/library` (lista Foley), `POST /api/open-folder` (abre carpetas en el Explorador de Windows o Finder), `POST /api/render` + `GET /api/render/:id` (exportar con progreso), estáticos `/media`, `/out`, `/library`. Variables de entorno opcionales: `UGC_DATA_DIR`, `REMOTION_BROWSER`, `PORT`.
 - **Proxies**: lado corto 540 px, H.264 CRF 26, keyframe cada 15 frames, AAC, en `media/proxies/`.
 - **Exportación**: MP4 H.264 alta calidad (CRF 16), MP4 borrador (CRF 28), MOV ProRes 422 HQ. La primera vez Remotion descarga su Chrome Headless.
 - `llm.ts`: el chat. `GET/POST /api/settings` (las claves nunca se envían al navegador), `GET /api/models` (en Ollama lista los modelos instalados; en la nube, la lista del proveedor), `POST /api/chat`, `POST /api/chat/reset`.
@@ -133,19 +135,20 @@ Quiero poder hacer trabajos UGC **de principio a fin de forma totalmente gratuit
 5. **Pantalla negra**: después de actualizar, los videos no se veían (la línea de tiempo avanzaba con pantalla negra). La causa fue que descargué el ZIP nuevo en otra carpeta y los videos estaban en la carpeta vieja. Se solucionó moviendo los datos a `~/UGC Studio`, con avisos de archivos faltantes, reconexión automática y fallback del proxy al original.
 6. **Audio**: pistas A1/A2, volumen, fades, arrastrar entre pistas; biblioteca de Foley; 13 tipografías. Primero se usó `@remotion/google-fonts`, pero la exportación fallaba sin acceso a Google Fonts, así que se cambió a fuentes locales `@fontsource`.
 7. **Pista V2 para B-roll.**
-8. **Fase 2**: chat con IA multi-motor y comandos de voz. Se probó con un servidor simulado tipo Ollama (herramientas, errores, deshacer). **No se ha probado con un modelo real todavía.**
+8. **Fase 2**: chat con IA multi-motor y comandos de voz. Probado en este PC con Ollama real (`qwen3:8b` y `qwen3:30b-a3b`): texto en pantalla, duración, posición y Deshacer. Se corrigió un timeout de Ollama 30B recibiendo su respuesta en flujo desde el servidor; falta una edición por chat sobre un video UGC real.
+9. **Flujo tipo Premiere**: panel Proyecto en lista/cuadrícula, monitores Origen y Programa visibles o en pestañas, marcas de entrada/salida, inserción de solo video o solo audio (A0 Voz), arrastre a pistas y ondas de audio. Falta validación manual del arrastre y del problema de bucles de reproducción tras la corrección de `Player`.
 
 En general me gusta cómo va quedando.
 
 ## 7. Qué sigue (en orden sugerido)
 
-1. **Probar el chat de verdad** en mi PC: instalar Ollama (ollama.com/download), ejecutar `ollama pull qwen3:30b-a3b` en PowerShell y probar pedidos reales. Ajustar el `SYSTEM_PROMPT` y las descripciones de las herramientas según cómo responda.
+1. **Validar la edición básica** con un video UGC real: continuidad de reproducción y arrastre desde Proyecto/Origen a V2. Ya se verificó una exportación de prueba de audio extraído de MP4. Ollama y los dos modelos están instalados; probar una edición concreta por chat sobre una copia del proyecto UGC.
 2. **Fase 3, Brand Kits**: perfiles por marca (tipografía, colores, estilo de subtítulos, posición, reglas, hooks que funcionan, ejemplos de referencia) que el chat use al editar. Botón "aplicar estilo de marca". Más adelante, conectar métricas de Meta Ads (API o reportes CSV) para aprender qué hooks y estilos rinden mejor por marca.
 3. **Fase 4, Motion graphics**:
    - **HyperFrames** (https://github.com/heygen-com/hyperframes, Apache-2.0, de HeyGen): la IA escribe escenas HTML + CSS + GSAP, se renderizan a video (Chrome headless + FFmpeg) y entran como clip en V2. Remotion sigue siendo la base del editor.
    - **Lottie** (`@remotion/lottie`) con animaciones gratis de LottieFiles.
    - Plantillas de textos animados parametrizables, transiciones y efectos (zoom, shake, blur, color), y guardar presets de efectos.
-4. **Pendientes de Fase 1**: forma de onda (waveform) y miniaturas en la línea de tiempo; panel de transcripción (leer el texto y borrar frases para cortar el video, tipo "edición por texto"); posición y escala para el B-roll (picture-in-picture).
+4. **Pendientes de Fase 1**: miniaturas de video en la línea de tiempo; panel de transcripción (leer el texto y borrar frases para cortar el video, tipo "edición por texto"); posición y escala para el B-roll (picture-in-picture). Las ondas de audio ya están implementadas.
 5. **Mejoras del chat**: respuestas en streaming, recordar conversación, más herramientas (brand kits, motion graphics, exportar).
 6. **Fase 5, integraciones**, priorizando las gratis:
    - Limpieza de voz: DeepFilterNet o RNNoise.
