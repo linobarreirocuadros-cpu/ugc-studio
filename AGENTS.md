@@ -36,8 +36,12 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   renderizar sus pistas, nunca tratar `src` vacío como archivo. Abrir una secuencia es navegación;
   las ediciones se guardan en el proyecto raíz mediante ops y comparten Deshacer.
 - El 2026-10-20 Lino aprobó herramientas a la izquierda del timeline y medidor a la derecha,
-  y pidió paneles adaptables/reubicables. Primera implementación: cuatro zonas intercambiables,
-  separadores y persistencia local; ventanas flotantes y separación de pestañas siguen pendientes.
+  y pidió paneles maleables y responsivos. El espacio usa un árbol de divisiones con cinco
+  paneles: Proyecto, Monitores, Inspector, Timeline y Audio/dBFS independiente. Arrastrar el
+  agarre divide en bordes o intercambia en el centro; un borde exterior ocupa todo ese lado.
+  Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 2
+  con migración de las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
+  Ventanas flotantes y separación de pestañas siguen pendientes.
 - La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
   reconocer acciones o sonidos requiere modelos y análisis adicionales.
 - La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.
@@ -75,7 +79,8 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `src/project/` — modelo de datos (`types.ts`) y operaciones puras (`ops.ts`)
 - `src/remotion/` — composición de Remotion que renderiza un `Project` (preview y export)
 - `src/app/` — interfaz React (Vite): monitor, línea de tiempo, paneles
-- `src/app/TimelineTools.tsx` — herramientas/atajos; `workspace.tsx` — zonas y tamaños de paneles
+- `src/app/TimelineTools.tsx` — herramientas/atajos; `workspace.tsx` — interacción de paneles;
+  `workspaceLayout.ts` — árbol/geometría/normalización puros; `workspace.css` — adaptación por tamaño
 - `src/app/AudioMeter.tsx` y `programMeter.ts` — medición local de la copia silenciosa del Programa;
   no conectar esa copia con ganancia audible ni incluirla en la composición/render
 - `src/ai/tools.ts` — herramientas del chat (JSON Schema, tiempos en segundos) + system prompt

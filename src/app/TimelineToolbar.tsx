@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Project, TimelineMarker } from "../project/types";
 import { getProjectDuration } from "../project/types";
 import { formatTimecode } from "./Timeline";
@@ -23,6 +24,7 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
   useLayoutEffect(() => {
     if ((!settings && !markersOpen) || !toolbar.current) return;
     const rect = toolbar.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) { setSettings(false); setMarkersOpen(false); return; }
     const below = window.innerHeight - rect.bottom - 12;
     const height = Math.max(100, Math.min(400, below >= 240 ? below : rect.top - 12));
     const next = { left: Math.max(12, Math.min(rect.left + 132, window.innerWidth - Math.min(420, window.innerWidth - 24) - 12)), top: below >= 240 ? rect.bottom : Math.max(12, rect.top - height), maxHeight: height };
@@ -50,7 +52,7 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
     <button title="Lista de marcadores" aria-label="Lista de marcadores" aria-expanded={markersOpen} onClick={() => { setMarkersOpen(!markersOpen); setDraft(null); setSettings(false); }}>▾</button>
     <button title="Ajustes del timeline" aria-label="Ajustes del timeline" aria-expanded={settings} onClick={() => { setSettings(!settings); setMarkersOpen(false); }}>{svg(<path d="m14 4 3 3 4-1a6 6 0 0 1-7 7L6 21a2 2 0 0 1-3-3l8-8a6 6 0 0 1 7-7l-1 4"/>)}</button>
     <span className="timeline-edit-mode">Sobrescribir</span>
-    {settings && <section className="timeline-popover" style={position} aria-label="Ajustes del timeline">
+    {settings && createPortal(<section className="timeline-popover" style={position} aria-label="Ajustes del timeline">
       <strong>Visualización</strong>
       {([ ["showNames", "Nombres de clips"], ["showWaveforms", "Ondas de audio"], ["showMarkers", "Marcadores"] ] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={preferences[key]} onChange={(e) => onPreferences({ [key]: e.target.checked })}/>{label}</label>)}
       <label>Altura de pistas <input aria-label="Altura de pistas" type="range" min="36" max="120" step="4" value={preferences.trackHeight} onChange={(e) => onPreferences({ trackHeight: Number(e.target.value) })}/>{preferences.trackHeight}px</label>
@@ -60,8 +62,8 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
       <button disabled={!hasSelection} onClick={() => { onCreateSequence(sequenceName); setSettings(false); }}>Crear secuencia de la selección</button>
       <button onClick={() => onPreferences(DEFAULT_TIMELINE_PREFERENCES)}>Restablecer ajustes del timeline</button>
       <button onClick={() => setSettings(false)}>Cerrar ajustes</button>
-    </section>}
-    {markersOpen && <section className="timeline-popover" style={position} aria-label="Marcadores del timeline">
+    </section>, document.body)}
+    {markersOpen && createPortal(<section className="timeline-popover" style={position} aria-label="Marcadores del timeline">
       {draft ? <form onSubmit={(e) => { e.preventDefault(); onMarker(draft); setDraft(null); }}>
         <label>Nombre del marcador <input aria-label="Nombre del marcador" maxLength={160} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })}/></label>
         <label>Color del marcador <input aria-label="Color del marcador" type="color" value={draft.color} onChange={(e) => setDraft({ ...draft, color: e.target.value })}/></label>
@@ -72,6 +74,6 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
         {markers.map((m) => <div className="marker-row" key={m.id}><button style={{ borderLeft: `3px solid ${m.color}` }} onClick={() => onSeek(m.frame)}>{formatTimecode(m.frame, project.fps)} · {m.label}</button><button aria-label={`Editar marcador ${m.label}`} onClick={() => setDraft(m)}>Editar</button><button aria-label={`Eliminar marcador ${m.label}`} onClick={() => onDeleteMarker(m.id)}>×</button></div>)}
       </>}
       <button onClick={() => setMarkersOpen(false)}>Cerrar marcadores</button>
-    </section>}
+    </section>, document.body)}
   </div>;
 }

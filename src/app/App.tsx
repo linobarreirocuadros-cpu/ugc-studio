@@ -500,7 +500,8 @@ export function App() {
         </div>
       )}
 
-      <aside className="panel bin dock-panel" {...workspace.dropProps("bin")}>
+      <div className="workspace-canvas" ref={workspace.canvasRef}>
+      <aside className="panel bin dock-panel" {...workspace.panelProps("bin")}>
         <div className="panel-title">
           <div className="tabs">
             <button className={binTab === "proyecto" ? "active" : ""} onClick={() => setBinTab("proyecto")}>Proyecto</button>
@@ -572,7 +573,7 @@ export function App() {
         <AIPanel project={project} apply={history.apply} />
       </aside>
 
-      <main className="monitor dock-panel" {...workspace.dropProps("monitor")}>
+      <main className="monitor dock-panel" {...workspace.panelProps("monitor")}>
         <div className="monitor-toolbar">
           <span>Monitores</span>
           {workspace.handle("monitor")}
@@ -601,7 +602,7 @@ export function App() {
         </div>
       </main>
 
-      <aside className="panel inspector dock-panel" {...workspace.dropProps("inspector")}>
+      <aside className="panel inspector dock-panel" {...workspace.panelProps("inspector")}>
         <div className="panel-title">
           <div className="tabs">
             <button className={rightTab === "chat" ? "active" : ""} onClick={() => setRightTab("chat")}>Chat IA</button>
@@ -652,7 +653,7 @@ export function App() {
         </>}
       </aside>
 
-      <section className="timeline-area dock-panel" {...workspace.dropProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
+      <section className="timeline-area dock-panel" {...workspace.panelProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
         {editingSequenceId && <div className="sequence-navigation"><span>Editando secuencia: {project.name}</span><button onClick={() => { recording.cancel(); setEditingSequenceId(null); setSelectedIds([]); seek(0); }}>Volver al montaje</button></div>}
         <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
         <TimelineToolbar project={project} frame={frame} preferences={timelinePreferences} onPreferences={updateTimelinePreferences} onSeek={seek} onMarker={(marker) => history.apply((p) => ops.setMarker(p, marker))} onDeleteMarker={(id) => history.apply((p) => ops.deleteMarker(p, id))} onLink={(linked) => history.apply((p) => ops.linkClips(p, linked ? selectedIds : ops.linkedIds(p, selectedIds), linked))} canLink={selectedIds.length === 2 && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "video") && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "audio")} canUnlink={selectedIds.some((id) => { const clip = ops.findClip(project, id)?.clip; return clip && (clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId; })} hasSelection={selectedIds.length > 0} onCreateSequence={(name) => history.apply((p) => ops.createSequence(p, selectedIds, name))}/>
@@ -686,9 +687,14 @@ export function App() {
           onDropMedia={dropMedia}
           waveforms={waveforms}
         />
-        </div><AudioMeter programRef={programRef} /></div>
+        </div></div>
       </section>
-      {workspace.splitters}
+      <section className="meter-panel dock-panel" {...workspace.panelProps("meter")} aria-label="Panel de audio · dBFS">
+        <div className="workspace-panel-title"><strong>dBFS</strong>{workspace.handle("meter")}</div>
+        <AudioMeter programRef={programRef} />
+      </section>
+      {workspace.overlays}
+      </div>
     </div>
   );
 }

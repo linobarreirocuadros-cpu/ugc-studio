@@ -1,80 +1,93 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { defaultLayout, dockPanel, GAP, layoutRects, normalizeLayout, PANEL_LABEL, PANELS, setSplitRatio, type Divider, type DockNode, type Edge, type Panel, type Rect } from "./workspaceLayout";
 
-type Panel = "bin" | "monitor" | "inspector" | "timeline";
-type Slot = "left" | "center" | "right" | "bottom";
-type Workspace = { slots: Record<Slot, Panel>; left: number; right: number; bottom: number };
-const DEFAULT: Workspace = { slots: { left: "bin", center: "monitor", right: "inspector", bottom: "timeline" }, left: 240, right: 260, bottom: 320 };
 const KEY = "ugc-studio:workspace";
-const DRAG = "application/x-ugc-panel";
-const INSET = 10, GAP = 8, TOPBAR_HEIGHT = 56;
-const SLOT_LABEL: Record<Slot, string> = { left: "Izquierda", center: "Centro", right: "Derecha", bottom: "Abajo" };
-const PANEL_LABEL: Record<Panel, string> = { bin: "Proyecto", monitor: "Monitores", inspector: "Inspector", timeline: "Timeline" };
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-function load(): Workspace {
-  try {
-    const value = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (!value || ["left", "center", "right", "bottom"].some((slot) => !Object.hasOwn(PANEL_LABEL, value.slots?.[slot])) || new Set(Object.values(value.slots)).size !== 4 || ![value.left, value.right, value.bottom].every(Number.isFinite)) return DEFAULT;
-    return { slots: value.slots, left: clamp(value.left, 180, 600), right: clamp(value.right, 180, 600), bottom: clamp(value.bottom, 220, 800) };
-  } catch { return DEFAULT; }
-}
+type Target = { panel: Panel | "workspace"; edge: Edge };
+const geometry = (r: Rect): CSSProperties => ({ left: r.x, top: r.y, width: r.width, height: r.height });
+const EDGE_LABEL = { left: "a la izquierda", right: "a la derecha", top: "arriba", bottom: "abajo", center: "Intercambiar" };
+function load() { try { const value = JSON.parse(localStorage.getItem(KEY) ?? "null"); return normalizeLayout(value?.version === 2 ? value.tree : value, window.innerWidth, window.innerHeight); } catch { return defaultLayout(); } }
 
 export function useWorkspace() {
-  const [workspace, setWorkspace] = useState(load);
+  const [tree, setTree] = useState<DockNode>(load);
+  const [maximized, setMaximized] = useState<Panel | null>(null);
   const [dragged, setDragged] = useState<Panel | null>(null);
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
-  const appRef = useRef<HTMLDivElement>(null);
-  const [contentTop, setContentTop] = useState(INSET + TOPBAR_HEIGHT + GAP * 2);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [resizing, setResizing] = useState<string | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const appRef = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLDivElement>(null);
+  const cleanup = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
-    const app = appRef.current; if (!app) return;
-    const panels = [...app.querySelectorAll<HTMLElement>(".dock-panel")];
-    const measure = () => {
-      const top = Math.min(...panels.map((panel) => panel.getBoundingClientRect().top)) - app.getBoundingClientRect().top;
-      if (Number.isFinite(top)) setContentTop(top);
-    };
-    const observer = new ResizeObserver(measure);
-    panels.forEach((panel) => observer.observe(panel)); measure();
+    const el = canvasRef.current; if (!el) return;
+    const measure = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    const observer = new ResizeObserver(measure); observer.observe(el); measure();
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(workspace)); } catch { /* almacenamiento deshabilitado */ } }, [workspace]);
-  useEffect(() => { const update = () => setDimensions({ width: window.innerWidth, height: window.innerHeight }); window.addEventListener("resize", update); return () => window.removeEventListener("resize", update); }, []);
-  const room = Math.max(360, dimensions.width - 280 - INSET * 2 - GAP * 2);
-  const scale = Math.min(1, room / (workspace.left + workspace.right));
-  const left = Math.floor(workspace.left * scale), right = Math.floor(workspace.right * scale);
-  const maxBottom = Math.max(220, dimensions.height - 280);
-  const maxSide = (edge: "left" | "right") => Math.max(180, room - (edge === "left" ? right : left));
-  const bottom = Math.min(workspace.bottom, maxBottom);
-  const move = (panel: Panel, target: Slot) => setWorkspace((value) => {
-    const from = (Object.keys(value.slots) as Slot[]).find((slot) => value.slots[slot] === panel)!;
-    return { ...value, slots: { ...value.slots, [target]: panel, [from]: value.slots[target] } };
-  });
-  const dropProps = (panel: Panel) => ({
-    onDragOver: (event: DragEvent) => { if (event.dataTransfer.types.includes(DRAG)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } },
-    onDrop: (event: DragEvent) => {
-      if (!event.dataTransfer.types.includes(DRAG)) return;
-      event.preventDefault(); event.stopPropagation();
-      const source = event.dataTransfer.getData(DRAG) as Panel;
-      if (Object.hasOwn(PANEL_LABEL, source)) move(source, (Object.keys(workspace.slots) as Slot[]).find((slot) => workspace.slots[slot] === panel)!);
-      setDragged(null);
-    },
-  });
-  const handle = (panel: Panel) => <div className="panel-dock-controls" data-no-marquee>
-    <span draggable className="panel-grip" title={`Arrastra ${PANEL_LABEL[panel]} sobre otro panel para intercambiar posiciones`} onDragStart={(event) => { event.dataTransfer.setData(DRAG, panel); event.dataTransfer.effectAllowed = "move"; setDragged(panel); }} onDragEnd={() => setDragged(null)} aria-label={`Mover panel ${PANEL_LABEL[panel]}`}>⠿</span>
-    <select aria-label={`Posición de ${PANEL_LABEL[panel]}`} title={`Mover ${PANEL_LABEL[panel]}`} value={(Object.keys(workspace.slots) as Slot[]).find((slot) => workspace.slots[slot] === panel)} onChange={(event) => move(panel, event.target.value as Slot)}>{(Object.keys(SLOT_LABEL) as Slot[]).map((slot) => <option key={slot} value={slot}>{SLOT_LABEL[slot]}</option>)}</select>
-  </div>;
-  const resize = (edge: "left" | "right" | "bottom", clientX: number, clientY: number) => {
-    const start = { left, right, bottom };
-    const update = (event: MouseEvent) => {
-      const value = edge === "bottom" ? start.bottom - (event.clientY - clientY) : start[edge] + (event.clientX - clientX) * (edge === "left" ? 1 : -1);
-      setWorkspace((current) => ({ ...current, [edge]: clamp(value, edge === "bottom" ? 220 : 180, edge === "bottom" ? maxBottom : maxSide(edge)) }));
-    };
-    const end = () => { window.removeEventListener("mousemove", update); window.removeEventListener("mouseup", end); window.removeEventListener("blur", end); document.body.classList.remove("workspace-resizing"); };
-    document.body.classList.add("workspace-resizing");
-    window.addEventListener("mousemove", update); window.addEventListener("mouseup", end); window.addEventListener("blur", end);
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ version: 2, tree })); } catch { /* almacenamiento deshabilitado */ } }, [tree]);
+  useEffect(() => () => cleanup.current?.(), []);
+  const layout = layoutRects(tree, size.width, size.height);
+  const toggleMax = (panel: Panel) => setMaximized(value => value === panel ? null : panel);
+  const trackPointer = (move: (e: globalThis.PointerEvent) => void, finish: (cancel: boolean) => void) => {
+    cleanup.current?.();
+    const end = (cancel: boolean) => { stop(); finish(cancel); };
+    const up = () => end(false), cancel = () => end(true), key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); } };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur", cancel); window.removeEventListener("keydown", key, true); document.body.classList.remove("workspace-resizing", "workspace-dragging"); cleanup.current = null; };
+    cleanup.current = stop;
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel); window.addEventListener("blur", cancel); window.addEventListener("keydown", key, true);
   };
-  const splitters = <>{(["left", "right", "bottom"] as const).map((edge) => <div key={edge} className={`workspace-splitter splitter-${edge}`} role="separator" aria-label={edge === "bottom" ? "Altura de panel inferior" : `Ancho de panel ${edge === "left" ? "izquierdo" : "derecho"}`} aria-orientation={edge === "bottom" ? "horizontal" : "vertical"} aria-valuemin={edge === "bottom" ? 220 : 180} aria-valuemax={edge === "bottom" ? maxBottom : maxSide(edge)} aria-valuenow={Math.round(edge === "bottom" ? bottom : edge === "left" ? left : right)} tabIndex={0}
-    style={edge === "bottom" ? { bottom: INSET + bottom + (GAP - 6) / 2 } : { [edge]: INSET + (edge === "left" ? left : right) + (GAP - 6) / 2, top: contentTop, bottom: INSET + bottom + GAP }}
-    onMouseDown={(event) => { if (event.button === 0) { event.preventDefault(); resize(edge, event.clientX, event.clientY); } }}
-    onKeyDown={(event) => { const direction = edge === "bottom" ? (event.key === "ArrowUp" ? 1 : event.key === "ArrowDown" ? -1 : 0) : event.key === "ArrowRight" ? (edge === "left" ? 1 : -1) : event.key === "ArrowLeft" ? (edge === "left" ? -1 : 1) : 0; if (direction) { event.preventDefault(); event.stopPropagation(); const current = edge === "bottom" ? bottom : edge === "left" ? left : right; setWorkspace((value) => ({ ...value, [edge]: clamp(current + direction * 20, edge === "bottom" ? 220 : 180, edge === "bottom" ? maxBottom : maxSide(edge)) })); } }} />)}</>;
-  const style: CSSProperties = { gridTemplateColumns: `${left}px minmax(240px,1fr) ${right}px`, gridTemplateRows: `${TOPBAR_HEIGHT}px auto minmax(0,1fr) ${bottom}px`, gridTemplateAreas: `"top top top" "status status status" "${workspace.slots.left} ${workspace.slots.center} ${workspace.slots.right}" "${workspace.slots.bottom} ${workspace.slots.bottom} ${workspace.slots.bottom}"` };
-  return { appRef, style, handle, dropProps, splitters, dragged, reset: () => setWorkspace(DEFAULT) };
+  const hitTarget = (x: number, y: number, source: Panel): Target | null => {
+    if (x < 0 || y < 0 || x > size.width || y > size.height) return null;
+    const edges: [number, Edge][] = [[x, "left"], [size.width - x, "right"], [y, "top"], [size.height - y, "bottom"]];
+    const nearest = edges.sort((a, b) => a[0] - b[0])[0];
+    if (nearest[0] < 20) return { panel: "workspace", edge: nearest[1] };
+    for (const panel of PANELS) {
+      const r = layout.panels[panel];
+      if (panel === source || x < r.x || y < r.y || x > r.x + r.width || y > r.y + r.height) continue;
+      const nx = (x - r.x) / r.width, ny = (y - r.y) / r.height;
+      const candidates: [number, Edge][] = [[nx, "left"], [1 - nx, "right"], [ny, "top"], [1 - ny, "bottom"]];
+      const side = candidates.sort((a, b) => a[0] - b[0])[0];
+      return { panel, edge: side[0] < .27 ? side[1] : "center" };
+    }
+    return null;
+  };
+  const startDrag = (panel: Panel, event: PointerEvent) => {
+    if (event.button !== 0 || maximized) return;
+    event.preventDefault(); event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const x = event.clientX, y = event.clientY;
+    let active = false, current: Target | null = null;
+    trackPointer(e => {
+      if (!active && Math.hypot(e.clientX - x, e.clientY - y) < 5) return;
+      active = true; setDragged(panel); document.body.classList.add("workspace-dragging");
+      const rect = canvasRef.current!.getBoundingClientRect(); current = hitTarget(e.clientX - rect.left, e.clientY - rect.top, panel); setTarget(current);
+    }, cancel => { if (!cancel && current) { const destination = current; setTree(t => dockPanel(t, panel, destination.panel, destination.edge)); } setDragged(null); setTarget(null); });
+  };
+  const startResize = (divider: Divider, event: PointerEvent) => {
+    if (event.button !== 0) return; event.preventDefault(); event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const coordinate = divider.axis === "x" ? event.clientX : event.clientY;
+    const length = (divider.axis === "x" ? divider.area.width : divider.area.height) - GAP;
+    if (length <= 0) return;
+    const original = tree;
+    setResizing(divider.id);
+    trackPointer(e => { const delta = (divider.axis === "x" ? e.clientX : e.clientY) - coordinate; setTree(setSplitRatio(original, divider.id, divider.ratio + delta / length)); }, cancel => { if (cancel) setTree(original); setResizing(null); });
+    document.body.classList.add("workspace-resizing");
+  };
+  const panelProps = (panel: Panel) => ({ "data-workspace-panel": panel, style: { ...geometry(maximized === panel ? { x: 0, y: 0, ...size } : layout.panels[panel]), display: maximized && maximized !== panel ? "none" : undefined } });
+  const handle = (panel: Panel) => <div className="panel-dock-controls" data-no-marquee>
+    <button type="button" className="panel-grip" aria-label={`Mover panel ${PANEL_LABEL[panel]}`} title="Arrastra para acoplar; doble clic para ampliar" onPointerDown={e => startDrag(panel, e)} onDoubleClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>{[4, 8, 12].flatMap(y => [5, 10].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1"/>))}</svg></button>
+    <select aria-label={`Posición de ${PANEL_LABEL[panel]}`} title="Acoplar o intercambiar panel" value="" onChange={e => { const value = e.target.value; if (value === "maximize") toggleMax(panel); else { const [kind, destination] = value.split(":"); setMaximized(null); setTree(t => dockPanel(t, panel, kind === "edge" ? "workspace" : destination as Panel, kind === "edge" ? destination as Edge : "center")); } }}>
+      <option value="" disabled>Mover panel…</option>
+      {(["left", "right", "top", "bottom"] as const).map(edge => <option key={edge} value={`edge:${edge}`}>Acoplar {EDGE_LABEL[edge]} del área</option>)}
+      {PANELS.filter(p => p !== panel).map(p => <option key={p} value={`swap:${p}`}>Intercambiar con {PANEL_LABEL[p]}</option>)}
+      <option value="maximize">{maximized === panel ? "Restaurar tamaño" : "Ampliar panel"}</option>
+    </select>
+    <button type="button" className="panel-maximize" aria-label={`${maximized === panel ? "Restaurar" : "Ampliar"} panel ${PANEL_LABEL[panel]}`} title="Ampliar / restaurar panel" aria-pressed={maximized === panel} onClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden><rect x="3" y="3" width="10" height="10" rx="1"/>{maximized === panel && <path d="M5 6h5v5"/>}</svg></button>
+  </div>;
+  const preview = dragged && target ? layoutRects(dockPanel(tree, dragged, target.panel, target.edge), size.width, size.height).panels[dragged] : null;
+  const overlays = <>
+    {!maximized && layout.dividers.map(d => <div key={d.id} className={`dock-divider ${d.axis} ${resizing === d.id ? "active" : ""}`} style={geometry(d)} role="separator" aria-label={`Redimensionar ${d.first} / ${d.second}`} aria-orientation={d.axis === "x" ? "vertical" : "horizontal"} aria-valuemin={2} aria-valuemax={98} aria-valuenow={Math.round(d.ratio * 100)} tabIndex={0} onPointerDown={e => startResize(d, e)} onKeyDown={e => { const delta = d.axis === "x" ? e.key === "ArrowRight" ? .03 : e.key === "ArrowLeft" ? -.03 : 0 : e.key === "ArrowDown" ? .03 : e.key === "ArrowUp" ? -.03 : 0; if (delta) { e.preventDefault(); e.stopPropagation(); setTree(t => setSplitRatio(t, d.id, d.ratio + delta)); } }}/>) }
+    {dragged && <div className="dock-drag-instructions" role="status">Borde: dividir · Centro: intercambiar · Borde exterior: ocupar todo el lado · Esc: cancelar</div>}
+    {preview && target && <div className="dock-preview" style={geometry(preview)}><span>{target.edge === "center" ? "Intercambiar" : `Acoplar ${EDGE_LABEL[target.edge]}`} · {PANEL_LABEL[dragged!]}</span></div>}
+  </>;
+  return { appRef, canvasRef, panelProps, handle, overlays, dragged, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "56px auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
 }

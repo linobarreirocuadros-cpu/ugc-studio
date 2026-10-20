@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Clip, Project, Track } from "../project/types";
 import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled } from "../project/types";
 import { TrackControls } from "./TrackControls";
@@ -55,7 +55,6 @@ type Props = {
   waveforms: Record<string, string>;
 };
 
-const HEADER_W = 194;
 const SNAP_PX = 8;
 
 export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
@@ -223,8 +222,8 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
   const totalSeconds = Math.ceil(width / secondPx);
 
   return (
-    <div className={`timeline tool-${tool}`}>
-      <div className="timeline-headers" style={{ width: HEADER_W }}>
+    <div className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px` } as CSSProperties}>
+      <div className="timeline-headers" style={{ width: "var(--track-header-width,194px)" }}>
         <div className="ruler-spacer" />
         {displayed.map((t) => (
           <div key={t.id} className={`track-header ${t.locked ? "locked" : ""}`} style={{ height: TRACK_H }}>

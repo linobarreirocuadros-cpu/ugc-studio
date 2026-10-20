@@ -6,6 +6,7 @@ import "@fontsource/poppins/latin-500.css";
 import "@fontsource/poppins/latin-600.css";
 import "./styles.css";
 import "./studio-theme.css";
+import "./workspace.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

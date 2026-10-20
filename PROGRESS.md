@@ -6,7 +6,8 @@ ChatGPT conectado por Sign in with ChatGPT oficial y probado con GPT-6.1-Sol; se
 dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer y exportación.
 Transcripción precisa local con faster-whisper large-v3 instalada y probada en este PC.
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
-Barra de herramientas, medidor estéreo dBFS del Programa y paneles de tamaño/posición ajustables.
+Barra de herramientas y espacio con cinco paneles acoplables por bordes, guía de destino,
+separadores por división y ampliación/restauración. Medidor dBFS independiente, vertical/horizontal.
 Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
 enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
@@ -22,6 +23,56 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Acoplamiento flexible y adaptación de paneles (Codex)
+
+**Decisiones e implementación**
+- Lino pidió divisiones más maleables, guía al mover y adaptación de cada panel, especialmente
+  del medidor que se recortaba. Se reemplazaron las cuatro zonas fijas por un árbol de divisiones
+  horizontal/vertical. El medidor del Programa es ahora el quinto panel independiente.
+- Agarre con Pointer Events: bordes de otro panel crean una división, centro intercambia y borde
+  exterior acopla a toda la altura/anchura del área. La guía azul calcula la posición que tendrá
+  el panel tras quitarlo de su lugar anterior. Escape/cancelación no confirman el acoplamiento.
+- Cada división tiene separador con ratón y flechas. Botón o doble clic en el agarre amplía/restaura;
+  menú de posición conserva una alternativa de teclado. Distribución versión 2 persistida localmente,
+  validación y migración de zonas antiguas. Los paneles conservan su nodo React: mover no reinicia chat,
+  visores ni medidor. No son ventanas flotantes ni pestañas desacopladas.
+- `workspaceLayout.ts` reúne operaciones puras de UI y geometría: mínimos por contenido cuando
+  caben, reparto dentro del área si la ventana es menor, sin coordenadas negativas ni solapamientos.
+  Preferencias de espacio separadas de Project JSON; no se cambian clips, ops ni composición.
+- `workspace.css` añade adaptación por contenedor: biblioteca en una columna al estrecharse,
+  monitores apilados si el panel es estrecho/alto, desplazamiento interno en tamaños reducidos,
+  barra del timeline desplazable y controles de pista en dos filas cuando falta ancho.
+- Popovers del timeline portados a body para conservar posición en viewport y evitar recorte por
+  contenedores responsivos; se cierran si su timeline queda oculto al ampliar otro panel.
+- Medidor adapta orientación, gradiente/recorte/picos y escala; reduce marcas en altura pequeña.
+  En vertical muy corto omite el pie redundante Picos (reinicio sigue en L/R), manteniendo barras,
+  lectura y extremos 0/-60. No se cambia el cálculo dBFS ni su copia inaudible del Programa.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**49/49**), `npm run build` y `git diff --check` correctos;
+  permanece el aviso previo de tamaño de paquetes. Se añadieron seis pruebas de acoplamiento,
+  intercambio, geometría sin solapamiento, bordes de área completa, migración y redimensión pura.
+- UI aislada 1280×720: arrastre real del medidor al borde inferior (cambió a horizontal), Inspector
+  al lateral del timeline, acoplamiento de Monitores a toda altura y separador arrastrado con ratón.
+  Ampliación/restauración y doble clic del agarre probados; borrador de chat conservado al reubicar.
+- Recargar conserva exactamente los rectángulos de los cinco paneles. Medidor a **72×150 px**:
+  comprobados L/R, barras, lectura y etiquetas 0/-60 dentro de su tarjeta; también a 72 px de ancho
+  y toda altura. Menú del timeline pequeño dentro del viewport y montado en body.
+- Editor principal observado a 756×589: cinco paneles dentro de la ventana, sin scroll horizontal
+  de página; sin errores de consola en ambas vistas. No se sustituyó el montaje del usuario.
+- Captura de la distribución de ejemplo guardada fuera del repo en visualizations. No se repitió
+  exportación ni captura de micrófono; la validación trata de espacio e interacción.
+
+**Pendientes y siguiente paso**
+- Lino debe revisar comodidad de zonas/guía durante el arrastre y tamaños mínimos en su flujo.
+  La automatización comprobó el resultado del arrastre; no capturó una imagen intermedia del gesto
+  sostenido ni probó Escape a mitad del gesto. Revisar esos dos casos manualmente.
+- En tamaños extremos se usa desplazamiento interno; no se garantiza que todos los controles
+  aparezcan simultáneamente en tarjetas arbitrariamente pequeñas. Ventanas flotantes y separación
+  de pestañas requieren otra ampliación. Siguen los pendientes previos de reproducción larga/audio.
+- Siguiente paso de Codex: ajustar interacción y límites con la revisión de Lino, manteniendo la
+  preferencia de dos visores y el tema visual vigente; no rehacer el editor como réplica de Premiere.
 
 ### 2026-10-20 — Tarjetas translúcidas, degradado ambiental y Poppins (Codex)
 

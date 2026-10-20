@@ -117,7 +117,12 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Medidor estéreo dBFS del Programa con pico retenido, aviso de saturación y reinicio
 - [x] Paneles intercambiables entre izquierda/centro/derecha/abajo, separadores de tamaño,
       persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino
-- [ ] Validar arrastre nativo de cabeceras y comodidad de distribución con Lino; ventanas flotantes
+- [x] Acoplamiento por árbol de divisiones: bordes, centro para intercambiar y bordes exteriores
+      a toda altura/anchura, guía de destino, separadores individuales, ampliar/restaurar y migración
+- [x] Medidor independiente vertical/horizontal, escala adaptable y comprobación en 72×150 px;
+      adaptación por contenedor de biblioteca, monitores, inspector y timeline con popovers sin recorte
+- [x] Probar arrastre real, redimensión con mouse/teclado, doble clic y persistencia de distribución
+- [ ] Validar con Lino comodidad de zonas/guía y cancelación de arrastre; ventanas flotantes y pestañas separables
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en Audio 1
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles
