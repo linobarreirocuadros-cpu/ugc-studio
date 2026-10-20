@@ -12,8 +12,8 @@ enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
 local de voz desde el timeline implementados; captura con micrófono físico pendiente de confirmar.
 Barra superior con seis controles, marcadores persistentes y secuencias editables/anidadas o como clips.
-Tema visual: paneles redondeados con la paleta indicada por Lino (Pale Sky, Dusty Denim,
-Deep Lilac, Midnight Violet, Shadow Grey) y luz difusa inferior; intensidad pendiente de revisión.
+Tema visual vigente: fondo azul noche/ámbar, tarjetas translúcidas, bordes y glow delicados,
+Poppins local para la interfaz y escala compacta de texto/iconos; acabado pendiente de revisión.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -22,6 +22,43 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Tarjetas translúcidas, degradado ambiental y Poppins (Codex)
+
+**Decisiones e implementación**
+- Lino sustituyó la referencia anterior por un dashboard azul noche, con luz azul arriba,
+  ámbar a la derecha y tarjetas delicadas/translúcidas. Solicitó reducir y unificar textos/iconos
+  y usar Futura o una alternativa gratuita como Poppins. Se eligió Poppins ya incluida en el repo;
+  licencia SIL OFL 1.1 comprobada en el paquete local, sin servicio de fuentes ni dependencia nueva.
+- Fondo con gradientes ambientales y paneles con fondos alfa, bordes finos y sombras contenidas.
+  La transparencia afecta a la superficie, conservando la opacidad de sus textos/controles.
+  Visores interiores neutros; menús más opacos para facilitar su lectura.
+- Poppins 400/500/600 empaquetada localmente. Escala común: 10 px controles/texto, 9 px metadatos,
+  11 px títulos; iconos de herramientas/barra 14 px y controles de pista 12 px. Códigos de tiempo,
+  dBFS y menús también usan Poppins. El selector de fuente muestra su nombre con la fuente del UI.
+- Controles del Player reducidos visualmente y espaciadores ajustados para evitar recortar los
+  iconos en visores verticales. No se modificaron sus eventos de reproducción/volumen/fullscreen.
+- Cabecera del inspector en dos columnas cuando es estrecha; formulario del chat compacto cuando
+  la tarjeta es baja, incluido su uso en la zona inferior. Se conserva la distribución del usuario.
+- Cambios de presentación: JSON/ops, fuentes de los títulos/subtítulos del montaje y composición
+  de video permanecen como estaban. Sin funciones o herramientas de IA nuevas.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm run build` y `git diff --check` correctos. Compilación incluye los
+  archivos locales Poppins 500/600; se conserva el aviso previo de tamaño de paquetes.
+- UI aislada 1280×720: dos visores con video, ondas de audio, selección y ajustes; reproducir/pausar
+  y actividad del medidor verificados. Menú dentro del viewport (708 px de límite inferior).
+  Sin errores de consola en la prueba. CSS aplicado confirma Poppins, texto base 10 px e iconos 14 px.
+- Revisión del editor principal a 756×589, sin editar su montaje: chat reubicado por el usuario en
+  panel inferior de unos 220 px; tras el ajuste, chat y compositor caben sin desbordar verticalmente.
+- Captura real guardada fuera del repo como `ugc-studio-cristal-poppins.png` en visualizations.
+  No se repitió la suite de operaciones por este cambio visual ni una exportación nueva.
+
+**Pendientes y siguiente paso**
+- Revisar con Lino la delicadeza del fondo, transparencias, brillo y legibilidad de los tamaños
+  compactos en su pantalla. Ajustar esos valores desde el tema común con su criterio.
+- Mantener las comprobaciones de reproducción larga, sincronía y micrófono como pendientes de
+  sesiones anteriores; esta reproducción breve acredita interacción visual, no esos casos.
 
 ### 2026-10-20 — Paleta de Lino y luz difusa de borde (Codex)
 

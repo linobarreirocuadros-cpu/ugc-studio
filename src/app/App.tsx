@@ -755,7 +755,7 @@ function FontSelect({ value, onChange }: { value: string; onChange: (fontFamily:
   return (
     <label>
       Tipografía
-      <select value={current} onChange={(e) => onChange(e.target.value)} style={{ fontFamily: `"${current}"` }}>
+      <select value={current} onChange={(e) => onChange(e.target.value)}>
         {!FONT_FAMILIES.includes(current) && <option value={current}>{current}</option>}
         {FONT_FAMILIES.map((f) => (
           <option key={f} value={f}>{f}</option>

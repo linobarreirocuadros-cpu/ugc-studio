@@ -45,10 +45,11 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   código disponible, pesos descargables, servicio con cuota gratuita y licencia open source.
 - La investigación y las propuestas del roadmap no autorizan dar por aprobado un rediseño
   visual. Consultar a Lino antes de decisiones importantes de composición, timing y estilo.
-- Paleta indicada por Lino el 2026-10-20: Pale Sky #C9E0EB, Dusty Denim #7392B5,
-  Deep Lilac #8350C4, Midnight Violet #402B47 y Shadow Grey #262423. Referencia de efecto:
-  luz difusa desde bordes inferiores hacia superficies oscuras, con paneles redondeados.
-  El tema vive en `src/app/studio-theme.css`; intensidad y densidad se afinan con Lino.
+- Dirección visual vigente (última referencia de Lino, 2026-10-20): fondo degradado azul noche
+  con luz azul superior y ámbar lateral, tarjetas oscuras redondeadas/translúcidas, bordes y glow
+  delicados. Sustituye la paleta anterior Pale Sky/Dusty Denim. UI en Poppins local (OFL),
+  escala de texto 9/10/11 px e iconos compactos 12/14 px. No imponer esa tipografía al contenido
+  del video. El tema vive en `src/app/studio-theme.css`; acabado y legibilidad se afinan con Lino.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en
