@@ -6,6 +6,7 @@ ChatGPT conectado por Sign in with ChatGPT oficial y probado con GPT-6.1-Sol; se
 dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer y exportación.
 Transcripción precisa local con faster-whisper large-v3 instalada y probada en este PC.
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
+Barra de herramientas, medidor estéreo dBFS del Programa y paneles de tamaño/posición ajustables.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -388,9 +389,70 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
 - Las acciones de audio/visión individuales siguen requiriendo un clip o ID explícito. La
   selección múltiple no crea vínculos permanentes entre video y audio ni propiedades de grupo.
 
+### 2026-10-20 — Herramientas básicas, medidor y paneles adaptables (Codex)
+
+**Decisiones y funciones implementadas**
+- Lino aprobó herramientas a la izquierda del timeline y medidor a la derecha, y amplió el
+  pedido a paneles reubicables/redimensionables. Se mantienen los monitores y el estilo existente.
+- Barra con iconos SVG propios y atajos: V selección, A selección hacia delante (Shift limita
+  a una pista), C cuchilla (Shift corta todas), B ripple, Y slip, H mano, Z zoom, T texto, S imán,
+  +/− y ajustar todo el montaje. No se añadieron botones de herramientas sin implementar.
+- Nuevas ops puras slipClip y rippleTrimClip: límites del archivo, duración mínima y transacción
+  única de historial. Ripple solo sobre video/audio sin solapamientos y en su propia pista;
+  no sustituye el vínculo/sync lock entre pistas, que sigue pendiente. Slip conserva los bordes.
+  La previsualización usa las mismas ops que la aplicación final; la cuchilla ajusta tiempos
+  de palabras al dividir subtítulos. Texto crea clip en T1, mueve el cabezal y abre Propiedades.
+- Medidor L/R a la derecha: pico de muestras de −60 a 0 dBFS, números, caída visual de 28 dB/s,
+  pico máximo retenido y aviso rojo al alcanzar/superar 0; botón para reiniciar ambos. Pausa/mute
+  muestran silencio y conservan la retención hasta reinicio. No es RMS, LUFS, true peak ni dB SPL.
+- ProgramMeter captura una copia de los elementos de audio/video del Programa con captureStream,
+  reproduce su volumen/mute mediante ganancias, suma en Web Audio y analiza por canal. La copia
+  sale por una ganancia cero: no duplica sonido ni modifica/reconecta la salida audible de Remotion.
+  El estándar de captura ignora mute/volume, por lo que esos parámetros se aplican explícitamente.
+  Se excluye el monitor Origen. Sin micrófono, modelos nuevos, servicios o dependencias de pago.
+  Navegadores sin la API reciben un aviso y mantienen la reproducción original.
+- Paneles Proyecto, Monitores, Inspector y Timeline intercambiables entre cuatro zonas mediante
+  selector de cabecera; asa de arrastre y destinos sobre los otros paneles. Separadores verticales
+  y horizontal con mouse/teclado, tamaños adaptados a ventana, persistencia local independiente
+  del proyecto JSON y botón Restablecer paneles. El timeline mueve juntos herramientas/medidor.
+  Cambiar zona no desmonta las pestañas del chat ni modifica el proyecto/historial.
+- Abrir otro proyecto restablece cabezal a cero y herramienta Selección; conserva la distribución.
+
+**Pruebas realizadas**
+- Interfaz en copia aislada: cuchilla creó dos fragmentos con offsets correctos y Deshacer
+  recuperó uno. Slip desplazó el origen 30 frames sin cambiar posición/duración. Ripple final
+  quitó 30 frames y desplazó los siguientes dos clips de esa pista; se comprobó el resultado
+  y se deshizo. A con Shift seleccionó los dos clips siguientes de V1. T creó texto en el punto
+  pulsado y abrió Propiedades. Zoom amplió anchuras; Mano desplazó la vista; Ajustar volvió a cero.
+- Audio real de calibración estéreo: amplitudes 0.5/0.25 → lecturas −6.0203/−12.0409 dBFS.
+  Volumen del clip al 50% → −12.0409/−18.0615. Mute y pausa → silencio; reanudar al terminar
+  el archivo volvió a medir correctamente. Tres archivos/pistas al 100% sumaron +3.5/−2.5 dBFS,
+  activaron rojo en L; Picos durante pausa borró retención y alerta. Video UGC real también
+  produjo lectura de sus canales durante reproducción. No se evaluó sonoridad perceptual.
+- Panel Proyecto pasó a la derecha intercambiándose con Inspector. Cambio de ancho por teclado
+  y aumento de altura inferior 40 px arrastrando el separador. Recargar conservó posiciones y
+  tamaños. Timeline pasó al centro con herramientas/medidor y Monitores abajo; Restablecer
+  recuperó la disposición inicial. Proyecto de trabajo de Lino conservado.
+- Pruebas automatizadas añadidas para límites/offsets del ripple y slip, pureza, sincronía de
+  otras pistas, palabras de subtítulos divididos y conversión de muestras a dBFS/saturación.
+- npm run typecheck, 21 pruebas npm test, npm run build y git diff --check pasan. Build conserva
+  el aviso previo de chunks grandes. No se incorporaron muestras, videos ni cachés al repositorio.
+
+**Pendiente y límites**
+- Validación de Lino de iconos, comodidad, tamaños y calidad de escucha/reproducción con medidor.
+- Validar el arrastre HTML5 del asa de cabecera con mouse real; la reubicación por selector sí
+  está probada. Ventanas flotantes, anidamiento libre y separar pestañas del Inspector pendientes.
+- Safari/Firefox, medios externos/CORS, reproducción a otra velocidad y sesiones largas con
+  muchas pistas pendientes. Se probó Chromium de escritorio en Windows. El medidor caracteriza
+  la mezcla de previsualización; no reemplaza un análisis del archivo exportado.
+- Ripple multitrack con sync lock, rolling edit, slide, pluma y formas no se incluyen en esta barra.
+
 ## Siguiente paso sugerido para Codex
 
 Validar con Lino el gesto de selección en su flujo y el arrastre nativo de varios archivos.
+Recoger su evaluación de herramientas, medidor y distribución; priorizar después vínculo/sync lock
+de video/audio antes de ampliar recortes que afecten múltiples pistas. No dar por aprobado un dock
+con ventanas flotantes o un rediseño de espacios sin revisar con Lino la interacción concreta.
 Recoger la revisión editorial de Lino del resumen de 15 s y de la nueva transcripción. Ajustar
 con ejemplos concretos y verificar reproducción. Después priorizar vínculo individual de video/audio
 derivado y export con ese audio. Revisar con Lino el prototipo de espacios antes de rediseñar;

@@ -42,6 +42,42 @@ En el editor, pestaña **Chat IA** → **Motor: Ollama** → elige **Modelo**. E
 y muestra el tiempo de espera cuando el modelo está pensando. También puedes usar Gemini/Groq/OpenRouter (gratis con
 límite) o Claude/OpenAI API (de pago, opcionales) pegando su clave en **Configurar**.
 
+## Herramientas, medidor de audio y paneles
+
+La columna a la izquierda del timeline incluye:
+
+- **V · Selección:** seleccionar, mover y recortar como antes; recuadro desde un espacio vacío.
+- **A · Seleccionar hacia delante:** selecciona los clips desde el clip pulsado hacia la derecha.
+  Shift+clic limita la selección a esa pista. Arrastra para mover el conjunto.
+- **C · Cuchilla:** clic sobre un clip crea un corte en ese punto; Shift+clic corta todas las pistas.
+- **B · Recorte ripple en esta pista:** arrastra el borde de un video/audio; se desplazan los clips
+  posteriores de esa pista. No sincroniza automáticamente las otras pistas ni actúa sobre solapamientos.
+- **Y · Deslizar contenido:** arrastra el centro de un video/audio para cambiar el fragmento de origen,
+  conservando su posición y duración. Respeta el inicio/final del archivo.
+- **H · Mano:** arrastra para desplazar la vista del timeline.
+- **Z · Zoom:** clic acerca alrededor del punto pulsado; Shift+clic aleja.
+- **T · Texto:** clic en el timeline crea texto en ese momento y abre sus propiedades.
+- **S · Imán**, **+/−** y **Ajustar timeline**: activar imán, cambiar zoom y ver todo el montaje.
+
+Los cambios de montaje se pueden deshacer con Ctrl/Cmd+Z. La cuchilla también conserva los tiempos
+relativos de las palabras al cortar un bloque de subtítulos.
+
+El **medidor L/R** está a la derecha del timeline. Reproduce el **Programa** para ver picos de muestras
+en dBFS, con caída visual y picos retenidos. Rojo indica que la suma medida alcanzó 0 dBFS; **Picos**
+reinicia la retención y la alerta. Sigue el volumen/mute del Programa y mezcla sus pistas; no mide
+el monitor Origen, LUFS, true peak ni el volumen físico de los altavoces. Se probó en Chrome/Chromium
+de escritorio en Windows. Utiliza una copia silenciosa de los medios que ya se están reproduciendo,
+sin micrófono ni subida de audio. [Protocolo de captura del navegador](https://w3c.github.io/mediacapture-fromelement/).
+Si el navegador no permite esta captura, muestra un aviso sin modificar la reproducción original.
+
+**Paneles adaptables:** arrastra los separadores entre columnas o sobre el panel inferior para
+cambiar tamaños. Cada cabecera tiene una posición (**Izquierda/Centro/Derecha/Abajo**): al cambiarla,
+intercambia lugar con el panel de destino. También existe el asa **⠿** para arrastrar una cabecera
+sobre otro panel; ese gesto nativo requiere validación manual. La distribución se guarda en este
+navegador. **Restablecer paneles**, arriba, recupera tamaños y posiciones iniciales.
+Esta versión mueve los grupos Proyecto, Monitores, Inspector y Timeline dentro de cuatro zonas;
+todavía no crea ventanas flotantes ni separa las pestañas del Inspector en paneles independientes.
+
 ## Usar tu cuenta ChatGPT para editar
 
 1. En **Chat IA**, elige **Motor: ChatGPT** y pulsa **Continue with ChatGPT**.

@@ -20,6 +20,9 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - Lino quiere espacios de trabajo fáciles de cambiar desde una barra inferior, inspirados
   en la organización de Resolve. Nombres, número de espacios y diseño final requieren su criterio.
 - Sigue vigente: dos visores Origen/Programa por defecto y opción de alternar por pestañas.
+- El 2026-10-20 Lino aprobó herramientas a la izquierda del timeline y medidor a la derecha,
+  y pidió paneles adaptables/reubicables. Primera implementación: cuatro zonas intercambiables,
+  separadores y persistencia local; ventanas flotantes y separación de pestañas siguen pendientes.
 - La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
   reconocer acciones o sonidos requiere modelos y análisis adicionales.
 - La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.
@@ -52,6 +55,9 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `src/project/` — modelo de datos (`types.ts`) y operaciones puras (`ops.ts`)
 - `src/remotion/` — composición de Remotion que renderiza un `Project` (preview y export)
 - `src/app/` — interfaz React (Vite): monitor, línea de tiempo, paneles
+- `src/app/TimelineTools.tsx` — herramientas/atajos; `workspace.tsx` — zonas y tamaños de paneles
+- `src/app/AudioMeter.tsx` y `programMeter.ts` — medición local de la copia silenciosa del Programa;
+  no conectar esa copia con ganancia audible ni incluirla en la composición/render
 - `src/ai/tools.ts` — herramientas del chat (JSON Schema, tiempos en segundos) + system prompt
 - `src/app/chat/` — panel de chat y `executeTool.ts` (ejecuta herramientas en el navegador)
 - `server/llm.ts` — proveedores de IA, conversación en memoria, `/api/chat`, `/api/settings`, `/api/models`

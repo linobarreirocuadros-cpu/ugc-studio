@@ -265,6 +265,10 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       const left = { ...c, durationInFrames: offset };
       const right = { ...c, id: newId(), from: frame, durationInFrames: c.durationInFrames - offset };
       if (right.kind === "video" || right.kind === "audio") right.trimStart = (c as VideoClip | AudioClip).trimStart + offset;
+      if (left.kind === "caption" && right.kind === "caption" && c.kind === "caption") {
+        left.words = c.words.filter((w) => w.start < offset).map((w) => ({ ...w, end: Math.min(w.end, offset) }));
+        right.words = c.words.filter((w) => w.end > offset).map((w) => ({ ...w, start: Math.max(0, w.start - offset), end: w.end - offset }));
+      }
       if (left.kind === "audio") left.fadeOut = 0; // el fade queda solo al final real del clip
       if (right.kind === "audio") right.fadeIn = 0;
       return [left, right as Clip];
@@ -294,6 +298,38 @@ export const trimClip = (
   const patch: Partial<Clip> = { from: c.from + delta, durationInFrames: c.durationInFrames - delta };
   if (c.kind === "video" || c.kind === "audio") (patch as Partial<VideoClip>).trimStart = c.trimStart + delta;
   return updateClip(project, clipId, patch);
+};
+
+/** Cambia el contenido visible sin mover los bordes del clip. */
+export const slipClip = (project: Project, clipId: string, deltaFrames: number): Project => {
+  const clip = findClip(project, clipId)?.clip;
+  if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || !Number.isFinite(deltaFrames)) return project;
+  const trimStart = Math.max(0, Math.min(clip.sourceDurationInFrames - clip.durationInFrames, clip.trimStart + Math.round(deltaFrames)));
+  return trimStart === clip.trimStart ? project : updateClip(project, clipId, { trimStart });
+};
+
+/** Recorte ripple en la pista del clip: conserva su inicio y desplaza los clips posteriores. */
+export const rippleTrimClip = (project: Project, clipId: string, edge: "start" | "end", deltaFrames: number): Project => {
+  const found = findClip(project, clipId);
+  if (!found || !Number.isFinite(deltaFrames)) return project;
+  const { clip, track } = found, oldEnd = clip.from + clip.durationInFrames;
+  if (clip.kind !== "video" && clip.kind !== "audio") return project;
+  // Un solapamiento requiere una decisión sobre las capas: no se cierra a ciegas.
+  if (track.clips.some((other) => other.id !== clip.id && other.from < oldEnd && other.from + other.durationInFrames > clip.from)) return project;
+  let delta = Math.round(deltaFrames);
+  if (edge === "start") {
+    delta = Math.min(delta, clip.durationInFrames - 1);
+    delta = Math.max(delta, -clip.trimStart);
+  } else {
+    delta = Math.max(delta, 1 - clip.durationInFrames);
+    if (clip.kind === "video" || clip.kind === "audio") delta = Math.min(delta, clip.sourceDurationInFrames - clip.trimStart - clip.durationInFrames);
+  }
+  if (!delta) return project;
+  const durationDelta = edge === "start" ? -delta : delta;
+  return mapTracks(project, (t) => t.id !== track.id ? t : { ...t, clips: t.clips.map((c): Clip => {
+    if (c.id === clip.id) return { ...c, durationInFrames: c.durationInFrames + durationDelta, ...((c.kind === "audio" || c.kind === "video") && edge === "start" ? { trimStart: c.trimStart + delta } : {}) };
+    return c.from >= oldEnd ? { ...c, from: c.from + durationDelta } : c;
+  }) });
 };
 
 /** Asigna el proxy de vista previa a todos los clips de un archivo. */

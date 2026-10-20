@@ -23,6 +23,9 @@ import { useHistory } from "./useHistory";
 import { LocalAssistantPanel } from "./LocalAssistantPanel";
 import type { AssistantContext, VisualResult } from "./localAssistant";
 import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
+import { TimelineTools, TIMELINE_TOOLS, type TimelineTool } from "./TimelineTools";
+import { AudioMeter } from "./AudioMeter";
+import { useWorkspace } from "./workspace";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -78,6 +81,7 @@ const PreviewPlayer = memo(function PreviewPlayer({
 });
 
 export function App() {
+  const workspace = useWorkspace();
   const saved = useMemo(loadSaved, []);
   const history = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
   const project = history.value;
@@ -91,6 +95,9 @@ export function App() {
   const binSelection = useMarqueeSelection({ selected: selectedMedia, onSelect: setSelectedMedia });
   const [frame, setFrame] = useState(0);
   const [pxPerFrame, setPxPerFrame] = useState(2);
+  const [tool, setTool] = useState<TimelineTool>("select");
+  const [snapping, setSnapping] = useState(true);
+  const programRef = useRef<HTMLDivElement>(null);
   const [uploading, setUploading] = useState(false);
   const [binTab, setBinTab] = useState<"proyecto" | "foley">("proyecto");
   const [binView, setBinView] = useState<"list" | "grid">(() => localStorage.getItem("ugc-studio:bin-view") === "grid" ? "grid" : "list");
@@ -271,10 +278,11 @@ export function App() {
     history.apply((p) => ops.addAudioClip(p, { src: file.src, name: file.name, durationInFrames }, "A2", frame));
   };
 
-  const addText = () => {
+  const addText = (at = frame) => {
     const id = ops.newId();
-    history.apply((p) => ops.addTextClip(p, { id, text: "Tu hook aquí", from: frame, durationInFrames: p.fps * 3 }));
+    history.apply((p) => ops.addTextClip(p, { id, text: "Tu hook aquí", from: at, durationInFrames: p.fps * 3 }));
     setSelectedId(id); // queda seleccionado para editarlo de inmediato
+    setRightTab("propiedades"); setTool("select"); seek(at);
   };
 
   const split = () => history.apply((p) => ops.splitAt(p, frame));
@@ -304,6 +312,7 @@ export function App() {
         if (selectionPanel.current === "timeline") remove(e.shiftKey);
       } else if (e.key === "Escape") {
         selectionPanel.current === "timeline" ? setSelectedIds([]) : setSelectedMedia([]);
+        setTool("select");
       } else if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
         selectionPanel.current === "timeline" ? setSelectedIds(project.tracks.flatMap((t) => t.clips).map((c) => c.id)) : setSelectedMedia(media.map((m) => m.src));
@@ -314,7 +323,11 @@ export function App() {
       } else if (e.key === "=" || e.key === "+") {
         setPxPerFrame((z) => Math.min(20, z * 1.25));
       } else if (e.key === "-") {
-        setPxPerFrame((z) => Math.max(0.2, z / 1.25));
+        setPxPerFrame((z) => Math.max(0.02, z / 1.25));
+      } else if (!mod && !e.altKey) {
+        const next = TIMELINE_TOOLS.find((item) => item.key.toLowerCase() === e.key.toLowerCase());
+        if (next) { e.preventDefault(); setTool(next.id); selectionPanel.current = "timeline"; }
+        else if (e.key.toLowerCase() === "s") { e.preventDefault(); setSnapping((value) => !value); }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -352,10 +365,11 @@ export function App() {
     history.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
     setSelectedIds([]); setSelectedMedia([]); setSourceSrc(null);
+    setTool("select"); seek(0);
   };
 
   return (
-    <div className="app">
+    <div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style}>
       <header className="topbar">
         <input
           className="project-name"
@@ -366,12 +380,13 @@ export function App() {
           <button onClick={history.undo} disabled={!history.canUndo} title="Ctrl/Cmd+Z">↶</button>
           <button onClick={history.redo} disabled={!history.canRedo} title="Ctrl/Cmd+Shift+Z">↷</button>
           <button onClick={split} title="Ctrl/Cmd+K">Cortar</button>
-          <button onClick={addText}>+ Texto</button>
+          <button onClick={() => addText()}>+ Texto</button>
           <button onClick={saveProjectFile}>Guardar</button>
           <button onClick={() => openInput.current?.click()}>Abrir</button>
           <input ref={openInput} type="file" accept=".json" hidden onChange={(e) => openProjectFile(e.target.files)} />
         </div>
         <div className="export">
+          <button onClick={workspace.reset} title="Restaurar posiciones y tamaños iniciales de los paneles">Restablecer paneles</button>
           <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
             <option value="h264-high">MP4 H.264 · Alta calidad</option>
             <option value="h264-draft">MP4 H.264 · Borrador rápido</option>
@@ -400,12 +415,13 @@ export function App() {
         </div>
       )}
 
-      <aside className="panel bin">
+      <aside className="panel bin dock-panel" {...workspace.dropProps("bin")}>
         <div className="panel-title">
           <div className="tabs">
             <button className={binTab === "proyecto" ? "active" : ""} onClick={() => setBinTab("proyecto")}>Proyecto</button>
             <button className={binTab === "foley" ? "active" : ""} onClick={() => setBinTab("foley")}>Foley</button>
           </div>
+          {workspace.handle("bin")}
           {binTab === "proyecto" && (
             <div className="bin-controls">
               <button className={binView === "list" ? "active" : ""} onClick={() => setBinView("list")} title="Vista de lista">☰</button>
@@ -466,9 +482,10 @@ export function App() {
         <AIPanel project={project} apply={history.apply} />
       </aside>
 
-      <main className="monitor">
+      <main className="monitor dock-panel" {...workspace.dropProps("monitor")}>
         <div className="monitor-toolbar">
           <span>Monitores</span>
+          {workspace.handle("monitor")}
           <button className={monitorLayout === "split" ? "active" : ""} onClick={() => setMonitorLayout("split")}>Dos visores</button>
           <button className={monitorLayout === "tabs" ? "active" : ""} onClick={() => setMonitorLayout("tabs")}>Pestañas</button>
           {monitorLayout === "tabs" && <>
@@ -488,13 +505,13 @@ export function App() {
           </div>
           <div className="program-pane" style={{ display: monitorLayout === "tabs" && monitorTab !== "program" ? "none" : undefined }}>
             <div className="monitor-label">Programa</div>
-            <div className="program-preview"><PreviewPlayer playerRef={playerRef} project={project} duration={duration} /></div>
+            <div className="program-preview" ref={programRef}><PreviewPlayer playerRef={playerRef} project={project} duration={duration} /></div>
             <div className="timecode">{formatTimecode(frame, project.fps)} / {formatTimecode(duration, project.fps)}</div>
           </div>
         </div>
       </main>
 
-      <aside className="panel inspector">
+      <aside className="panel inspector dock-panel" {...workspace.dropProps("inspector")}>
         <div className="panel-title">
           <div className="tabs">
             <button className={rightTab === "chat" ? "active" : ""} onClick={() => setRightTab("chat")}>Chat IA</button>
@@ -502,6 +519,7 @@ export function App() {
             <button className={rightTab === "vision" ? "active" : ""} onClick={() => setRightTab("vision")}>Visión</button>
             <button className={rightTab === "audio" ? "active" : ""} onClick={() => setRightTab("audio")}>Audio</button>
           </div>
+          {workspace.handle("inspector")}
         </div>
         {/* El chat queda montado al cambiar de pestaña para no perder la conversación */}
         <div style={{ display: rightTab === "chat" ? "contents" : "none" }}>
@@ -544,21 +562,32 @@ export function App() {
         </>}
       </aside>
 
-      <section className="timeline-area" onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
-        <div className="timeline-selection-status" role="status">{selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Arrastra desde un espacio vacío para seleccionar"} · Shift/Ctrl+clic: sumar/quitar · Esc: quitar selección</div>
+      <section className="timeline-area dock-panel" {...workspace.dropProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
+        <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
+        <div className="timeline-workspace">
+        <TimelineTools tool={tool} onTool={setTool} snapping={snapping} onSnap={() => setSnapping((value) => !value)} onFit={() => { const viewport = workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll"); const width = viewport?.clientWidth ?? 800; if (viewport) viewport.scrollLeft = 0; setPxPerFrame(Math.max(0.02, Math.min(20, (width - 30) / duration))); }} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
+        <div className="timeline-main">
         <Timeline
           project={project}
           frame={frame}
           selectedIds={selectedIds}
           pxPerFrame={pxPerFrame}
+          tool={tool}
+          snapping={snapping}
           onSeek={seek}
           onSelect={setSelectedIds}
           onMove={(ids, delta, offset) => history.apply((p) => ops.moveClips(p, ids, delta, offset))}
-          onTrim={(id, edge, delta) => history.apply((p) => ops.trimClip(p, id, edge, delta))}
+          onTrim={(id, edge, delta, ripple) => history.apply((p) => (ripple ? ops.rippleTrimClip : ops.trimClip)(p, id, edge, delta))}
+          onSlip={(id, delta) => history.apply((p) => ops.slipClip(p, id, delta))}
+          onSplit={(id, at) => history.apply((p) => ops.splitAt(p, at, id))}
+          onAddText={addText}
+          onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))}
           onDropMedia={dropMedia}
           waveforms={waveforms}
         />
+        </div><AudioMeter programRef={programRef} /></div>
       </section>
+      {workspace.splitters}
     </div>
   );
 }

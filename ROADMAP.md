@@ -105,6 +105,12 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
 - [x] Selección múltiple por recuadro en timeline y Proyecto (lista/cuadrícula), Ctrl/Shift+clic,
       movimiento/borrado conjunto reversible y selección independiente entre paneles
+- [x] Barra de herramientas: selección, selección hacia delante, cuchilla, recorte ripple de
+      video/audio en su pista, slip, mano, zoom, texto, imán y ajustar montaje
+- [x] Medidor estéreo dBFS del Programa con pico retenido, aviso de saturación y reinicio
+- [x] Paneles intercambiables entre izquierda/centro/derecha/abajo, separadores de tamaño,
+      persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino
+- [ ] Validar arrastre nativo de cabeceras y comodidad de distribución con Lino; ventanas flotantes
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en A0 Voz
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles

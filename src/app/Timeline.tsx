@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Clip, Project } from "../project/types";
 import { clipLabel, getProjectDuration } from "../project/types";
 import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
+import type { TimelineTool } from "./TimelineTools";
+import { findClip as projectClip, rippleTrimClip, slipClip, trimClip } from "../project/ops";
 
 type Drag = {
   clipId: string;
   clipIds: string[];
   collapseOnClick?: boolean;
-  mode: "move" | "trim-start" | "trim-end";
+  mode: "move" | "trim-start" | "trim-end" | "slip";
+  ripple?: boolean;
   startX: number;
   startY: number;
   dx: number;
@@ -29,10 +32,16 @@ type Props = {
   frame: number;
   selectedIds: string[];
   pxPerFrame: number;
+  tool: TimelineTool;
+  snapping: boolean;
   onSeek: (frame: number) => void;
   onSelect: (clipIds: string[]) => void;
   onMove: (clipIds: string[], deltaFrames: number, trackOffset: number) => void;
-  onTrim: (clipId: string, edge: "start" | "end", delta: number) => void;
+  onTrim: (clipId: string, edge: "start" | "end", delta: number, ripple: boolean) => void;
+  onSlip: (clipId: string, delta: number) => void;
+  onSplit: (clipId: string | undefined, frame: number) => void;
+  onAddText: (frame: number) => void;
+  onZoom: (factor: number) => void;
   onDropMedia: (media: MediaDrag, trackId: string, from: number) => void;
   waveforms: Record<string, string>;
 };
@@ -41,7 +50,7 @@ const HEADER_W = 76;
 const TRACK_H = 56;
 const SNAP_PX = 8;
 
-export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSelect, onMove, onTrim, onDropMedia, waveforms }: Props) {
+export function Timeline({ project, frame, selectedIds, pxPerFrame, tool, snapping, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, waveforms }: Props) {
   const [drag, setDragState] = useState<Drag | null>(null);
   const [dropTrackId, setDropTrackId] = useState<string | null>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -50,6 +59,11 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
     setDragState(d);
   };
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [cutFrame, setCutFrame] = useState<number | null>(null);
+  const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
+  const panCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => panCleanup.current?.(), []);
+  useLayoutEffect(() => { if (zoomAnchor.current && scrollRef.current) { scrollRef.current.scrollLeft = zoomAnchor.current.frame * pxPerFrame - zoomAnchor.current.x; zoomAnchor.current = null; } }, [pxPerFrame]);
   const marquee = useMarqueeSelection({ selected: selectedIds, onSelect, onEmptyClick: (clientX) => seekFromX(clientX) });
   const duration = getProjectDuration(project);
   // Ancho: hasta el último clip (aunque sea una canción más larga que el video) + 10 s de margen
@@ -64,6 +78,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
     return pts;
   };
   const snap = (value: number, excludeIds: string[]) => {
+    if (!snapping) return value;
     let best = value;
     let bestDist = SNAP_PX / pxPerFrame;
     for (const p of snapPoints(excludeIds)) {
@@ -118,15 +133,21 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
     return Math.max(-earliest, Math.round(snap(anchor.from + d.dx / pxPerFrame, d.clipIds) - anchor.from));
   };
 
+  const projectForDrag = (d: Drag | null) => {
+    if (!d || d.mode === "move") return project;
+    const clip = findClip(d.clipId); if (!clip) return project;
+    if (d.mode === "slip") return slipClip(project, clip.id, d.dx / pxPerFrame);
+    const edge = d.mode === "trim-start" ? "start" : "end";
+    const endpoint = edge === "start" ? clip.from : clip.from + clip.durationInFrames;
+    const delta = snap(endpoint + d.dx / pxPerFrame, [clip.id]) - endpoint;
+    return (d.ripple ? rippleTrimClip : trimClip)(project, clip.id, edge, delta);
+  };
+  const previewProject = projectForDrag(drag);
+
   const dragPreview = (clip: Clip, d: Drag) => {
-    const deltaFrames = d.dx / pxPerFrame;
     if (d.mode === "move") return { from: clip.from + moveDelta(d), dur: clip.durationInFrames };
-    if (d.mode === "trim-end") {
-      const end = snap(clip.from + clip.durationInFrames + deltaFrames, [clip.id]);
-      return { from: clip.from, dur: Math.max(1, end - clip.from) };
-    }
-    const start = snap(clip.from + deltaFrames, [clip.id]);
-    return { from: start, dur: clip.durationInFrames - (start - clip.from) };
+    const preview = projectClip(projectForDrag(d), clip.id)?.clip ?? clip;
+    return { from: preview.from, dur: preview.durationInFrames };
   };
 
   const commitDrag = (d: Drag) => {
@@ -138,14 +159,40 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
     }
     const p = dragPreview(clip, d);
     if (d.mode === "move") onMove(d.clipIds, moveDelta(d), displayed.findIndex((t) => t.clips.some((c) => c.id === clip.id)) - displayed.indexOf(dragTargetTrack(clip.id, d)));
-    else if (d.mode === "trim-end") onTrim(clip.id, "end", p.dur - clip.durationInFrames);
-    else onTrim(clip.id, "start", p.from - clip.from);
+    else if (d.mode === "slip") onSlip(clip.id, d.dx / pxPerFrame);
+    else if (d.mode === "trim-end") onTrim(clip.id, "end", p.dur - clip.durationInFrames, Boolean(d.ripple));
+    else onTrim(clip.id, "start", d.ripple ? clip.durationInFrames - p.dur : p.from - clip.from, Boolean(d.ripple));
   };
 
   const seekFromX = (clientX: number) => {
     const rect = scrollRef.current!.getBoundingClientRect();
     const x = clientX - rect.left + scrollRef.current!.scrollLeft;
     onSeek(Math.max(0, Math.min(duration - 1, Math.round(x / pxPerFrame))));
+  };
+  const frameFromX = (clientX: number) => Math.max(0, Math.round((clientX - scrollRef.current!.getBoundingClientRect().left + scrollRef.current!.scrollLeft) / pxPerFrame));
+  const captureTool = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (tool === "hand") {
+      event.preventDefault(); event.stopPropagation();
+      const horizontal = scrollRef.current!, vertical = horizontal.parentElement!, x = event.clientX, y = event.clientY, left = horizontal.scrollLeft, top = vertical.scrollTop;
+      panCleanup.current?.();
+      const move = (e: MouseEvent) => { horizontal.scrollLeft = left - (e.clientX - x); vertical.scrollTop = top - (e.clientY - y); };
+      const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); window.removeEventListener("blur", up); panCleanup.current = null; };
+      panCleanup.current = up; window.addEventListener("mousemove", move); window.addEventListener("mouseup", up); window.addEventListener("blur", up); return;
+    }
+    if ((event.target as HTMLElement).closest(".ruler")) return;
+    const at = frameFromX(event.clientX);
+    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(event.shiftKey ? 0.8 : 1.25); }
+    else if (tool === "text") { event.preventDefault(); event.stopPropagation(); onAddText(at); }
+    else if (tool === "razor") {
+      event.preventDefault(); event.stopPropagation();
+      const id = (event.target as HTMLElement).closest<HTMLElement>("[data-selection-id]")?.dataset.selectionId;
+      if (id) onSplit(event.shiftKey ? undefined : id, at);
+    } else if (tool === "track" && !(event.target as HTMLElement).closest("[data-selection-id]")) {
+      event.preventDefault(); event.stopPropagation();
+      const trackIndex = Number((event.target as HTMLElement).closest<HTMLElement>("[data-track-index]")?.dataset.trackIndex);
+      onSelect(displayed.flatMap((track, i) => event.shiftKey && i !== trackIndex ? [] : track.clips.filter((c) => c.from >= at).map((c) => c.id)));
+    }
   };
 
   // Marcas de la regla: cada segundo, con etiqueta según el zoom.
@@ -154,7 +201,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
   const totalSeconds = Math.ceil(width / secondPx);
 
   return (
-    <div className="timeline">
+    <div className={`timeline tool-${tool}`}>
       <div className="timeline-headers" style={{ width: HEADER_W }}>
         <div className="ruler-spacer" />
         {displayed.map((t) => (
@@ -164,7 +211,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
         ))}
       </div>
       <div className="timeline-scroll" ref={scrollRef}>
-        <div ref={marquee.ref} onMouseDown={marquee.onMouseDown} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative" }}>
+        <div ref={marquee.ref} onMouseDownCapture={captureTool} onMouseDown={marquee.onMouseDown} onMouseMove={(e) => { if (tool === "razor") setCutFrame(frameFromX(e.clientX)); }} onMouseLeave={() => setCutFrame(null)} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative" }}>
           <div
             className="ruler"
             data-no-marquee
@@ -191,6 +238,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
           {displayed.map((track, trackIndex) => (
             <div
               key={track.id}
+              data-track-index={trackIndex}
               className={`track track-${track.kind} ${dropTrackId === track.id ? "drop-target" : ""}`}
               style={{ height: TRACK_H }}
               onDragOver={(e) => {
@@ -215,7 +263,8 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
             >
               {track.clips.map((clip) => {
                 const dragging = Boolean(drag && (drag.mode === "move" ? drag.clipIds.includes(clip.id) : drag.clipId === clip.id));
-                const p = dragging && drag ? dragPreview(clip, drag) : { from: clip.from, dur: clip.durationInFrames };
+                const preview = projectClip(previewProject, clip.id)?.clip ?? clip;
+                const p = dragging && drag ? dragPreview(clip, drag) : { from: preview.from, dur: preview.durationInFrames };
                 const shiftY =
                   dragging && drag?.mode === "move"
                     ? (displayed.indexOf(dragTargetTrack(clip.id, drag)) - trackIndex) * TRACK_H
@@ -238,7 +287,12 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
                       if (e.button !== 0) return;
                       e.stopPropagation();
                       e.preventDefault();
+                      if (tool === "track") {
+                        const ids = displayed.flatMap((t) => e.shiftKey && t.id !== track.id ? [] : t.clips.filter((c) => c.from >= clip.from).map((c) => c.id));
+                        onSelect(ids); setDrag({ clipId: clip.id, clipIds: ids, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return;
+                      }
                       if (e.shiftKey || e.ctrlKey || e.metaKey) { onSelect(toggleSelection(selectedIds, clip.id)); return; }
+                      if (tool === "slip") { onSelect([clip.id]); setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "slip", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return; }
                       const ids = selectedIds.includes(clip.id) ? selectedIds : [clip.id];
                       onSelect(ids);
                       setDrag({ clipId: clip.id, clipIds: ids, collapseOnClick: ids.length > 1, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
@@ -251,7 +305,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
                         if (e.button !== 0) return;
                         e.stopPropagation();
                         onSelect([clip.id]);
-                        setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-start", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                        setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-start", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
                     {clip.kind === "audio" && waveforms[clip.src] && (
@@ -260,17 +314,17 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
                         src={waveforms[clip.src]}
                         alt=""
                         draggable={false}
-                        style={{ width: clip.sourceDurationInFrames * pxPerFrame, left: -clip.trimStart * pxPerFrame }}
+                        style={{ width: clip.sourceDurationInFrames * pxPerFrame, left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame }}
                       />
                     )}
-                    <span className="clip-label">{clipLabel(clip)}</span>
+                    <span className="clip-label">{clipLabel(clip)}{dragging && drag?.mode === "slip" && (preview.kind === "video" || preview.kind === "audio") ? ` · Origen ${(preview.trimStart / project.fps).toFixed(2)} s` : ""}</span>
                     <div
                       className="trim-handle right"
                       onMouseDown={(e) => {
                         if (e.button !== 0) return;
                         e.stopPropagation();
                         onSelect([clip.id]);
-                        setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-end", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                        setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-end", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
                   </div>
@@ -279,6 +333,7 @@ export function Timeline({ project, frame, selectedIds, pxPerFrame, onSeek, onSe
             </div>
           ))}
           <div className="playhead" style={{ left: frame * pxPerFrame }} />
+          {tool === "razor" && cutFrame !== null && <div className="razor-guide" style={{ left: cutFrame * pxPerFrame }} />}
           {marquee.box && <div className="selection-marquee" aria-hidden style={{ left: marquee.box.x, top: marquee.box.y, width: marquee.box.width, height: marquee.box.height }} />}
         </div>
       </div>
