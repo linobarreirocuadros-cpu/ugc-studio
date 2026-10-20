@@ -45,6 +45,10 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   código disponible, pesos descargables, servicio con cuota gratuita y licencia open source.
 - La investigación y las propuestas del roadmap no autorizan dar por aprobado un rediseño
   visual. Consultar a Lino antes de decisiones importantes de composición, timing y estilo.
+- Paleta indicada por Lino el 2026-10-20: Pale Sky #C9E0EB, Dusty Denim #7392B5,
+  Deep Lilac #8350C4, Midnight Violet #402B47 y Shadow Grey #262423. Referencia de efecto:
+  luz difusa desde bordes inferiores hacia superficies oscuras, con paneles redondeados.
+  El tema vive en `src/app/studio-theme.css`; intensidad y densidad se afinan con Lino.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en

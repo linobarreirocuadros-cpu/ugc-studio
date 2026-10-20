@@ -104,7 +104,9 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 ## Herramientas de edición manual y gestión de medios (en curso)
 - [x] Primera pasada visual basada en referencias de Lino: paneles grafito separados/redondeados,
       degradados suaves, jerarquía de botones, biblioteca, chat y timeline coherentes
-- [ ] Validar paleta y densidad del nuevo tema con Lino y sus próximas referencias visuales
+- [x] Aplicar paleta indicada por Lino: Pale Sky, Dusty Denim, Deep Lilac, Midnight Violet,
+      Shadow Grey y efecto de luz difusa inferior sobre superficies oscuras
+- [ ] Validar intensidad del brillo, contraste y densidad del nuevo tema con Lino
 - [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
 - [x] Selección múltiple por recuadro en timeline y Proyecto (lista/cuadrícula), Ctrl/Shift+clic,
       movimiento/borrado conjunto reversible y selección independiente entre paneles

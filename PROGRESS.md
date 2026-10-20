@@ -12,8 +12,8 @@ enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
 local de voz desde el timeline implementados; captura con micrófono físico pendiente de confirmar.
 Barra superior con seis controles, marcadores persistentes y secuencias editables/anidadas o como clips.
-Primera pasada visual: paneles grafito separados con esquinas redondeadas, controles y estados
-con degradados suaves; paleta definitiva pendiente del criterio y siguientes referencias de Lino.
+Tema visual: paneles redondeados con la paleta indicada por Lino (Pale Sky, Dusty Denim,
+Deep Lilac, Midnight Violet, Shadow Grey) y luz difusa inferior; intensidad pendiente de revisión.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -22,6 +22,31 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Paleta de Lino y luz difusa de borde (Codex)
+
+**Decisiones e implementación**
+- Lino aportó su paleta y una referencia de luz difusa que emerge del borde inferior oscuro.
+  Se registraron los cinco valores exactos como variables CSS: #C9E0EB, #7392B5, #8350C4,
+  #402B47 y #262423. La indicación sustituye la paleta provisional de la primera pasada.
+- Superficies gris cálido, acentos denim/lila y violetas oscuros; luz inferior con gradientes
+  radiales en paneles, botón Exportar, marca y campo del chat, y borde luminoso contenido.
+- Video en denim, texto en lila y audio en violeta oscuro; ondas aclaradas/desaturadas para
+  integrarlas en la paleta. Se conservan los colores funcionales de alertas y niveles del medidor.
+- Cambio de presentación en CSS, sin nuevas funciones, dependencias ni servicios. Distribución,
+  JSON, operaciones y aspecto del video exportado no se modificaron.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm run build` y `git diff --check` correctos; sigue el aviso previo
+  de tamaño de paquetes. No se repitió la suite de operaciones por este ajuste de colores.
+- Revisión en el editor principal: cuatro paneles, brillo de borde, botones, clips y ondas.
+  Lectura del CSS aplicado en navegador confirma los cinco valores de la referencia.
+  Captura real guardada fuera del repo como `ugc-studio-paleta-lino.png` en visualizations.
+
+**Pendiente y siguiente paso**
+- Revisar con Lino la intensidad del brillo, contraste y densidad en su pantalla. El siguiente
+  ajuste para Codex debe partir de su criterio sobre esta versión; no equivale a aprobación
+  de todos los detalles visuales. Sin pruebas nuevas de reproducción, exportación o modelos.
 
 ### 2026-10-20 — Primera pasada de diseño de interfaz (Codex)
 
