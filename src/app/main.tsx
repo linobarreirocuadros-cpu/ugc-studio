@@ -11,6 +11,7 @@ import "./timeline-panels.css";
 import "./shortcuts.css";
 import "./compact-ui.css";
 import "./monitors.css";
+import "./assistant.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

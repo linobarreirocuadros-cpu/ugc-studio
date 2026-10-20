@@ -16,7 +16,9 @@ import {
 } from "../project/types";
 import { AIPanel, CAPTION_PRESETS } from "./AIPanel";
 import { FoleyPanel, openFolder } from "./FoleyPanel";
-import { ChatPanel } from "./chat/ChatPanel";
+import { ChatPanel, type ChatActivity } from "./chat/ChatPanel";
+import { Mascot } from "./Mascot";
+import { AssistantLauncher } from "./AssistantLauncher";
 import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
 import { ProgramMonitor } from "./ProgramMonitor";
 import { SourceMonitor, type SourceHandle } from "./SourceMonitor";
@@ -124,6 +126,7 @@ export function App() {
   const [monitorLayout, setMonitorLayout] = useState<"split" | "tabs">(() => localStorage.getItem("ugc-studio:monitor-layout") === "tabs" ? "tabs" : "split");
   const [monitorTab, setMonitorTab] = useState<"source" | "program">("program");
   const [rightTab, setRightTab] = useState<"propiedades" | "chat" | "vision" | "audio">("chat");
+  const [chatActivity,setChatActivity]=useState<ChatActivity>("idle");
   const [visualResult, setVisualResult] = useState<VisualResult | null>(null);
   const [preset, setPreset] = useState<Preset>("h264-high");
   const [render, setRender] = useState<{ progress: number; url?: string; error?: string } | null>(null);
@@ -395,6 +398,8 @@ export function App() {
   const timelineViewport=()=>workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll");
   const fitTimeline=()=>{const viewport=timelineViewport();if(previousZoom.current){setPxPerFrame(previousZoom.current.scale);const left=previousZoom.current.left;requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=left;});previousZoom.current=null;}else{previousZoom.current={scale:pxPerFrame,left:viewport?.scrollLeft??0};if(viewport)viewport.scrollLeft=0;setPxPerFrame(Math.max(.02,Math.min(20,((viewport?.clientWidth??800)-30)/duration)));}};
   const canRun=(id:string)=>id==="undo"?history.canUndo:id==="redo"?history.canRedo:["copy","cut","delete","rippleDelete","duplicate","subsequence","gain","link"].includes(id)?selectedIds.length>0:id==="paste"?Boolean(clipboard.current):["overwrite","insert"].includes(id)?Boolean(sourceMedia):id==="export"?!render||Boolean(render.url||render.error):true;
+  const focusAssistant=()=>requestAnimationFrame(()=>{const input=workspace.appRef.current?.querySelector<HTMLTextAreaElement>(".chat-input textarea");if(input?.offsetParent)input.focus();else workspace.appRef.current?.querySelector<HTMLButtonElement>(".assistant-header button")?.focus();});
+  const openAssistant=()=>{setRightTab("chat");workspace.showPanel("inspector");focusAssistant();};
   const runCommand=(id:string,scope:CommandScope=activeScope.current)=>{
     const command=COMMANDS.find(c=>c.id===id);if(command?.pending){setFeedback(command.pending);return;}if(!canRun(id))return;
     const sourceCommands=["play","stop","forwardPlay","reversePlay","markIn","markOut","goIn","goOut","clearIn","clearOut","clearMarks","markClip","markSelection","start","end",...[-1,1].flatMap(sign=>[1,5].map(n=>`step${sign<0?"Left":"Right"}${n}`))];
@@ -412,7 +417,8 @@ export function App() {
     if(id==="bin"){setBinTab("proyecto");focusPanel("bin","bin");return;}
     if(id==="source"||id==="program"){setMonitorTab(id);focusPanel(id,"monitor");return;}
     if(id==="timeline"){focusPanel("timeline","timeline");return;}
-    if(["properties","chat","audioPanel"].includes(id)){setRightTab(id==="properties"?"propiedades":id==="chat"?"chat":"audio");workspace.showPanel("inspector");requestAnimationFrame(()=>workspace.appRef.current?.querySelector<HTMLElement>(id==="chat"?".chat-input textarea":".inspector")?.focus());return;}
+    if(id==="chat"){openAssistant();return;}
+    if(["properties","audioPanel"].includes(id)){setRightTab(id==="properties"?"propiedades":"audio");workspace.showPanel("inspector");requestAnimationFrame(()=>workspace.appRef.current?.querySelector<HTMLElement>(".inspector")?.focus());return;}
     if(id==="meter"){workspace.showPanel("meter");requestAnimationFrame(()=>workspace.appRef.current?.querySelector<HTMLElement>(".meter-panel")?.focus());return;}
     if(id.startsWith("tool.")){setTool(id.slice(5) as TimelineTool);focusPanel("timeline","timeline");return;}
     if(id==="selectAll"){if(scope==="bin")setSelectedMedia(media.map(m=>m.src));else setSelectedIds(project.tracks.filter(t=>!t.locked).flatMap(t=>t.clips.map(c=>c.id)));return;}
@@ -484,7 +490,7 @@ export function App() {
       <div className="app-chrome">
       <MenuBar run={runCommand} hint={shortcuts.hint} enabled={canRun}/>
       <header className="topbar">
-        <div className="studio-brand" aria-label="UGC Studio"><span className="studio-mark" aria-hidden><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h9M5 12h14M10 17h9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg></span><span>UGC <b>Studio</b></span></div>
+        <div className="studio-brand" aria-label="UGC Studio"><button className="studio-mark" aria-label="Abrir asistente" title="Abrir asistente" onClick={openAssistant}><Mascot/></button><span>UGC <b>Studio</b></span></div>
         <input
           className="project-name"
           aria-label="Nombre del proyecto"
@@ -653,8 +659,9 @@ export function App() {
           {workspace.handle("inspector")}
         </div>
         {/* El chat queda montado al cambiar de pestaña para no perder la conversación */}
-        <div style={{ display: rightTab === "chat" ? "contents" : "none" }}>
+        <div id="ugc-assistant" className="assistant-chat-host" style={{ display: rightTab === "chat" ? "flex" : "none" }}>
           <ChatPanel
+            onActivity={setChatActivity}
             ctx={() => ({
               ...assistantContext(),
               undo: history.undo,
@@ -686,6 +693,7 @@ export function App() {
           <button onClick={()=>setShortcutsOpen(true)}>Ver y editar atajos</button>
         </div>
         </>}
+        <AssistantLauncher open={rightTab==="chat"} activity={chatActivity} onToggle={()=>{if(rightTab==="chat")setRightTab("propiedades");else openAssistant();}}/>
       </aside>
 
       <section className="timeline-area dock-panel" {...workspace.panelProps("timeline")} data-shortcut-scope="timeline" tabIndex={-1} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>

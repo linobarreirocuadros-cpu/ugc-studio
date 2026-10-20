@@ -15,6 +15,8 @@ por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, si
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
 configurable. 116 comandos disponibles, 104 reservas pendientes y 629 asignaciones de Premiere 2026
 auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
+Chat simplificado con IA/modelo y cuenta en vistas secundarias; mascota/logo vectoriales basados
+en el personaje de Lino. Apertura animada y conversación/borrador conservados al ocultar el panel.
 Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
 enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
@@ -30,6 +32,61 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Asistente simplificado e identidad del personaje (Codex)
+
+**Criterio y decisiones**
+- Lino pidió conservar las funciones, reducir ruido y abrir el chat desde una mascota basada solo
+  en la cara del dibujo adjunto. Eligió explícitamente una cara vectorial sencilla. Se conservaron
+  Poppins, escala compacta y paleta azul noche/ámbar del software.
+- Se aplicaron divulgación progresiva, jerarquía visual y estado visible. Referencias primarias:
+  [NN/g: divulgación progresiva](https://www.nngroup.com/articles/progressive-disclosure/),
+  [heurísticas](https://www.nngroup.com/articles/ten-usability-heuristics/) y
+  [W3C: movimiento reducido](https://www.w3.org/WAI/WCAG22/Techniques/css/C39.html).
+  Esto orienta el diseño; no constituye una auditoría de accesibilidad ni validación UX con usuarios.
+
+**Implementado**
+- `Mascot.tsx`: sombrero azul, máscara oscura, ojos ámbar y barba clara, sin cuerpo/pose del dibujo.
+  La misma cara se usa en marca, asistente y favicon `public/mascot.svg`. SVG nativo editable,
+  sin nuevas dependencias ni recursos/servicios de pago. El original adjunto no se copia al repo.
+- Mascota al pie del inspector: abre/oculta chat; ocultar muestra Propiedades. Logo superior abre
+  el asistente incluso si otro panel está ampliado. ChatPanel permanece montado: no se reinician
+  mensajes, borrador, propuesta ni tareas al cambiar de pestaña/cerrar. Estado de trabajo/voz en botón.
+- Movimiento de apertura 220 ms con desplazamiento de 6 px y easing suave; gesto del sombrero
+  320 ms y compresión al pulsar. Sin animación continua en reposo; alternativa sin movimiento
+  por preferencia del sistema. Revisión perceptual del timing pendiente de Lino.
+- Conversación principal: bienvenida corta, dos ideas y Más ideas. Las ideas rellenan el mensaje
+  para revisar/enviar; no ejecutan una edición al pulsarlas. Chip con proveedor/modelo y estado
+  junto al campo. Envío y micrófono con iconos coherentes y nombres accesibles.
+- IA y cuenta: conserva motor, catálogo/modelo, refrescar, configurar, acceso ChatGPT, permisos,
+  cancelar conexión, uso y desconectar. Ajustes: proveedor/modelo manual, claves, dirección Ollama,
+  ayuda desplegable e idioma de voz. Aviso de cobro en proveedores opcionales de pago.
+- Actividad agrupada por turno en Ver actividad; los errores siguen visibles. Propuestas mantienen
+  resumen, rangos desplegables, aplicar/descartar y la operación reversible existente.
+  Estado actual y segundos de espera visibles durante procesamiento. Se respeta la lectura del
+  historial al subir, en lugar de forzar siempre el scroll al final.
+- Ajustes usan feedback de guardado/error. Carga del servidor con reintento; bloqueo de controles
+  durante transcripción/ejecución. Cambiar motor/modelo inicia conversación nueva como el selector.
+- `assistant.css`: vistas secundarias con scroll propio, adaptación por tamaño y ancho de lectura
+  limitado cuando se amplía el panel. No se modificaron herramientas de edición ni Project/ops.
+
+**Pruebas realizadas**
+- `npm run typecheck` y `npm run build` correctos; sigue el aviso previo de tamaño de bundles.
+- Interfaz real y proyecto aislado en 5174: elegir idea, borrador conservado al abrir/cerrar,
+  navegación IA/cuenta/ajustes/volver, controles de uso/desconexión accesibles sin activarlos,
+  catálogos reales de ChatGPT y Ollama, panel ampliado y retorno desde monitor ampliado vía logo.
+- Envío real con Ollama `qwen3:8b`: petición no editorial, respuesta LISTO, estados de espera y
+  conversación conservada al ocultar/mostrar. No se solicitaron cambios en el video. Al terminar
+  se restauraron ChatGPT `gpt-6.1-sol` y la preferencia Ollama `qwen3:30b-a3b`.
+- Revisión a 1280×720 y 756×589, incluyendo panel estrecho y ampliado. Sin errores de consola QA.
+  No se repitió la suite de operaciones: las operaciones de edición no cambiaron en esta sesión.
+
+**Pendiente / siguiente paso**
+- Criterio de Lino sobre cara/proporciones, legibilidad y animación. No dar por aprobados los detalles
+  finales del personaje por haber aprobado el enfoque vectorial.
+- Probar voz física, una edición por tools/propuesta y navegación con un historial largo en el nuevo
+  diseño. No se repitieron OAuth, desconexión ni todos los proveedores; no se hizo certificación WCAG.
+- Siguiente paso para Codex: incorporar el feedback visual de Lino y validar ese flujo de voz/edición.
 
 ### 2026-10-20 — Monitores navegables y gestos Alt de timeline (Codex)
 

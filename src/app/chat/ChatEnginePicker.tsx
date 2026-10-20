@@ -3,20 +3,21 @@ import { useEffect, useState } from "react";
 export type ProviderId = "ollama" | "gemini" | "groq" | "openrouter" | "anthropic" | "openai" | "chatgpt";
 type ProviderInfo = { label: string; free: boolean; needsKey: boolean; keyUrl?: string; suggested: string[] };
 export type SettingsView = { provider: ProviderId; models: Partial<Record<ProviderId, string>>; ollamaUrl: string; hasKey: Record<ProviderId, boolean>; providers: Record<ProviderId, ProviderInfo> };
-type Connection = { connected: boolean; sharing: boolean; connecting: boolean; email?: string; error?: string };
+export type ChatConnection = { connected: boolean; sharing: boolean; connecting: boolean; email?: string; error?: string };
 
 async function action(path: string) {
   const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   const value = await response.json(); if (!response.ok) throw new Error(value.error || "No se pudo completar la conexión."); return value;
 }
 
-export function ChatEnginePicker({ settings, disabled, onSelect, onConfigure }: { settings: SettingsView; disabled: boolean; onSelect: (provider: ProviderId, model: string) => Promise<void>; onConfigure: () => void }) {
+export function ChatEnginePicker({ settings, disabled, onSelect, onConfigure, onConnection }: { settings: SettingsView; disabled: boolean; onSelect: (provider: ProviderId, model: string) => Promise<void>; onConfigure: () => void; onConnection?:(status:ChatConnection)=>void }) {
   const [models, setModels] = useState<{ id: string; label: string }[]>([]), [error, setError] = useState("");
   const [catalogProvider, setCatalogProvider] = useState<ProviderId | null>(null);
-  const [connection, setConnection] = useState<Connection | null>(null), [refresh, setRefresh] = useState(0), [saving, setSaving] = useState(false);
+  const [connection, setConnection] = useState<ChatConnection | null>(null), [refresh, setRefresh] = useState(0), [saving, setSaving] = useState(false);
   const [authorizationUrl, setAuthorizationUrl] = useState("");
   const provider = settings.provider, selected = settings.models[provider] ?? "";
   const choices = catalogProvider === provider ? models : [];
+  useEffect(()=>{if(connection)onConnection?.(connection);},[connection,onConnection]);
   useEffect(() => {
     const controller = new AbortController(); setModels([]); setError("");
     fetch(`/api/models?provider=${provider}`, { signal: controller.signal }).then((r) => r.json()).then((r) => {

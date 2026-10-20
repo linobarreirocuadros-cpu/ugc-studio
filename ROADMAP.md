@@ -111,6 +111,11 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Reducir toda la interfaz tomando las herramientas verticales como referencia: iconos 12 px,
       controles 20 px, texto 9/8 px, menos relleno y miniaturas compactas; incluir menús y diálogos
 - [ ] Validar transparencias, intensidad del brillo y legibilidad de la escala compacta con Lino
+- [x] Simplificar el chat por niveles: conversación principal, selector compacto de IA/modelo,
+      vistas de cuenta/ajustes, actividad desplegable, errores visibles e ideas que preparan un borrador
+- [x] Mascota y logo vectoriales basados en la cara indicada por Lino; abrir/ocultar chat con
+      animación breve, favicon coherente, paleta conservada y soporte de movimiento reducido
+- [ ] Validar con Lino la cara, proporciones y timing de la mascota, navegación del chat y voz
 - [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
 - [x] Selección múltiple por recuadro en timeline y Proyecto (lista/cuadrícula), Ctrl/Shift+clic,
       movimiento/borrado conjunto reversible y selección independiente entre paneles

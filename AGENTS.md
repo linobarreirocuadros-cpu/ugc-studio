@@ -71,6 +71,14 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   auxiliar 8 px, títulos 10 px, iconos 12 px y controles de unos 20 px. No imponer esa tipografía
   ni escala al contenido del video. El tema vive en `src/app/studio-theme.css` y la densidad en
   `src/app/compact-ui.css`, cargada al final; acabado y legibilidad se afinan con Lino.
+- Asistente (2026-10-20): Lino aprobó sintetizar la cara de su personaje como vector sencillo:
+  sombrero, máscara oscura, ojos luminosos y barba. `Mascot.tsx` y `public/mascot.svg` comparten
+  esa identidad para logo/favicon y botón de chat; adaptar a la paleta vigente, sin cambiarla.
+  Clic en la mascota del inspector alterna chat/Propiedades; el logo permite abrirlo incluso
+  desde otro panel ampliado. Mantener ChatPanel montado al ocultar para conservar conversación,
+  borrador y tareas. La conversación es principal; IA/cuenta y ajustes son vistas secundarias.
+  `assistant.css`: apertura 220 ms, saludo de sombrero 320 ms, sin bucle en reposo y con
+  `prefers-reduced-motion`. Acabado del personaje/movimiento pendiente del criterio de Lino.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en
