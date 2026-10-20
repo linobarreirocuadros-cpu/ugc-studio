@@ -154,11 +154,17 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
   y el reloj interno del elemento de video a ~2.5, 5.4 y 8 s: avanzaron sincronizados. En
   capturas de ~4, 15, 18 y 24 s cambiaron imagen y texto. No se reprodujo un retroceso del
   cabezal ni un bucle visual en esos puntos; esto no descarta saltos breves entre muestras.
-- No hubo cambios de código. Pendiente: confirmar con Lino si el bucle persiste en la versión
-  actual y obtener el segundo exacto o una grabación de pantalla. Si persiste, probar el archivo
-  original en un proyecto aislado y registrar cuadro a cuadro reloj de Player y video.
+- Se importó el original en un proyecto aislado (otro origen del navegador, sin alterar el
+  proyecto guardado de Lino). Programa avanzó de 0 a 26 s; a ~2.6, 5.1, 7.8, 10.6, 13.7,
+  16.4, 19.2, 22.0 y 25.8 s el reloj interno del video coincidió con el cabezal. Las capturas
+  mostraron cambios esperados de plano y texto. No se observó bucle en esos puntos, pero el
+  muestreo no descarta un salto breve entre capturas. Se cerró la instancia de prueba.
+- No hubo cambios de código. Pendiente: confirmar con Lino si el bucle persiste en su pantalla
+  y obtener el segundo exacto o una grabación corta para registrar los fotogramas afectados.
+  Quedaron una copia de prueba y su proxy en `UGC Studio/media/` porque el intento de borrarlos
+  fue rechazado por la política automática del entorno; no están referenciados por su proyecto.
 
 ## Siguiente paso sugerido
-Reproducir el tramo exacto donde Lino aún vea el bucle, usando el archivo original en un
-proyecto aislado; comparar los relojes y fotogramas del monitor Origen y Programa. Corregir el
-reproductor solo con un fallo reproducido. Después validar arrastre y una edición real por chat.
+Reproducir el tramo exacto donde Lino aún vea el bucle y registrar cuadro a cuadro la imagen
+del monitor Programa y los relojes del Player y del video. Corregir el reproductor con ese fallo
+reproducido. Después validar arrastre y una edición real por chat.

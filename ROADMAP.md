@@ -15,7 +15,7 @@
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en A0 Voz
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles
-- [x] Comprobar integridad temporal del video UGC original: 626 fotogramas con tiempos regulares y decodificación sin avisos
+- [x] Comprobar integridad y reproducción local del video UGC original en un proyecto aislado
 - [ ] Validar con Lino el arrastre y la continuidad visual de la reproducción en sus videos
 - [ ] Audio y video vinculados al insertar un clip completo; desvincular y editar cada parte
 
