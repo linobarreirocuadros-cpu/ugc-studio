@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import type { AudioClip, CaptionClip, Project, TextClip, VideoClip } from "../project/types";
+import { useState, type ReactNode } from "react";
+import { AbsoluteFill, Audio, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import type { AudioClip, CaptionClip, GraphicClip, Project, TextClip, VideoClip } from "../project/types";
 import { trackOutputEnabled } from "../project/types";
 import { cssFont, ensureFont, fontWeightFor } from "./fonts";
 
@@ -32,12 +32,14 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean; 
     );
   }
 
-  return (
+  const video = (
     <OffthreadVideo
       key={src}
       src={resolveSrc(src, base)}
-      startFrom={clip.trimStart}
-      volume={clip.volume}
+      startFrom={clip.freezeFrame ?? clip.trimStart}
+      playbackRate={clip.freezeFrame === undefined ? clip.playbackRate ?? 1 : 1}
+      muted
+      volume={0}
       pauseWhenBuffering
       acceptableTimeShiftInSeconds={0.3}
       style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -51,25 +53,21 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean; 
       }
     />
   );
+  return clip.freezeFrame !== undefined ? <Freeze frame={0}>{video}</Freeze> : video;
 };
 
-const AudioLayer: React.FC<{ clip: AudioClip; base?: string; compositionEnd?: number }> = ({ clip, base, compositionEnd }) => {
+const AudioLayer: React.FC<{ clip: AudioClip; base?: string; compositionEnd?: number; preview?: boolean }> = ({ clip, base, compositionEnd, preview }) => {
   // Si la canción dura más que el video, el fade out se hace donde termina el video
   const { durationInFrames: videoEnd } = useVideoConfig();
   const d = Math.min(clip.durationInFrames, (compositionEnd ?? videoEnd) - clip.from);
+  const f=useCurrentFrame();
+  const fadeIn=clip.fadeIn>0?interpolate(f,[0,clip.fadeIn],[0,1],{extrapolateLeft:"clamp",extrapolateRight:"clamp"}):1;
+  const fadeOut=clip.fadeOut>0?interpolate(f,[d-clip.fadeOut,d],[1,0],{extrapolateLeft:"clamp",extrapolateRight:"clamp"}):1;
+  const volume=clip.volume*Math.min(fadeIn,fadeOut);
   return (
-  <Audio
-    src={resolveSrc(clip.src, base)}
-    startFrom={clip.trimStart}
-    pauseWhenBuffering
-    // Fade in / fade out: el volumen sube al inicio y baja al final del clip
-    volume={(f) => {
-      const fadeIn = clip.fadeIn > 0 ? interpolate(f, [0, clip.fadeIn], [0, 1], { extrapolateRight: "clamp" }) : 1;
-      const fadeOut =
-        clip.fadeOut > 0 ? interpolate(f, [d - clip.fadeOut, d], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
-      return clip.volume * Math.min(fadeIn, fadeOut);
-    }}
-  />
+  <Audio src={resolveSrc(clip.src,base)} startFrom={clip.trimStart} playbackRate={clip.playbackRate??1}
+    useWebAudioApi={Boolean(preview)} ref={element=>{if(element)element.dataset.ugcVolume=String(volume);}} volume={volume} pauseWhenBuffering/>
+
   );
 };
 
@@ -157,36 +155,31 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
   );
 };
 
-export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview, previewSources, output = "both", gain = 1, sequences = project.sequences, stack = [], durationOverride }) => (
-  <AbsoluteFill style={{ backgroundColor: output === "audio" ? "transparent" : "black" }}>
-    {project.tracks.filter((track) => trackOutputEnabled(project, track)).map((track) =>
-      track.clips.filter((clip) => output === "both" || output === "video" && clip.kind !== "audio" || output === "audio" && (clip.kind === "audio" || clip.kind === "video" && clip.volume > 0)).map((clip) => (
-        <Sequence
-          key={clip.id}
-          from={clip.from}
-          durationInFrames={clip.durationInFrames}
-          // Carga el video 1 s antes de que aparezca para que el corte no se trabe
-          premountFor={clip.kind === "video" ? project.fps : undefined}
-        >
-          {(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? (
-            <NestedSequence clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources} sequences={sequences} stack={stack} gain={gain} />
-          ) : clip.kind === "video" && output === "audio" ? (
-            <AudioLayer clip={{ ...clip, kind: "audio", volume: clip.volume * gain, fadeIn: 0, fadeOut: 0 }} base={mediaBaseUrl} compositionEnd={durationOverride}/>
-          ) : clip.kind === "video" ? (
-            // key: al reconectar el archivo se reinicia el estado de error
-            <VideoLayer key={`${clip.src}|${previewSources ? previewSources[clip.src] ?? "full" : clip.proxySrc}`} clip={{ ...clip, volume: output === "video" ? 0 : clip.volume * gain }} base={mediaBaseUrl} preview={preview} previewSources={previewSources} />
-          ) : clip.kind === "audio" ? (
-            <AudioLayer clip={{ ...clip, volume: clip.volume * gain }} base={mediaBaseUrl} compositionEnd={durationOverride}/>
-          ) : clip.kind === "text" ? (
-            <TextLayer clip={clip} />
-          ) : (
-            <CaptionLayer clip={clip} />
-          )}
-        </Sequence>
-      )),
-    )}
-  </AbsoluteFill>
-);
+const GraphicLayer = ({clip}: {clip: GraphicClip}) => <AbsoluteFill style={{pointerEvents:"none"}}><div style={{position:"absolute",background:clip.color,opacity:clip.opacity,...(clip.shape==="solid"?{inset:0}:{left:`${clip.x*100}%`,top:`${clip.y*100}%`,width:`${clip.width*100}%`,height:`${clip.height*100}%`,transform:"translate(-50%,-50%)"})}}/></AbsoluteFill>;
+
+/** Separar el sonido de la pila visual evita que un ajuste de color afecte al audio. */
+export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview, previewSources, output = "both", gain = 1, sequences = project.sequences, stack = [], durationOverride }) => {
+  const frame=useCurrentFrame(); let visuals: ReactNode = null;
+  const audio: ReactNode[]=[];
+  const nested=(clip: VideoClip|AudioClip)=><NestedSequence clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources} sequences={sequences} stack={stack} gain={gain}/>;
+  const timed=(clip: Project["tracks"][number]["clips"][number],node: ReactNode)=><Sequence key={clip.id} from={clip.from} durationInFrames={clip.durationInFrames} premountFor={clip.kind==="video"?project.fps:undefined}>{node}</Sequence>;
+  for(const track of project.tracks.filter(t=>trackOutputEnabled(project,t))) {
+    for(const clip of track.clips) {
+      if((clip.kind==="audio" || clip.kind==="video"&&clip.volume>0&&clip.freezeFrame===undefined)&&output!=="video") {
+        const a: AudioClip = clip.kind==="audio"?clip:{...clip,kind:"audio",fadeIn:0,fadeOut:0};
+        audio.push(timed(a,a.sequenceId?nested(a):<AudioLayer clip={{...a,volume:a.volume*gain}} base={mediaBaseUrl} compositionEnd={durationOverride} preview={preview}/>));
+      }
+      if(output==="audio" || clip.kind==="audio")continue;
+      if(clip.kind==="graphic"&&clip.shape==="adjustment") {
+        if(frame>=clip.from&&frame<clip.from+clip.durationInFrames) visuals=<AbsoluteFill key={clip.id} style={{filter:`brightness(${1+(clip.brightness-1)*clip.opacity}) contrast(${1+(clip.contrast-1)*clip.opacity}) saturate(${1+(clip.saturation-1)*clip.opacity})`}}>{visuals}</AbsoluteFill>;
+        continue;
+      }
+      const layer=clip.kind==="video"?(clip.sequenceId?nested(clip):<VideoLayer key={clip.src} clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources}/>):clip.kind==="text"?<TextLayer clip={clip}/>:clip.kind==="caption"?<CaptionLayer clip={clip}/>:<GraphicLayer clip={clip}/>;
+      visuals=<>{visuals}{timed(clip,layer)}</>;
+    }
+  }
+  return <AbsoluteFill style={{backgroundColor:output!=="both"||stack.length>0?"transparent":"black"}}>{visuals}{audio}</AbsoluteFill>;
+};
 
 const NestedSequence: React.FC<{ clip: VideoClip | AudioClip; base?: string; preview?: boolean; previewSources?: Record<string,string>; sequences?: Project["sequences"]; stack: string[]; gain: number }> = ({ clip, base, preview, previewSources, sequences, stack, gain }) => {
   const sequence = sequences?.[clip.sequenceId!];

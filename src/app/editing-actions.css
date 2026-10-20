@@ -1,0 +1,21 @@
+.edit-context-menu {position:fixed;z-index:1000;width:212px;max-height:calc(100vh - 16px);overflow:auto;padding:5px;background:linear-gradient(145deg,#132137f5,#11151ffb);border:1px solid #6487b04a;border-radius:9px;box-shadow:0 12px 42px #0009,0 0 18px #497ab015;outline:none;font:400 10px Poppins,sans-serif;color:#d8e3f1;backdrop-filter:blur(16px)}
+.edit-context-menu>button,.edit-context-menu summary {display:block;width:100%;text-align:left;border:0;background:transparent;color:inherit;padding:4px 8px;min-height:23px;border-radius:4px;font:inherit;cursor:pointer;white-space:normal}
+.edit-context-menu>button:hover:not(:disabled),.edit-context-menu>button:focus-visible,.edit-context-menu summary:hover {background:#527aa836;outline:1px solid #7b9bc34a}
+.edit-context-menu button:disabled {opacity:.35;cursor:default}
+.edit-context-menu hr {border:0;border-top:1px solid #8599b024;margin:3px 4px}
+.label-swatches {display:flex;flex-wrap:wrap;gap:5px;padding:7px}
+.label-swatches button {min-width:18px;width:18px;height:18px;padding:0;border:1px solid #ffffff30;border-radius:4px}
+.label-swatches button:last-child {width:auto;padding:0 5px;font-size:9px}
+.element-search-results {display:flex;flex-direction:column;gap:4px;max-height:45vh;overflow:auto;margin:10px 0}
+.element-search-results button {display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px;text-align:left;min-height:32px;background:#7398c20c;border:1px solid #7398c225;border-radius:6px}
+.element-search-results button span {font-size:9px;color:#98adc7}
+.element-search-results button:hover {background:#7398c22b}
+.command-dialog>input {width:100%;box-sizing:border-box}
+.new-sequence-button {margin:5px 8px;align-self:flex-start}
+.volume-rubber-band {position:absolute;left:5px;right:5px;height:8px;transform:translateY(-4px);z-index:4;cursor:ns-resize;touch-action:none;outline:none}
+.volume-rubber-band i {display:block;height:1px;position:absolute;top:4px;left:0;right:0;background:#ecce83d9;box-shadow:0 1px 1px #0008}
+.volume-rubber-band:hover i,.volume-rubber-band:focus-visible i {height:2px;background:#fff0b4;box-shadow:0 0 5px #ffe39570}
+.volume-rubber-band[aria-disabled=true] {cursor:default;opacity:.4}
+.volume-rubber-band output {position:absolute;right:4px;top:-17px;background:#101c2bf0;border:1px solid #8da0b44a;border-radius:4px;padding:1px 5px;color:#fff0b4;font-size:9px;white-space:nowrap;pointer-events:none}
+.clip-graphic {background:#496372;border:1px solid #83a3b2}
+.track-graphic {background:#8aa4b006}

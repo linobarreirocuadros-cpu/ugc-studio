@@ -3,6 +3,8 @@
 
 import {
   getProjectDuration,
+  sourceFrame, availableFrames, createEmptyProject,
+  type GraphicClip,
   destinationTrack,
   nameTracks,
   trackOutputEnabled,
@@ -21,6 +23,93 @@ import {
 } from "./types";
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
+
+/** Selección de grupo y parejas, transitiva. Alt permite aislar una parte en la UI. */
+export const groupedIds = (p: Project, ids: string[]): string[] => {
+  const result = new Set(ids); let previous = -1;
+  while (previous !== result.size) {
+    previous = result.size;
+    const groups = new Set(p.tracks.flatMap(t => t.clips).filter(c => result.has(c.id) && c.groupId).map(c => c.groupId));
+    p.tracks.flatMap(t => t.clips).filter(c => c.groupId && groups.has(c.groupId)).forEach(c => result.add(c.id));
+    linkedIds(p, [...result]).forEach(id => result.add(id));
+  }
+  return [...result];
+};
+export const groupClips = (p: Project, ids: string[], group = true): Project => {
+  const selected = groupedIds(p, ids);
+  if (!clipsEditable(p, selected) || group && selected.length < 2) return p;
+  const groupId = group ? newId() : undefined;
+  return mapTracks(p, t => ({ ...t, clips: t.clips.map(c => selected.includes(c.id) ? { ...c, groupId } : c) }));
+};
+export const labelClips = (p: Project, ids: string[], color?: string): Project => {
+  if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color) || !clipsEditable(p, ids)) return p;
+  return mapTracks(p, t => ({ ...t, clips: t.clips.map(c => ids.includes(c.id) ? { ...c, labelColor: color } : c) }));
+};
+export const setClipVolume = (p: Project, ids: string[], value: number, relative = false): Project => {
+  if (!Number.isFinite(value) || !clipsEditable(p, ids)) return p;
+  const audio = new Set(linkedIds(p, ids).filter(id => {
+    const c = findClip(p, id)?.clip;
+    return c?.kind === "audio" || c?.kind === "video" && !c.linkedClipId && c.freezeFrame === undefined;
+  }));
+  if([...audio].every(id=>{const c=findClip(p,id)!.clip as AudioClip|VideoClip;return c.volume===Math.max(0,Math.min(4,relative?c.volume*value:value));}))return p;
+  return mapTracks(p, t => ({ ...t, clips: t.clips.map(c => audio.has(c.id) && (c.kind === "audio" || c.kind === "video") ? { ...c, volume: Math.max(0, Math.min(4, relative ? c.volume * value : value)) } : c) }));
+};
+export const createEmptySequence = (p: Project, name: string): Project => {
+  const id = newId(), empty = createEmptyProject();
+  return { ...p, sequences: { ...p.sequences, [id]: { ...empty, id, name: name.trim().slice(0,100) || "Secuencia", fps: p.fps, width: p.width, height: p.height, durationInFrames: p.fps } } };
+};
+/** Anidar sustituye la selección por una referencia editable; crear subsecuencia solo copia. */
+export const nestClips = (p: Project, ids: string[], name: string, hostId?: string): Project => {
+  const chosen = groupedIds(p, ids), clips = chosen.map(id => findClip(p,id)?.clip).filter((c): c is Clip => Boolean(c));
+  if (!clips.length || !clipsEditable(p, chosen)) return p;
+  let next = createSequence(p, chosen, name);
+  const sequenceId = Object.keys(next.sequences ?? {}).find(id => !p.sequences?.[id]);
+  if (!sequenceId) return p;
+  next = mapTracks(next,t=>({...t,clips:t.clips.filter(c=>!chosen.includes(c.id))}));
+  // Mantener la posición de apilamiento respecto a material no seleccionado.
+  const from=Math.min(...clips.map(c=>c.from)),end=Math.max(...clips.map(c=>c.from+c.durationInFrames));
+  const visual=p.tracks.map((t,i)=>({t,i})).filter(({t})=>t.kind!=="audio"&&t.clips.some(c=>chosen.includes(c.id)));
+  const low=visual[0]?.i,high=visual.at(-1)?.i;
+  if(low!==undefined&&high!==undefined&&p.tracks.slice(low+1,high).some(t=>t.kind!=="audio"&&t.clips.some(c=>!chosen.includes(c.id)&&c.from<end&&c.from+c.durationInFrames>from)))return p;
+  const oldTracks=new Set(next.tracks.map(t=>t.id));next=addTrack(next,"video");
+  const target=next.tracks.find(t=>!oldTracks.has(t.id))!;
+  if(high!==undefined){const tracks=next.tracks.filter(t=>t.id!==target.id);tracks.splice(high+1,0,target);next=nameTracks({...next,tracks});}
+  const hasAudio = clips.some(c=>c.kind==="audio" || c.kind==="video" && c.volume>0);
+  if (hasAudio) { next=addTrack(next,"audio");const audio=next.tracks.find(t=>t.kind==="audio")!;next=setTrackState(next,audio.id,{targeted:true,solo:p.tracks.some(t=>t.kind==="audio"&&t.solo&&t.clips.some(c=>chosen.includes(c.id)))}); }
+  const placed=placeSequence(next,sequenceId,target.id,Math.min(...clips.map(c=>c.from)),true,hostId);
+  return placed===next ? p : placed;
+};
+export const addGraphic = (p: Project, shape: GraphicClip["shape"], at: number, duration = p.fps*5): Project => {
+  if (!Number.isFinite(at) || !Number.isFinite(duration)) return p;
+  const clip: GraphicClip={id:newId(),kind:"graphic",name:shape==="adjustment"?"Capa de ajuste":shape==="solid"?"Sólido":"Cuadrado",from:Math.max(0,Math.round(at)),durationInFrames:Math.max(1,Math.round(duration)),shape,color:"#ffffff",x:.5,y:.5,width:.3,height:Math.min(1,.3*p.width/p.height),opacity:1,brightness:1,contrast:1,saturation:1};
+  return {...p,tracks:[...p.tracks,{id:`G-${newId()}`,kind:"graphic",name:clip.name,clips:[clip]}]};
+};
+/** Velocidad constante, sin ripple: extender sobrescribe el destino como cualquier recorte. */
+export const setClipSpeed = (p: Project, ids: string[], rate: number): Project => {
+  const chosen=linkedIds(p,ids);
+  if (!Number.isFinite(rate) || rate<.25 || rate>4 || !clipsEditable(p,chosen)) return p;
+  const clips=chosen.map(id=>findClip(p,id)?.clip);
+  if (clips.some(c=>!c || c.kind!=="video"&&c.kind!=="audio" || c.sequenceId || c.kind==="video"&&c.freezeFrame!==undefined)) return p;
+  const next=mapTracks(p,t=>({...t,clips:t.clips.map(c=> chosen.includes(c.id)&&(c.kind==="video"||c.kind==="audio") ? {...c,playbackRate:rate,durationInFrames:Math.max(1,Math.floor(c.durationInFrames*(c.playbackRate??1)/rate)),...(c.kind==="audio"?{fadeIn:Math.min(c.fadeIn,Math.max(1,Math.floor(c.durationInFrames*(c.playbackRate??1)/rate))),fadeOut:Math.min(c.fadeOut,Math.max(1,Math.floor(c.durationInFrames*(c.playbackRate??1)/rate)))}:{})} : c)}));
+  return overwritePlaced(p,next,chosen);
+};
+/** Mantener todo el clip o desde el cabezal. El audio conserva su reproducción. */
+export const holdFrame = (p: Project, id: string, at: number, mode: "whole"|"tail"|"insert", length = p.fps*2): Project => {
+  const c=findClip(p,id)?.clip;
+  if (!c || c.kind!=="video" || c.sequenceId || !clipsEditable(p,[id]) || !Number.isSafeInteger(at) || at<c.from || at>=c.from+c.durationInFrames) return p;
+  const frozen=sourceFrame(c,at-c.from);
+  if(mode==="whole") return updateClip(p,id,{freezeFrame:frozen});
+  if(mode==="tail") {
+    const next=splitAt(p,at,id),tail=next.tracks.find(t=>t.id===findClip(p,id)!.track.id)?.clips.find(v=>v.kind==="video"&&v.from===at&&v.src===c.src);
+    return tail?updateClip(next,tail.id,{freezeFrame:frozen}):p;
+  }
+  if (!Number.isSafeInteger(length) || length<1 || p.tracks.some(t=>t.locked&&t.clips.some(v=>v.from+v.durationInFrames>at))) return p;
+  // Inserción global: abre el hueco en todas las pistas para conservar la sincronía.
+  const cut=splitAt(p,at), next=mapTracks(cut,t=>({...t,clips:t.clips.map(v=>v.from>=at?{...v,from:v.from+length}:v)}));
+  const target=findClip(next,id)!.track.id;
+  const still: VideoClip={...c,id:newId(),from:at,durationInFrames:length,freezeFrame:frozen,volume:0,linkedClipId:undefined,audioMode:"none",groupId:undefined};
+  return {...mapTracks(next,t=>t.id===target?{...t,clips:[...t.clips,still]}:t),markers:next.markers?.map(m=>m.frame>=at?{...m,frame:m.frame+length}:m)};
+};
 
 const mapTracks = (project: Project, fn: (t: Track) => Track): Project => ({
   ...project,
@@ -96,7 +185,7 @@ export const updateSequence = (project: Project, id: string, contents: Project):
   if (!project.sequences?.[id]) return project;
   const { sequences, ...sequence } = contents;
   const end = Math.max(1, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.from + c.durationInFrames)));
-  const refresh = (tracks: Track[]) => tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: end } : c) }));
+  const refresh = (tracks: Track[]) => tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: end, trimStart: Math.min(c.trimStart,end-1), durationInFrames: Math.min(c.durationInFrames,end-Math.min(c.trimStart,end-1)) } : c) }));
   const next = { ...sequences, [id]: { ...sequence, id, durationInFrames: end } };
   return { ...project, tracks: refresh(project.tracks), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks) }])) };
 };
@@ -125,22 +214,23 @@ export const placeSequence = (project: Project, sequenceId: string, trackId: str
   }
   let next = project;
   const destinations = new Map<string, string>();
-  for (const kind of ["video", "audio", "text", "caption"] as const) {
+  for (const kind of ["video", "audio", "text", "caption", "graphic"] as const) {
     const sources = sequence.tracks.filter((t) => t.kind === kind && t.clips.length);
     const list = () => { const tracks = next.tracks.filter((t) => t.kind === kind); return kind === "audio" ? tracks.reverse() : tracks; };
     let targets = list();
     const anchor = kind === "video" ? trackId : kind === "audio" ? destinationTrack(next, "audio") : targets[0]?.id;
     const offset = Math.max(0, targets.findIndex((t) => t.id === anchor));
     while (targets.length < offset + sources.length && (kind === "video" || kind === "audio")) { next = addTrack(next, kind); targets = list(); }
+    while(kind==="graphic"&&targets.length<offset+sources.length){next={...next,tracks:[...next.tracks,{id:`G-${newId()}`,kind:"graphic",name:"Gráficos",clips:[]}]};targets=list();}
     for (const [i, source] of sources.entries()) {
       const destination = targets[offset + i];
       if (!destination || destination.locked) return project;
       destinations.set(source.id, destination.id);
     }
   }
-  const identities = new Map(sequence.tracks.flatMap((t) => t.clips.map((c) => [c.id, newId()])));
+  const identities = new Map(sequence.tracks.flatMap((t) => t.clips.map((c) => [c.id, newId()]))), groups=new Map(sequence.tracks.flatMap(t=>t.clips).filter(c=>c.groupId).map(c=>[c.groupId!,newId()]));
   const placed = mapTracks(next, (t) => ({ ...t, clips: [...t.clips, ...sequence.tracks.filter((s) => destinations.get(s.id) === t.id).flatMap((s) => s.clips.map((c): Clip => {
-    const clip = { ...c, id: identities.get(c.id)!, from: from + c.from };
+    const clip = { ...c, id: identities.get(c.id)!, from: from + c.from, groupId:c.groupId?groups.get(c.groupId):undefined };
     if (clip.kind === "video" || clip.kind === "audio") clip.linkedClipId = clip.linkedClipId ? identities.get(clip.linkedClipId) : undefined;
     if (clip.kind === "audio" && clip.derivedFrom) clip.derivedFrom = { ...clip.derivedFrom, clipId: identities.get(clip.derivedFrom.clipId) ?? clip.derivedFrom.clipId };
     return clip;
@@ -178,7 +268,7 @@ const mergeRanges = (ranges: Range[]): Range[] => {
 const clipSlice = (clip: Clip, start: number, end: number, id: string): Clip => {
   const offset = start - clip.from, durationInFrames = end - start;
   const base = { ...clip, id, from: start, durationInFrames };
-  if (base.kind === "video" || base.kind === "audio") base.trimStart += offset;
+  if (base.kind === "video" || base.kind === "audio") base.trimStart = sourceFrame(base, offset);
   if (base.kind === "audio") {
     base.fadeIn = offset ? 0 : Math.min(base.fadeIn, durationInFrames);
     base.fadeOut = end === clip.from + clip.durationInFrames ? Math.min(base.fadeOut, durationInFrames) : 0;
@@ -380,9 +470,10 @@ export const duplicateClipsWithSelection = (project: Project, ids: string[], del
   if (project.tracks.some((t,i) => t.clips.some(c => vertical.has(c.id)) && project.tracks[i+offset]?.locked)) return unchanged;
   const start = Math.min(...clips.map(c => c.from)), delta = Math.max(-start,Math.round(deltaFrames));
   if (!delta && !offset) return unchanged;
-  const identities=new Map(clips.map(c=>[c.id,newId()]));
+  const identities=new Map(clips.map(c=>[c.id,newId()])), groups=new Map(clips.filter(c=>c.groupId).map(c=>[c.groupId!,newId()]));
   const placed=mapTracks(project,(t)=>({...t,clips:[...t.clips,...project.tracks.flatMap((source,index)=>source.clips.filter(c=>selected.has(c.id)&&project.tracks[vertical.has(c.id)?index+offset:index]?.id===t.id).map(c=>{
     const copy=structuredClone({...c,id:identities.get(c.id)!,from:c.from+delta});
+    copy.groupId=copy.groupId?groups.get(copy.groupId):undefined;
     if(copy.kind==="audio"||copy.kind==="video")copy.linkedClipId=copy.linkedClipId?identities.get(copy.linkedClipId):undefined;
     if(copy.kind==="audio"&&copy.derivedFrom){const parent=identities.get(copy.derivedFrom.clipId);copy.derivedFrom=parent?{...copy.derivedFrom,clipId:parent}:undefined;}
     return copy;
@@ -403,14 +494,16 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
   for (const source of clipboard.tracks.filter(t => t.clips.length)) {
     let target = next.tracks.find(t => t.id === source.id && t.kind === source.kind);
     if (!target && (source.kind === "audio" || source.kind === "video")) { next = addTrack(next, source.kind); target = next.tracks.find(t => !project.tracks.some(old => old.id === t.id) && ![...destinations.values()].includes(t.id)); }
+    if(!target && source.kind==="graphic") {const id=`G-${newId()}`;next={...next,tracks:[...next.tracks,{id,kind:"graphic",name:source.name,clips:[]}]};target=next.tracks.at(-1);}
     target ??= next.tracks.find(t => t.kind === source.kind && ![...destinations.values()].includes(t.id));
     if (!target || target.locked) return project;
     destinations.set(source.id,target.id);
   }
   const start = origin ?? Math.min(...clips.map(c => c.from)), delta = Math.max(0,Math.round(at)) - start;
-  const identities = new Map(clips.map(c => [c.id,newId()]));
+  const identities = new Map(clips.map(c => [c.id,newId()])), groups=new Map(clips.filter(c=>c.groupId).map(c=>[c.groupId!,newId()]));
   const placed = mapTracks(next,t => ({ ...t, clips: [...t.clips, ...clipboard.tracks.filter(s => destinations.get(s.id) === t.id).flatMap(s => s.clips.map(c => {
     const clip = structuredClone({ ...c, id: identities.get(c.id)!, from: c.from + delta });
+    clip.groupId=clip.groupId?groups.get(clip.groupId):undefined;
     if (clip.kind === "audio" || clip.kind === "video") clip.linkedClipId = clip.linkedClipId ? identities.get(clip.linkedClipId) : undefined;
     if (clip.kind === "audio" && clip.derivedFrom) { const parent = identities.get(clip.derivedFrom.clipId); clip.derivedFrom = parent ? { ...clip.derivedFrom, clipId: parent } : undefined; }
     return clip;
@@ -449,7 +542,7 @@ export const placeTimelineRange=(project:Project,clipboard:Project,trackId:strin
   let next=project;
   const mapped:Track[]=[],used=new Set<string>();
   const ordered=(p:Project,kind:Track["kind"])=>kind==="audio"?p.tracks.filter(t=>t.kind===kind).reverse():p.tracks.filter(t=>t.kind===kind);
-  for(const kind of ["video","audio","text","caption"] as const){
+  for(const kind of ["video","audio","text","caption","graphic"] as const){
     const sources=ordered(content,kind).filter(t=>t.clips.length);if(!sources.length)continue;
     const base=kind===target.kind?trackId:kind==="video"||kind==="audio"?destinationTrack(next,kind):undefined;
     let offset=base?ordered(next,kind).findIndex(t=>t.id===base):0;
@@ -457,6 +550,7 @@ export const placeTimelineRange=(project:Project,clipboard:Project,trackId:strin
     for(const source of sources){
       let destination=kind==="video"||kind==="audio"?ordered(next,kind)[offset++]:next.tracks.find(t=>t.id===source.id&&t.kind===kind&&!used.has(t.id))??next.tracks.find(t=>t.kind===kind&&!used.has(t.id));
       if(!destination&&(kind==="video"||kind==="audio")){next=addTrack(next,kind);destination=ordered(next,kind)[offset-1];}
+      if(!destination&&kind==="graphic"){const id=`G-${newId()}`;next={...next,tracks:[...next.tracks,{id,kind:"graphic",name:source.name,clips:[]}]};destination=next.tracks.at(-1);}
       if(!destination||destination.locked)return project;
       used.add(destination.id);mapped.push({...source,id:destination.id});
     }
@@ -641,7 +735,7 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       const right = { ...c, id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
       if ((right.kind === "video" || right.kind === "audio") && right.linkedClipId) right.linkedClipId = rightIds.get(right.linkedClipId);
       if (right.kind === "audio" && right.derivedFrom && rightIds.has(right.derivedFrom.clipId)) right.derivedFrom = { ...right.derivedFrom, clipId: rightIds.get(right.derivedFrom.clipId)! };
-      if (right.kind === "video" || right.kind === "audio") right.trimStart = (c as VideoClip | AudioClip).trimStart + offset;
+      if (right.kind === "video" || right.kind === "audio") right.trimStart = sourceFrame(c as VideoClip | AudioClip, offset);
       if (left.kind === "caption" && right.kind === "caption" && c.kind === "caption") {
         left.words = c.words.filter((w) => w.start < offset).map((w) => ({ ...w, end: Math.min(w.end, offset) }));
         right.words = c.words.filter((w) => w.end > offset).map((w) => ({ ...w, start: Math.max(0, w.start - offset), end: w.end - offset }));
@@ -666,15 +760,15 @@ const trimSingle = (
   const d = Math.round(deltaFrames);
   if (edge === "end") {
     let duration = Math.max(1, c.durationInFrames + d);
-    if (c.kind === "video" || c.kind === "audio") duration = Math.min(duration, c.sourceDurationInFrames - c.trimStart);
+    if (c.kind === "video" || c.kind === "audio") duration = Math.min(duration, availableFrames(c));
     return updateClip(project, clipId, { durationInFrames: duration });
   }
   // start: positivo recorta, negativo extiende hacia atrás
   let delta = Math.min(d, c.durationInFrames - 1);
   delta = Math.max(delta, -c.from);
-  if (c.kind === "video" || c.kind === "audio") delta = Math.max(delta, -c.trimStart);
+  if (c.kind === "video" || c.kind === "audio") delta = Math.max(delta, -Math.floor(c.trimStart / (c.playbackRate ?? 1)));
   const patch: Partial<Clip> = { from: c.from + delta, durationInFrames: c.durationInFrames - delta };
-  if (c.kind === "video" || c.kind === "audio") (patch as Partial<VideoClip>).trimStart = c.trimStart + delta;
+  if (c.kind === "video" || c.kind === "audio") (patch as Partial<VideoClip>).trimStart = sourceFrame(c, delta);
   return updateClip(project, clipId, patch);
 };
 
@@ -693,11 +787,11 @@ export const trimClip = (project: Project, id: string, edge: "start" | "end", de
 export const slipClip = (project: Project, clipId: string, deltaFrames: number): Project => {
   if (!clipsEditable(project, [clipId])) return project;
   const clip = findClip(project, clipId)?.clip;
-  if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || !Number.isFinite(deltaFrames)) return project;
-  const trimStart = Math.max(0, Math.min(clip.sourceDurationInFrames - clip.durationInFrames, clip.trimStart + Math.round(deltaFrames)));
+  if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || clip.kind === "video" && clip.freezeFrame !== undefined || !Number.isFinite(deltaFrames)) return project;
+  const trimStart = Math.max(0, Math.min(clip.sourceDurationInFrames - Math.ceil(clip.durationInFrames * (clip.playbackRate ?? 1)), clip.trimStart + Math.round(deltaFrames * (clip.playbackRate ?? 1))));
   let delta = trimStart - clip.trimStart;
   const ids = linkedIds(project, [clipId]);
-  for (const id of ids) { const other = findClip(project, id)!.clip; if (other.kind === "video" || other.kind === "audio") delta = Math.max(-other.trimStart, Math.min(delta, other.sourceDurationInFrames - other.durationInFrames - other.trimStart)); }
+  for (const id of ids) { const other = findClip(project, id)!.clip; if (other.kind === "video" || other.kind === "audio") delta = Math.max(-other.trimStart, Math.min(delta, other.sourceDurationInFrames - Math.ceil(other.durationInFrames * (other.playbackRate ?? 1)) - other.trimStart)); }
   return !delta ? project : ids.reduce((p, id) => { const c = findClip(p, id)!.clip; return c.kind === "video" || c.kind === "audio" ? updateClip(p, id, { trimStart: c.trimStart + delta }) : p; }, project);
 };
 
@@ -712,15 +806,15 @@ const rippleTrimSingle = (project: Project, clipId: string, edge: "start" | "end
   let delta = Math.round(deltaFrames);
   if (edge === "start") {
     delta = Math.min(delta, clip.durationInFrames - 1);
-    delta = Math.max(delta, -clip.trimStart);
+    delta = Math.max(delta, -Math.floor(clip.trimStart / (clip.playbackRate ?? 1)));
   } else {
     delta = Math.max(delta, 1 - clip.durationInFrames);
-    if (clip.kind === "video" || clip.kind === "audio") delta = Math.min(delta, clip.sourceDurationInFrames - clip.trimStart - clip.durationInFrames);
+    if (clip.kind === "video" || clip.kind === "audio") delta = Math.min(delta, availableFrames(clip) - clip.durationInFrames);
   }
   if (!delta) return project;
   const durationDelta = edge === "start" ? -delta : delta;
   return mapTracks(project, (t) => t.id !== track.id ? t : { ...t, clips: t.clips.map((c): Clip => {
-    if (c.id === clip.id) return { ...c, durationInFrames: c.durationInFrames + durationDelta, ...((c.kind === "audio" || c.kind === "video") && edge === "start" ? { trimStart: c.trimStart + delta } : {}) };
+    if (c.id === clip.id) return { ...c, durationInFrames: c.durationInFrames + durationDelta, ...((c.kind === "audio" || c.kind === "video") && edge === "start" ? { trimStart: sourceFrame(c, delta) } : {}) };
     return c.from >= oldEnd ? { ...c, from: c.from + durationDelta } : c;
   }) });
 };
@@ -802,7 +896,7 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
         const offset = a - clip.from, length = b - a;
         const base = { ...clip, id: identities.get(`${index}:${clip.id}`)!, from: cursor + a - range.start, durationInFrames: length };
         if (base.kind === "video" || base.kind === "audio") {
-          base.trimStart += offset;
+          base.trimStart = sourceFrame(base, offset);
           if (base.linkedClipId) base.linkedClipId = identities.get(`${index}:${base.linkedClipId}`);
           if (base.kind === "audio") {
             base.fadeIn = offset === 0 ? Math.min(base.fadeIn, length) : 0;
@@ -824,11 +918,11 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
 /** Palabras de un clip de video, ya convertidas a frames de la línea de tiempo. */
 export const wordsOnTimeline = (project: Project, clip: VideoClip): Word[] => {
   const words = project.transcripts?.[clip.src] ?? [];
-  const inEnd = clip.trimStart + clip.durationInFrames;
-  const offset = clip.from - clip.trimStart;
+  if (clip.freezeFrame !== undefined) return [];
+  const rate = clip.playbackRate ?? 1, inEnd = sourceFrame(clip, clip.durationInFrames);
   return words
     .filter((w) => w.start >= clip.trimStart && w.start < inEnd)
-    .map((w) => ({ text: w.text, start: w.start + offset, end: Math.min(w.end, inEnd) + offset }));
+    .map((w) => ({ text: w.text, start: clip.from + Math.round((w.start - clip.trimStart) / rate), end: clip.from + Math.round((Math.min(w.end, inEnd) - clip.trimStart) / rate) }));
 };
 
 export type CaptionOptions = {
@@ -917,6 +1011,7 @@ export const removeSilences = (
 ): Project => {
   if (!clipsEditable(project, project.tracks.find((t) => t.id === "V1")?.clips.map((c) => c.id) ?? [])) return project;
   const audioPieces = new Map<string, AudioClip[]>();
+  if(project.tracks.flatMap(t=>t.clips).some(c=>(c.kind==="video"||c.kind==="audio")&&((c.playbackRate??1)!==1||c.kind==="video"&&c.freezeFrame!==undefined))) throw new Error("Quitar silencios en clips con velocidad o congelados todavía no está disponible. Hazlo antes de cambiar la velocidad.");
   const next = mapTracks(project, (track) => {
     if (track.id !== "V1") return track;
     const sorted = [...track.clips].sort((a, b) => a.from - b.from);

@@ -120,3 +120,16 @@ Cerrar primero el caso AssortedTapes con Lino comparando reproducción y exporta
 tiempos exactos de cualquier bucle/desfase. Después ejecutar la matriz de entregas anterior y
 priorizar incidencias que bloqueen terminar/reabrir/exportar. Resolver en paralelo de planificación
 el encaje de licencia del render, antes de considerar el editor apto para sustituir Premiere en agencia.
+
+## Ampliación de edición contextual — 2026-10-20
+
+- 82 pruebas totales aprobadas, typecheck y build. Menús, ganancia, canales, secuencias,
+  gráficos y congelados comprobados por UI en 5174, sin modificar el montaje principal.
+- Dos exportaciones cortas reales de 3 s (directa y anidada), velocidad 200 %, nivel 2,
+  congelado, cuadrado y ajuste; decodificación completa correcta, misma señal de audio.
+- Se detectó y corrigió bloqueo de metadata de Html5Audio con crossOrigin anónimo durante
+  render. Web Audio queda para preview; el render conserva ganancia mediante FFmpeg.
+- Se corrigieron referencias anidadas fuera de rango al acortar su contenido. Una prueba
+  protege la validación del documento tras ese cambio.
+- Evidencias y límites detallados en PROGRESS.md. Esta ampliación no reemplaza las pruebas
+  de anuncio completo, escucha editorial, formatos variados, montajes largos y recuperación.

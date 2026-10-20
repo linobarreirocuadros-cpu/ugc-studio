@@ -16,14 +16,22 @@ export function assertProject(value:unknown):asserts value is Project {
     requireValue(Array.isArray(p.tracks),"faltan las pistas");
     const tracks=new Set<string>(),clips=new Set<string>();
     for(const t of p.tracks){
-      requireValue(object(t)&&typeof t.id==="string"&&!tracks.has(t.id)&&typeof t.name==="string"&&["video","audio","text","caption"].includes(String(t.kind))&&Array.isArray(t.clips),"pista incorrecta o duplicada");tracks.add(t.id);
+      requireValue(object(t)&&typeof t.id==="string"&&!tracks.has(t.id)&&typeof t.name==="string"&&["video","audio","text","caption","graphic"].includes(String(t.kind))&&Array.isArray(t.clips),"pista incorrecta o duplicada");tracks.add(t.id);
       for(const c of t.clips){
         requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&c.kind===t.kind&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
+        if(c.labelColor!==undefined)requireValue(/^#[0-9a-f]{6}$/i.test(String(c.labelColor)),"etiqueta incorrecta");
+        if(c.groupId!==undefined)requireValue(typeof c.groupId==="string","grupo incorrecto");
         if(c.kind==="video"||c.kind==="audio"){
-          requireValue(typeof c.src==="string"&&typeof c.name==="string"&&integer(c.trimStart)&&integer(c.sourceDurationInFrames,1)&&number(c.volume)&&c.volume>=0&&c.volume<=1,"medio o nivel de audio incorrecto");
-          requireValue(c.trimStart+c.durationInFrames<=c.sourceDurationInFrames,"recorte fuera del archivo de origen");
+          requireValue(typeof c.src==="string"&&typeof c.name==="string"&&integer(c.trimStart)&&integer(c.sourceDurationInFrames,1)&&number(c.volume)&&c.volume>=0&&c.volume<=4,"medio o nivel de audio incorrecto");
+          requireValue(c.playbackRate===undefined || number(c.playbackRate)&&c.playbackRate>=.25&&c.playbackRate<=4,"velocidad incorrecta");
+          requireValue(c.freezeFrame===undefined || c.kind==="video"&&integer(c.freezeFrame)&&c.freezeFrame<c.sourceDurationInFrames,"fotograma congelado incorrecto");
+          requireValue(c.freezeFrame!==undefined || c.trimStart+Math.max(0,c.durationInFrames-1)*Number(c.playbackRate??1)<c.sourceDurationInFrames,"recorte fuera del archivo de origen");
+          if(c.channelMode!==undefined)requireValue(["stereo","mono","left","right"].includes(String(c.channelMode))&&typeof c.channelSource==="string","canales incorrectos");
           if(c.kind==="audio")requireValue(integer(c.fadeIn)&&integer(c.fadeOut),"fundido de audio incorrecto");
           if(c.sequenceId!==undefined)requireValue(typeof c.sequenceId==="string","referencia de secuencia incorrecta");
+        }else if(c.kind==="graphic"){
+          requireValue(["solid","rectangle","adjustment"].includes(String(c.shape))&&typeof c.name==="string"&&/^#[0-9a-f]{6}$/i.test(String(c.color)),"elemento gráfico incorrecto");
+          for(const key of ["x","y","width","height","opacity","brightness","contrast","saturation"])requireValue(number(c[key])&&Number(c[key])>=0&&Number(c[key])<= (['brightness','contrast','saturation'].includes(key)?4:1),"parámetro gráfico incorrecto");
         }else{
           const s=c.style;
           requireValue(object(s)&&typeof s.fontFamily==="string"&&number(s.fontSize)&&s.fontSize>0&&typeof s.color==="string"&&(s.background===null||typeof s.background==="string")&&number(s.y),"estilo de texto incorrecto");

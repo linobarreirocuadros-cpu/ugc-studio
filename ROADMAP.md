@@ -42,7 +42,7 @@ de rediseñar la interfaz. En esta entrega se añadieron paneles Visión/Audio a
 - [ ] Analizar sonido no hablado; candidato CLAP para búsqueda/clasificación por ventanas,
       con refinamiento temporal para eventos y validación por Lino
 - [ ] Plan de edición validado antes de aplicar; transacciones reversibles, versiones y comparación A/B
-- [ ] Extender JSON/ops para efectos, capas de ajuste y keyframes; conservar parámetros editables
+- [ ] Ampliar efectos y keyframes (JSON/ops ya admite ajustes básicos de brillo/contraste/saturación); conservar parámetros editables
       de motion. Un video generado externamente es un clip renderizado, no capas recuperables
 - [x] Ajustar el criterio editorial del asistente al brief y al estilo de Lino: ritmo, pausas
       expresivas, continuidad y Foley motivado por la acción; revisar los presets UGC del prompt
@@ -156,7 +156,7 @@ a estar validado para entregas de agencia.
 - [x] Conectar atajos de Origen, inserción por ripple, portapapeles interno, recortes Q/W,
       navegación, transporte y marcadores con historial y respeto de enlaces/candados
 - [ ] Validar mouse físico, puntuación del teclado, arrastre de comandos y traslado de presets con Lino
-- [ ] Ampliar funciones de los comandos reservados (rolling, slide, velocidad, keyframes, transiciones…)
+- [ ] Ampliar funciones de los comandos reservados (rolling, slide, rampas de velocidad, keyframes, transiciones…)
 - [x] Medidor estéreo dBFS del Programa con pico retenido, aviso de saturación y reinicio
 - [x] Paneles intercambiables entre izquierda/centro/derecha/abajo, separadores de tamaño,
       persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino
@@ -187,6 +187,16 @@ a estar validado para entregas de agencia.
       marcadores editables y ajustes de nombres/ondas/altura persistidos localmente
 - [x] Crear secuencia desde selección; colocar anidada o como clips, abrir/editar/volver al montaje,
       autoguardar raíz y renderizar sus capas y sonido sin aplanar; guardas frente a ciclos
+- [x] Menú contextual de clips con enlazar/desenlazar, agrupar/desagrupar, anidar y etiquetas
+- [x] Barra de volumen constante sobre la onda y ganancia hasta 400 %, reversible y sin duplicar parejas
+- [x] Velocidad/duración constante de medios (25–400 %), cortes/recortes/rangos/ondas adaptados
+- [x] Congelar clip, congelar desde cabezal e insertar segmento congelado sincronizado
+- [x] Mapear canales originales a mono/L/R con WAV local; restaurar estéreo original
+- [x] Proyecto → Nueva secuencia vacía; clic derecho → Añadir con búsqueda de secuencias y elementos
+- [x] Sólido, cuadrado y capa de ajuste editables en JSON/ops; brillo, contraste y saturación
+      sobre capas visuales inferiores, tanto en preview como en exportación
+- [ ] Automatización de volumen/keyframes, rampas/inversa y velocidad de secuencias anidadas
+- [ ] Ajustes avanzados de secuencia, biblioteca de presets gráficos y mapas multicanal arbitrarios
 - [x] Vincular/desvincular una pareja y editar independientemente con aviso de diferencia en frames
 - [ ] Ampliar agrupación de enlaces tras cortes independientes y validar secuencias grandes/anidación profunda
 - [x] Sobrescribir al colocar/mover/extender video o audio en una pista ocupada: conservar extremos,

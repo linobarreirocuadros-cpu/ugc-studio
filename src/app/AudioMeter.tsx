@@ -31,7 +31,7 @@ export function AudioMeter({ programRef }: { programRef: RefObject<HTMLDivElemen
         if (meter && !failed && programRef.current) {
           try {
             meter.sync(programRef.current);
-            const playing = [...programRef.current.querySelectorAll<HTMLMediaElement>("audio,video")].some((element) => !element.paused && !element.ended && !element.muted && element.volume > 0 && !element.seeking);
+            const playing = programRef.current.dataset.programMuted !== "true" && [...programRef.current.querySelectorAll<HTMLMediaElement>("audio,video")].some((element) => !element.paused && !element.ended && !element.muted && element.volume > 0 && !element.seeking);
             const values = meter.running && playing ? meter.read() : [-Infinity, -Infinity];
             displayed = values.map((value, i) => playing ? Math.max(value, displayed[i] - 28 * seconds) : -Infinity);
             held = values.map((value, i) => Math.max(held[i], value)); clip = values.map((value, i) => clip[i] || value >= 0);

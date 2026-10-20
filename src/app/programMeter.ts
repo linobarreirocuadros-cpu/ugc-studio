@@ -60,7 +60,7 @@ export class ProgramMeter {
       if (tap) {
         tap.wire();
         // captureStream ignora mute/volume: hay que aplicarlos a la copia (W3C).
-        tap.gain.gain.value = element.muted || element.paused || element.ended || element.seeking || element.readyState < 3 ? 0 : element.volume;
+        tap.gain.gain.value = root.dataset.programMuted === "true" || element.muted || element.paused || element.ended || element.seeking || element.readyState < 3 ? 0 : Number(element.dataset.ugcVolume ?? element.volume);
       }
     }
   }

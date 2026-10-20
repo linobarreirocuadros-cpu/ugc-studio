@@ -6,7 +6,7 @@ const c = (id: string, label: string, category: string, keys: string, scope: Com
 const feature = "Esta función todavía no está implementada en UGC Studio.";
 export const COMMANDS: Command[] = [
   c("newProject", "Nuevo proyecto", "Archivo", "Ctrl+Alt+KeyN"),
-  c("newSequence", "Nueva secuencia", "Archivo", "Ctrl+KeyN", "app", feature),
+  c("newSequence", "Nueva secuencia", "Archivo", "Ctrl+KeyN", "app"),
   c("open", "Abrir proyecto…", "Archivo", "Ctrl+KeyO"),
   c("closePanel", "Cerrar panel", "Archivo", "Ctrl+KeyW", "app", "El navegador reserva Ctrl+W; cerrar paneles aún no está disponible."),
   c("closeProject", "Cerrar proyecto", "Archivo", "Ctrl+Shift+KeyW", "app", feature),
@@ -28,11 +28,11 @@ export const COMMANDS: Command[] = [
   c("find", "Buscar comandos…", "Edición", "Ctrl+KeyF"),
   c("editOriginal", "Editar original", "Edición", "Ctrl+KeyE", "app", feature),
   c("shortcuts", "Atajos de teclado…", "Edición", "Ctrl+Alt+KeyK"),
-  c("subclip", "Crear subclip", "Clip", "Ctrl+KeyU", "app", feature), c("channels", "Canales de audio", "Clip", "Shift+KeyG", "app", feature),
-  c("gain", "Ganancia de audio…", "Clip", "KeyG", "timeline"), c("speed", "Velocidad / duración", "Clip", "Ctrl+KeyR", "timeline", feature),
+  c("subclip", "Crear subclip", "Clip", "Ctrl+KeyU", "app", feature), c("channels", "Canales de audio", "Clip", "Shift+KeyG", "app"),
+  c("gain", "Ganancia de audio…", "Clip", "KeyG", "timeline"), c("speed", "Velocidad / duración", "Clip", "Ctrl+KeyR", "timeline"),
   c("insert", "Insertar desde Origen", "Clip", "Comma"), c("overwrite", "Sobrescribir desde Origen", "Clip", "Period"),
   c("enable", "Habilitar clip", "Clip", "Shift+KeyE", "timeline", feature), c("link", "Enlazar / desenlazar", "Clip", "Ctrl+KeyL", "timeline"),
-  c("group", "Agrupar clips", "Clip", "Ctrl+KeyG", "timeline", feature), c("ungroup", "Desagrupar clips", "Clip", "Ctrl+Shift+KeyG", "timeline", feature),
+  c("group", "Agrupar clips", "Clip", "Ctrl+KeyG", "timeline"), c("ungroup", "Desagrupar clips", "Clip", "Ctrl+Shift+KeyG", "timeline"),
   c("renderEffects", "Renderizar efectos de entrada a salida", "Secuencia", "Enter", "timeline", feature),
   c("matchFrame", "Localizar fotograma en Origen", "Secuencia", "KeyF", "timeline"), c("reverseMatch", "Localizar en secuencia", "Secuencia", "Shift+KeyR", "source", feature),
   c("split", "Añadir corte", "Secuencia", "Ctrl+KeyK", "timeline"), c("splitAll", "Añadir corte en todas las pistas", "Secuencia", "Ctrl+Shift+KeyK", "timeline"),

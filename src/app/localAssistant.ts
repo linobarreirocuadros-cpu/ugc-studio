@@ -16,7 +16,7 @@ export type AssistantContext = {
   registerMedia?: (items: { src: string; name: string; durationInFrames: number; kind: "audio" }[]) => void;
 };
 type SourceClip = VideoClip | AudioClip;
-export const clipStamp = (clip: SourceClip, fps: number) => JSON.stringify([clip.id, clip.src, clip.from, clip.trimStart, clip.durationInFrames, fps]);
+export const clipStamp = (clip: SourceClip, fps: number) => JSON.stringify([clip.id, clip.src, clip.from, clip.trimStart, clip.durationInFrames, clip.playbackRate, clip.kind==="video"?clip.freezeFrame:undefined, fps]);
 
 export function sourceClip(ctx: AssistantContext, id?: string, videoOnly = false): SourceClip {
   if (!id && (ctx.selectedClipIds?.length ?? 0) > 1) throw new Error("Hay varios clips seleccionados. Selecciona uno para esta acción o indica su identificador en el chat.");
@@ -58,14 +58,16 @@ export async function runLocalTask<T>(url: string, input: unknown, onStatus: (te
 
 export async function searchVisual(ctx: AssistantContext, query: string, id: string | undefined, status: (text: string) => void, signal?: AbortSignal) {
   const project = ctx.getProject(), clip = sourceClip(ctx, id, true);
+  if(clip.kind==="video"&&clip.freezeFrame!==undefined)throw new Error("Quita el congelado antes de buscar acciones en este clip.");
+  const rate=clip.playbackRate??1;
   const stamp = clipStamp(clip, project.fps);
   const result = await runLocalTask<{ model: string; sampleCount: number; ranges: { start: number; end: number; description: string; image: string }[] }>("/api/vision/search", {
-    src: clip.src, start: clip.trimStart / project.fps, duration: clip.durationInFrames / project.fps, query,
+    src: clip.src, start: clip.trimStart / project.fps, duration: clip.durationInFrames * rate / project.fps, query,
   }, status, signal);
   signal?.throwIfAborted();
   const visual: VisualResult = { clipId: clip.id, clipStamp: stamp, query, model: result.model, sampleCount: result.sampleCount, matches: result.ranges.map((r) => ({
-    from: Math.max(clip.from, clip.from + Math.round(r.start * project.fps) - clip.trimStart),
-    end: Math.min(clip.from + clip.durationInFrames, clip.from + Math.round(r.end * project.fps) - clip.trimStart),
+    from: Math.max(clip.from, clip.from + Math.round((r.start * project.fps - clip.trimStart) / rate)),
+    end: Math.min(clip.from + clip.durationInFrames, clip.from + Math.round((r.end * project.fps - clip.trimStart) / rate)),
     sourceStart: r.start, sourceEnd: r.end, description: r.description, image: r.image,
   })).filter((r) => r.end > r.from) };
   ctx.showVisualResult?.(visual);
@@ -83,6 +85,7 @@ export async function processAudio(ctx: AssistantContext, mode: "clean" | "separ
   const project = ctx.getProject(), clip = sourceClip(ctx, id);
   if (!ops.clipsEditable(project, [clip.id])) throw new Error("La pista o su pareja está bloqueada. Desbloquéala antes de procesar el audio.");
   if (clip.kind === "audio" && clip.derivedFrom) throw new Error("Selecciona el clip original para volver a procesar su voz; esta pista ya es un resultado derivado.");
+  if((clip.playbackRate??1)!==1 || clip.kind==="video"&&clip.freezeFrame!==undefined)throw new Error("Limpia el audio antes de cambiar velocidad o congelar este clip.");
   const stamp = clipStamp(clip, project.fps), volume = ops.effectiveVolume(project, clip);
   const result = await runLocalTask<{ duration: number; engine: string; stems: ops.ProcessedStem[] }>("/api/audio/process", {
     src: clip.src, start: clip.trimStart / project.fps, duration: clip.durationInFrames / project.fps, mode,

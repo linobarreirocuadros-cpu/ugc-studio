@@ -12,6 +12,7 @@ import "./shortcuts.css";
 import "./compact-ui.css";
 import "./monitors.css";
 import "./assistant.css";
+import "./editing-actions.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

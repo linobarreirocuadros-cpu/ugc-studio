@@ -1,7 +1,10 @@
 // El proyecto completo es un JSON serializable. La línea de tiempo, el chat (Fase 2)
 // y el render de Remotion leen y escriben esta misma estructura.
 
-export type VideoClip = {
+export type ClipMetadata = { labelColor?: string; groupId?: string };
+export type MediaTiming = { playbackRate?: number };
+
+export type VideoClip = ClipMetadata & MediaTiming & {
   id: string;
   kind: "video";
   src: string; // URL servida por el servidor local, ej. /media/abc.mp4 (original, para exportar)
@@ -11,14 +14,15 @@ export type VideoClip = {
   durationInFrames: number; // duración visible en la línea de tiempo
   trimStart: number; // frames recortados desde el inicio del archivo
   sourceDurationInFrames: number; // duración total del archivo
-  volume: number; // 0..1
+  volume: number; // 0..4; 1 = 0 dB
   linkedClipId?: string;
+  freezeFrame?: number; // fotograma absoluto del archivo; no congela el audio enlazado
   audioMode?: "embedded" | "separate" | "none";
   sequenceId?: string;
 };
 
 /** Música, voz en off o efecto de sonido (Foley). */
-export type AudioClip = {
+export type AudioClip = ClipMetadata & MediaTiming & {
   id: string;
   kind: "audio";
   src: string;
@@ -27,15 +31,17 @@ export type AudioClip = {
   durationInFrames: number;
   trimStart: number;
   sourceDurationInFrames: number;
-  volume: number; // 0..1
+  volume: number; // 0..4; 1 = 0 dB
   fadeIn: number; // frames
   fadeOut: number; // frames
+  channelSource?: string; // original antes de mapear canales localmente
+  channelMode?: "stereo" | "mono" | "left" | "right";
   derivedFrom?: { clipId: string; src: string; originalVolume: number; mode: string };
   linkedClipId?: string;
   sequenceId?: string;
 };
 
-export type TextClip = {
+export type TextClip = ClipMetadata & {
   id: string;
   kind: "text";
   text: string;
@@ -65,7 +71,7 @@ export type CaptionStyle = TextStyle & {
 };
 
 /** Un bloque de subtítulo (2–4 palabras). Tiempos de las palabras relativos a `from`. */
-export type CaptionClip = {
+export type CaptionClip = ClipMetadata & {
   id: string;
   kind: "caption";
   from: number;
@@ -74,11 +80,21 @@ export type CaptionClip = {
   style: CaptionStyle;
 };
 
-export type Clip = VideoClip | AudioClip | TextClip | CaptionClip;
+export type GraphicClip = ClipMetadata & {
+  id: string; kind: "graphic"; name: string; from: number; durationInFrames: number;
+  shape: "solid" | "rectangle" | "adjustment";
+  color: string; x: number; y: number; width: number; height: number; opacity: number;
+  brightness: number; contrast: number; saturation: number;
+};
+export type Clip = VideoClip | AudioClip | TextClip | CaptionClip | GraphicClip;
+export const sourceFrame = (clip: VideoClip | AudioClip, offset: number) =>
+  clip.kind === "video" && clip.freezeFrame !== undefined ? clip.freezeFrame : clip.trimStart + Math.floor(offset * (clip.playbackRate ?? 1));
+export const availableFrames = (clip: VideoClip | AudioClip) => clip.kind === "video" && clip.freezeFrame !== undefined ? Number.MAX_SAFE_INTEGER : Math.max(1, Math.floor((clip.sourceDurationInFrames - clip.trimStart) / (clip.playbackRate ?? 1)));
+
 
 export type Track = {
   id: string;
-  kind: "video" | "audio" | "text" | "caption";
+  kind: "video" | "audio" | "text" | "caption" | "graphic";
   name: string;
   clips: Clip[];
   locked?: boolean;
@@ -205,6 +221,6 @@ export const getProjectDuration = (project: Project): number => {
 export const clipLabel = (clip: Clip): string =>
   clip.kind === "video" || clip.kind === "audio"
     ? clip.name
-    : clip.kind === "text"
+    : clip.kind === "graphic" ? clip.name : clip.kind === "text"
       ? clip.text
       : clip.words.map((w) => w.text).join(" ");

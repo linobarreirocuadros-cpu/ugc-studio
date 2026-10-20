@@ -85,6 +85,7 @@ const clipSummary = (c: Clip, fps: number) => {
   const base = { id: c.id, inicio_s: round(c.from / fps), fin_s: round((c.from + c.durationInFrames) / fps) };
   if (c.kind === "video" || c.kind === "audio") return { ...base, tipo: c.kind, nombre: c.name, volumen: Math.round(c.volume * 100), ...(c.sequenceId ? { secuencia_id: c.sequenceId } : {}) };
   if (c.kind === "text") return { ...base, tipo: "texto", texto: c.text };
+  if(c.kind === "graphic") return {...base,tipo:c.shape,nombre:c.name};
   return { ...base, tipo: "subtitulo", texto: c.words.map((w) => w.text).join(" ") };
 };
 

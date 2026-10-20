@@ -7,6 +7,8 @@ import {
   destinationTrack,
   clipAtPlayhead,
   type AudioClip,
+  type GraphicClip,
+  sourceFrame,
   type CaptionClip,
   type CaptionStyle,
   type Project,
@@ -36,6 +38,7 @@ import { COMMANDS, eventChord, resolveCommand, type CommandScope } from "./comma
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutEditor } from "./ShortcutEditor";
 import { MenuBar } from "./MenuBar";
+import { EditContextMenu, EditingDialog, type EditDialogKind } from "./EditingActions";
 import { ActionDialog } from "./ActionDialog";
 import { useShuttle } from "./useShuttle";
 import type { Panel } from "./workspaceLayout";
@@ -109,6 +112,8 @@ export function App() {
   const viewedProject = useMemo(() => projectView(rootHistory.value), [projectView, rootHistory.value]);
   const history = { ...rootHistory, value: viewedProject, current: currentProject, apply: applyToProject };
   const project = history.value;
+  const [contextMenu,setContextMenu]=useState<{x:number;y:number;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
+  const [editingDialog,setEditingDialog]=useState<{kind:EditDialogKind;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
   const [media, setMedia] = useState<MediaItem[]>(saved.data?.media ?? []);
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
   const [selectedIds, rawSetSelectedIds] = useState<string[]>([]);
@@ -446,7 +451,7 @@ export function App() {
   const focusPanel=(scope:CommandScope, panel:Panel)=>{workspace.showPanel(panel);activeScope.current=scope;selectionPanel.current=scope==="bin"?"bin":"timeline";requestAnimationFrame(()=>workspace.appRef.current?.querySelector<HTMLElement>(`[data-shortcut-scope="${scope}"]`)?.focus());};
   const timelineViewport=()=>workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll");
   const fitTimeline=()=>{const viewport=timelineViewport();if(previousZoom.current){setPxPerFrame(previousZoom.current.scale);const left=previousZoom.current.left;requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=left;});previousZoom.current=null;}else{previousZoom.current={scale:pxPerFrame,left:viewport?.scrollLeft??0};if(viewport)viewport.scrollLeft=0;setPxPerFrame(Math.max(.02,Math.min(20,((viewport?.clientWidth??800)-30)/duration)));}};
-  const canRun=(id:string)=>id==="undo"?history.canUndo:id==="redo"?history.canRedo:["copy","cut","delete","rippleDelete","duplicate","subsequence","gain","link"].includes(id)?selectedIds.length>0:id==="paste"?Boolean(clipboard.current):["overwrite","insert"].includes(id)?Boolean(sourceMedia):id==="export"?!render||Boolean(render.url||render.error):true;
+  const canRun=(id:string)=>id==="undo"?history.canUndo:id==="redo"?history.canRedo:["copy","cut","delete","rippleDelete","duplicate","subsequence","gain","link","group","ungroup","speed","channels"].includes(id)?selectedIds.length>0:id==="paste"?Boolean(clipboard.current):["overwrite","insert"].includes(id)?Boolean(sourceMedia):id==="export"?!render||Boolean(render.url||render.error):true;
   const focusAssistant=()=>requestAnimationFrame(()=>{const input=workspace.appRef.current?.querySelector<HTMLTextAreaElement>(".chat-input textarea");if(input?.offsetParent)input.focus();else workspace.appRef.current?.querySelector<HTMLButtonElement>(".assistant-header button")?.focus();});
   const openAssistant=()=>{setRightTab("chat");workspace.showPanel("inspector");focusAssistant();};
   const runCommand=(id:string,scope:CommandScope=activeScope.current)=>{
@@ -491,13 +496,15 @@ export function App() {
       const clip=clipAtPlayhead(project,frame);if(!clip)return;const start=id.endsWith("Previous"),ripple=id.startsWith("ripple"),delta=start?frame-clip.from:frame-(clip.from+clip.durationInFrames);if(!delta)return;
       history.apply(p=>(ripple?ops.rippleTrimClip:ops.trimClip)(p,clip.id,start?"start":"end",delta));if(start&&ripple)seek(clip.from);return;
     }
+    if(["group","ungroup"].includes(id)){history.apply(p=>ops.groupClips(p,selectedIds,id==="group"));return;}
+    if(["newSequence","speed","channels"].includes(id)){setEditingDialog({kind:id as EditDialogKind,ids:selectedIds,at:frame,epoch:documentEpoch.current});return;}
     if(id==="gain"){setGain(0);setActionDialog("gain");return;}
     if(id==="text"){addText();return;}
     if(id==="link"){const linked=selectedIds.some(id=>{const clip=ops.findClip(project,id)?.clip;return clip&&(clip.kind==="video"||clip.kind==="audio")&&clip.linkedClipId;});history.apply(p=>ops.linkClips(p,linked?ops.linkedIds(p,selectedIds):selectedIds,!linked));return;}
     if(id==="subsequence"){history.apply(p=>ops.createSequence(p,selectedIds,`Secuencia ${Object.keys(p.sequences??{}).length+1}`));return;}
     if(id==="overwrite"||id==="insert"){if(sourceMedia){const target=destinationTrack(project,sourceMedia.kind==="audio"?"audio":"video"),range=sourceRef.current?.range();if(target&&range)history.apply(p=>(id==="insert"?ops.insertSourceRange:ops.addSourceRange)(p,sourceMedia,target,frame,range.inFrame,range.outFrame));}return;}
     if(id==="matchFrame"){
-      const clip=selected??clipAtPlayhead(project,frame);if(clip&&(clip.kind==="video"||clip.kind==="audio")&&!clip.sequenceId){const m=media.find(m=>m.src===clip.src);if(m){setSourceSrc(m.src);setMonitorTab("source");focusPanel("source","monitor");requestAnimationFrame(()=>sourceRef.current?.seek(clip.trimStart+Math.max(0,frame-clip.from)));}}return;
+      const clip=selected??clipAtPlayhead(project,frame);if(clip&&(clip.kind==="video"||clip.kind==="audio")&&!clip.sequenceId){const m=media.find(m=>m.src===clip.src);if(m){setSourceSrc(m.src);setMonitorTab("source");focusPanel("source","monitor");requestAnimationFrame(()=>sourceRef.current?.seek(sourceFrame(clip,Math.max(0,frame-clip.from))));}}return;
     }
     if(id==="snap"){setSnapping(v=>!v);return;}if(id==="linkedSelection"){setIsolatedSelection(false);updateTimelinePreferences({linkedSelection:!timelinePreferences.linkedSelection});return;}if(id==="followPlayhead"){updateTimelinePreferences({selectionFollowsPlayhead:!timelinePreferences.selectionFollowsPlayhead});return;}
     if(id==="selectAtPlayhead"){const clip=clipAtPlayhead(project,frame);setSelectedIds(clip?(linkedSelection?ops.linkedIds(project,[clip.id]):[clip.id]):[]);return;}
@@ -579,9 +586,17 @@ export function App() {
       {shortcutsOpen&&<ShortcutEditor settings={shortcuts.settings} onSave={shortcuts.setSettings} onClose={()=>setShortcutsOpen(false)}/>}
       {feedback&&<div className="command-feedback" role="status">{feedback}</div>}
       {storageIssue&&<div className="storage-warning" role="alert">{storageIssue}{autosaveBlocked&&<> El original se conserva sin sobrescribir. Abre una copia válida para continuar el autoguardado. {saved.raw&&<button onClick={()=>downloadText(saved.raw!,"Recuperacion-autoguardado.json")}>Descargar copia de recuperación</button>}</>}</div>}
+      {contextMenu&&<EditContextMenu {...contextMenu} project={project} onClose={()=>setContextMenu(null)} onLabel={color=>{if(contextMenu.epoch===documentEpoch.current)history.apply(p=>ops.labelClips(p,contextMenu.ids,color));}} onAction={action=>{
+        if(contextMenu.epoch!==documentEpoch.current)return;
+        const {ids,at,epoch,trackId}=contextMenu;
+        if(["add","newSequence","nest","speed","channels","hold","holdInsert"].includes(action)){setEditingDialog({kind:action as EditDialogKind,ids,at,epoch,trackId});return;}
+        if(action==="holdTail"||action==="unfreeze"){const c=ids.map(id=>ops.findClip(project,id)?.clip).find(c=>c?.kind==="video");if(c){if(action==="holdTail"&&(at<c.from||at>=c.from+c.durationInFrames)){setFeedback("Coloca el cabezal dentro del clip para congelar desde ese punto.");return;}history.apply(p=>action==="holdTail"?ops.holdFrame(p,c.id,at,"tail"):ops.updateClip(p,c.id,{freezeFrame:undefined}));}return;}
+        runCommand(action,"timeline");
+      }}/> }
+      {editingDialog&&<EditingDialog key={`${editingDialog.kind}-${editingDialog.epoch}`} {...editingDialog} project={project} hostId={editingSequenceId??undefined} onClose={()=>setEditingDialog(null)} onApply={fn=>{if(editingDialog.epoch!==documentEpoch.current){setFeedback("El documento cambió; se descartó la operación.");return;}history.apply(p=>{const next=fn(p);if(next===p)setFeedback(editingDialog.kind==="nest"?"No se pudo anidar: revisa candados y selecciona también las capas intercaladas.":"No se aplicó el cambio. Revisa selección, pistas bloqueadas o referencias de secuencia.");else if(editingDialog.kind==="nest"){const old=new Set(p.tracks.flatMap(t=>t.clips.map(c=>c.id)));setSelectedIds(next.tracks.flatMap(t=>t.clips).filter(c=>(c.kind==="video"||c.kind==="audio")&&c.sequenceId&&!old.has(c.id)).map(c=>c.id));}return next;});}}/>}
       {actionDialog&&<ActionDialog title={actionDialog==="export"?"Exportar medios":actionDialog==="gain"?"Ganancia de audio":"Atajos y compatibilidad"} onClose={()=>setActionDialog(null)}>
         {actionDialog==="export"?<><p>{project.name} · {formatTimecode(duration,project.fps)} · {project.width}×{project.height}</p><label>Formato<select aria-label="Formato de exportación" value={preset} onChange={e=>setPreset(e.target.value as Preset)}><option value="h264-high">MP4 H.264 · Alta calidad</option><option value="h264-draft">MP4 H.264 · Borrador rápido</option><option value="prores-hq">MOV ProRes 422 HQ</option></select></label><p>Se guarda localmente en UGC Studio/Exportaciones.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button className="primary" onClick={()=>{setActionDialog(null);void startRender();}}>Iniciar exportación</button></footer></>:
-        actionDialog==="gain"?<><label>Ajustar ganancia (dB)<input aria-label="Ajustar ganancia en decibelios" type="number" min={-60} max={12} step={1} value={gain} onChange={e=>setGain(Number(e.target.value))}/></label><p>Se aplica a la selección y a su audio enlazado. El control actual limita el volumen al 100%.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button onClick={()=>{if(!Number.isFinite(gain))return;const ids=ops.linkedIds(project,selectedIds);history.apply(p=>ids.reduce((next,id)=>{const c=ops.findClip(next,id)?.clip;return c&&(c.kind==="audio"||c.kind==="video"&&!c.linkedClipId)?ops.updateClip(next,id,{volume:Math.max(0,Math.min(1,c.volume*10**(Math.max(-60,Math.min(12,gain))/20)))}):next;},p));setActionDialog(null);}}>Aplicar</button></footer></>:
+        actionDialog==="gain"?<><label>Ajustar ganancia (dB)<input aria-label="Ajustar ganancia en decibelios" type="number" min={-60} max={12} step={1} value={gain} onChange={e=>setGain(Number(e.target.value))}/></label><p>Se aplica a la selección y a su audio enlazado. El máximo es +12 dB (400 %). El medidor puede indicar saturación.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button onClick={()=>{if(!Number.isFinite(gain))return;history.apply(p=>ops.setClipVolume(p,selectedIds,10**(Math.max(-60,Math.min(12,gain))/20),true));setActionDialog(null);}}>Aplicar</button></footer></>:
         <><p>Base de atajos Windows/QWERTY contrastada con la <a href="https://helpx.adobe.com/premiere/desktop/get-started/keyboard-shortcuts/default-keyboard-shortcuts.html" target="_blank" rel="noreferrer">documentación de Adobe</a>. La tabla oficial no enumera todos los comandos internos de Premiere.</p><p>Azul indica comandos disponibles; ámbar, funciones pendientes. No se simulan efectos, keyframes o herramientas que todavía no existen. Shift+5 abre las propiedades actuales, no un panel completo de efectos.</p><p>El navegador puede reservar Ctrl+W, Ctrl+N, Ctrl+T y otras combinaciones. Puedes usar los menús o cambiarlas. Los rótulos US/ES cambian la vista; las asignaciones guardan posiciones físicas.</p><p>J revisa hacia atrás por fotogramas sin audio; K detiene y L reproduce adelante. I/O de Programa son marcas de sesión, no un rango de exportación. Los presets JSON de UGC Studio no son archivos .kys de Premiere.</p><footer><button onClick={()=>{setActionDialog(null);setShortcutsOpen(true);}}>Editar atajos</button><button onClick={()=>setActionDialog(null)}>Cerrar</button></footer></>}
       </ActionDialog>}
 
@@ -603,7 +618,7 @@ export function App() {
       )}
 
       {rangeDrag.overlay}<div className="workspace-canvas" ref={workspace.canvasRef}>
-      <aside className="panel bin dock-panel" {...workspace.panelProps("bin")} data-shortcut-scope="bin" tabIndex={-1}>
+      <aside className="panel bin dock-panel" {...workspace.panelProps("bin")} onContextMenu={e=>{if((e.target as HTMLElement).closest("input,textarea,select"))return;e.preventDefault();setContextMenu({x:e.clientX,y:e.clientY,ids:[],at:frame,epoch:documentEpoch.current});}} data-shortcut-scope="bin" tabIndex={-1}>
         <div className="panel-title">
           <div className="tabs">
             <button className={binTab === "proyecto" ? "active" : ""} onClick={() => setBinTab("proyecto")}>Proyecto</button>
@@ -667,6 +682,7 @@ export function App() {
             </div>
           </div>
         ))}{binSelection.box && <div className="selection-marquee" aria-hidden style={{ left: binSelection.box.x, top: binSelection.box.y, width: binSelection.box.width, height: binSelection.box.height }} />}</div></>}
+        {binTab === "proyecto" && <button className="new-sequence-button" onClick={()=>setEditingDialog({kind:"newSequence",ids:[],at:frame,epoch:documentEpoch.current})}>+ Nueva secuencia</button>}
         {binTab === "proyecto" && Object.values(project.sequences ?? {}).length > 0 && <section className="bin-sequences" aria-label="Secuencias del proyecto"><strong>Secuencias</strong>{Object.values(project.sequences ?? {}).map((sequence) => <div className="bin-sequence" key={sequence.id} draggable={sequence.id !== editingSequenceId} onDragStart={(e) => { e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify({ src: "", kind: "video", inFrame: 0, outFrame: sequence.durationInFrames, mode: "auto", sequenceId: sequence.id })); e.dataTransfer.effectAllowed = "copy"; }}>
           <span>▤ {sequence.name} · {formatTimecode(sequence.durationInFrames, project.fps)}</span>
           <button aria-label={`Abrir secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} onClick={() => { documentEpoch.current++; recording.cancel(); setEditingSequenceId(sequence.id); setSelectedIds([]); seek(0); }}>Abrir</button>
@@ -738,6 +754,7 @@ export function App() {
         </div>
         {rightTab === "propiedades" && <>
         {!selected && <p className="hint">{selectedIds.length > 1 ? `${selectedIds.length} clips seleccionados. Arrastra para moverlos juntos; Supr los borra. Ctrl/Cmd+Z deshace la operación.` : "Selecciona un clip en la línea de tiempo."}</p>}
+        {selected?.kind === "graphic" && <GraphicInspector clip={selected} onChange={patch=>history.apply(p=>ops.updateClip(p,selected.id,patch))}/>}
         {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         {selected?.kind === "caption" && (
           <CaptionInspector
@@ -767,6 +784,9 @@ export function App() {
         <TimelineTools hint={shortcuts.hint} tool={tool} onTool={setTool} onFit={fitTimeline} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
         <div className="timeline-main">
         <Timeline
+          onContextMenu={(x,y,ids,at,trackId,isolated=false)=>{rawSetSelectedIds(ids);setIsolatedSelection(isolated);activeScope.current="timeline";setContextMenu({x,y,ids,at,trackId,epoch:documentEpoch.current});}}
+          onOpenSequence={id=>{documentEpoch.current++;recording.cancel();setEditingSequenceId(id);setSelectedIds([]);seek(0);}}
+          onVolume={(id,value)=>history.apply(p=>ops.setClipVolume(p,[id],value))}
           project={project}
           revealTrackId={revealTrackId}
           onTrackChange={(id, patch) => history.apply((p) => ops.setTrackState(p, id, patch))}
@@ -887,7 +907,7 @@ function AudioInspector({ clip, fps, onChange }: { clip: AudioClip; fps: number;
       <div className="bin-dur">Duración: {formatTimecode(clip.durationInFrames, fps)}</div>
       <label>
         Volumen · {Math.round(clip.volume * 100)}%
-        <input type="range" min={0} max={1} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} />
+        <input type="range" min={0} max={4} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} />
       </label>
       <label>
         Fade in (segundos)
@@ -908,7 +928,13 @@ function VideoInspector({ clip, fps, onChange }: { clip: VideoClip; fps: number;
       <div className="bin-name">{clip.name}</div>
       <div className="bin-dur">Inicio en archivo: {formatTimecode(clip.trimStart, fps)}</div>
       <div className="bin-dur">Duración: {formatTimecode(clip.durationInFrames, fps)}</div>
-      <label>Volumen<input type="range" min={0} max={1} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} /></label>
+      <label>Volumen<input type="range" min={0} max={4} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} /></label>
     </div>
   );
+}
+
+function GraphicInspector({clip,onChange}:{clip:GraphicClip;onChange:(patch:Partial<GraphicClip>)=>void}){
+  return <div className="fields"><label>Nombre<input value={clip.name} onChange={e=>onChange({name:e.target.value})}/></label>{clip.shape!=="adjustment"&&<label>Color<input type="color" value={clip.color} onChange={e=>onChange({color:e.target.value})}/></label>}
+  {(clip.shape==="adjustment"?[["brightness","Brillo"],["contrast","Contraste"],["saturation","Saturación"]]:clip.shape==="rectangle"?[["x","Posición X"],["y","Posición Y"],["width","Ancho"],["height","Alto"]]:[]).concat([["opacity","Opacidad"]]).map(([key,label])=><label key={key}>{label}<input aria-label={label} type="range" min={0} max={["brightness","contrast","saturation"].includes(key)?4:1} step={.01} value={Number(clip[key as keyof GraphicClip])} onChange={e=>onChange({[key]:Number(e.target.value)})}/></label>)}
+  <p className="hint">{clip.shape==="adjustment"?"Afecta las capas visibles inferiores durante este tramo.":"Elemento gráfico editable; recorta su duración en el timeline."}</p></div>;
 }

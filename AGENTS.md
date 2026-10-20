@@ -58,12 +58,32 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
   US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.
   Preset de Premiere 2026 auditado: 629 asignaciones de Edición/Color, consultables como referencia;
-  solo 116 comandos adaptados están disponibles y 104 están reservados por funciones pendientes.
+  solo 121 comandos adaptados están disponibles y 99 están reservados por funciones pendientes.
   Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
   Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
   Con Selección: Alt+clic aísla imagen/audio temporalmente, conservando su enlace; el movimiento
   posterior respeta esa selección. Alt+arrastrar duplica con IDs/enlaces nuevos, preview y una
   transacción de historial. `duplicateClipsWithSelection` devuelve solo los IDs de las copias.
+- Edición contextual (2026-10-20): clic derecho en clip abre acciones, en zona vacía → Añadir
+  abre búsqueda por nombre de secuencias y elementos, además de Texto/Sólido/Cuadrado/Ajuste.
+  Espacio sigue reproduciendo. Secuencias vacías desde Proyecto, nombre editable, formato heredado;
+  Anidar sustituye la selección por referencias editables; doble clic abre su contenido.
+- `labelColor` y `groupId` son metadatos de clips; remapear grupos al duplicar/pegar. La barra
+  horizontal de cada AudioClip controla volumen constante 0..4 en una transacción al soltar,
+  no automatización por keyframes. Ganancia no debe aplicarse dos veces a una pareja.
+- `playbackRate` constante 0.25..4 en medios originales; `sourceFrame`/`availableFrames` mantienen
+  recortes, cortes, ondas y transcripción. Velocidad de referencias anidadas y rampas pendientes.
+  `freezeFrame` es absoluto al origen: mantener clip completo, cola desde cabezal o insertar
+  hueco global sincronizado con segmento mudo. No congelar el audio de una pareja existente.
+- `GraphicClip`/pistas graphic: sólido, rectángulo y ajuste editable (brillo/contraste/saturación).
+  El renderer separa sonido y pila visual; un ajuste envuelve solo capas visuales inferiores.
+  Mantener copia/rangos/anidación/validación de gráficos; nunca tratarlos como archivos de video.
+- Canales L/R/mono: WAV derivado completo en `server/audioChannels.ts`, caché local serial,
+  `channelSource` conserva original para restaurar estéreo; cancelar diálogo no aplica resultado.
+  Audio amplificado en preview usa Web Audio; pasar volumen por ref al medidor, pues el pool
+  de Remotion no propaga atributos data. Mutear Programa también silencia la copia de medición.
+  En render no activar Web Audio ni crossOrigin anónimo: bloqueaba metadata de audio remoto
+  al servidor de composición. Exportación usa la misma ganancia mediante Remotion/FFmpeg.
 - La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
   reconocer acciones o sonidos requiere modelos y análisis adicionales.
 - La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.

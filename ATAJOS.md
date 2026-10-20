@@ -21,6 +21,11 @@ No se ejecutan al escribir en el chat, campos, elementos editables o dentro de u
 | Acción | Combinación |
 |---|---|
 | Selección / cuchilla / ripple / slip | V / C / B / Y |
+| Nueva secuencia vacía | Ctrl+N |
+| Velocidad / duración constante | Ctrl+R |
+| Ganancia / canales de audio | G / Shift+G |
+| Agrupar / desagrupar | Ctrl+G / Ctrl+Shift+G |
+| Enlazar / desenlazar | Ctrl+L |
 | Mano / zoom / texto | H / Z / T |
 | Añadir corte / corte en todas las pistas | Ctrl+K / Ctrl+Shift+K |
 | Quitar inicio o final hasta el cabezal, cerrando hueco | Q / W |
@@ -104,7 +109,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   No se distribuye el XML .kys original ni se requiere instalar Premiere para usar UGC Studio.
   **Referencia Premiere 2026** permite buscar todas esas asignaciones. Son referencia; no se
   anuncian como funciones ejecutables de UGC Studio.
-- El mapa operativo/adaptado contiene **220 comandos: 116 disponibles y 104 pendientes**.
+- El mapa operativo/adaptado contiene **220 comandos: 121 disponibles y 99 pendientes**.
   Los pendientes se distinguen por color y explicación; no ejecutan una función diferente.
   El contexto local tiene prioridad sobre el general. Una reserva pendiente también bloquea
   un comando general para evitar que una combinación haga algo inesperado.
@@ -115,7 +120,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
 
 ## Límites y pruebas pendientes
 
-- No están implementados todos los motores de Premiere: rolling, slide, cambio de velocidad,
+- No están implementados todos los motores de Premiere: rolling, slide, rampas de velocidad,
   pluma/keyframes, transiciones, mezcladores completos, organización avanzada de medios y otros
   comandos siguen pendientes. Reservar su combinación no los implementa. La lista de referencia
   completa tampoco implica que cada comando esté traducido o adaptado al editor.
@@ -125,12 +130,13 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   Los marcadores del montaje sí persisten. Los marcadores propios del archivo de Origen faltan.
 - Pegar usa un portapapeles interno, las mismas pistas y sobrescritura, conservando enlaces y
   offsets. No es intercambio por portapapeles con otras aplicaciones. Pegar insertando está reservado.
-- Ganancia usa el volumen existente 0..1: puede atenuar o recuperar hasta 100%, no superar ese techo.
+- Ganancia admite 0..4 (hasta aproximadamente +12 dB); la barra horizontal sobre cada onda controla
+  nivel constante. La automatización por puntos está pendiente.
 - Ctrl+W/N/T, Alt+F4 y otras combinaciones pueden pertenecer al navegador/Windows. Usar el menú
   o reasignar. Los presets JSON de UGC Studio no importan/exportan archivos .kys personalizados.
 - Pendiente validar Alt/Ctrl/Shift+rueda con el mouse físico de Lino, distribución de teclado
   y comodidad del editor; también arrastre de comandos a teclas y traslado de presets entre equipos.
-  No se probó cada uno de los 116 comandos disponibles manualmente.
+  No se probó cada uno de los 121 comandos disponibles manualmente.
 
 ## Para continuar el desarrollo
 
@@ -146,4 +152,20 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   expone controles de Origen; `useShuttle.ts` gestiona transporte. `copyClips`, `pasteClips` e
   `insertSourceRange` son operaciones puras de `src/project/ops.ts`, una transacción de historial.
 - Siguiente paso: contrastar la sensación de rueda/puntuación con Lino y priorizar funciones
-  faltantes del catálogo. No convertir 104 reservas o 629 referencias en promesas de funciones.
+  faltantes del catálogo. No convertir 99 reservas o 629 referencias en promesas de funciones.
+
+## Edición con clic derecho
+
+- Clip: menú de cortes/borrado, enlaces, grupos, anidación, etiquetas, velocidad, ganancia,
+  canales y congelados. Las acciones incompatibles o protegidas aparecen desactivadas.
+- Zona vacía del timeline → **Añadir…**: buscar secuencias y elementos existentes por nombre;
+  crear texto, sólido, cuadrado o capa de ajuste. Se coloca en la posición del clic, y las
+  secuencias usan la pista B pulsada. **Espacio conserva Reproducir/Pausa**.
+- Proyecto → **+ Nueva secuencia** permite escribir el nombre; hereda tamaño/FPS actuales.
+- Barra de volumen: arrastrar verticalmente, Shift para ajuste fino, doble clic a 0 dB;
+  flechas arriba/abajo ajustan 1 dB, Home restablece y End silencia. Un arrastre es un Deshacer.
+- Velocidad 25–400 % en archivos: enlaza imagen/audio y sobrescribe si extiendes. No retima
+  automáticamente subtítulos/textos independientes. Secuencias anidadas y rampas pendientes.
+- Congelado: Opciones mantiene todo el clip; Congelar desde cabezal corta y mantiene la cola;
+  Insertar abre un hueco en todas las pistas (si no hay candados afectados) y agrega un segmento
+  mudo. El sonido de las partes originales sigue reproduciéndose.

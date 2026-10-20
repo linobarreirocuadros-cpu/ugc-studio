@@ -18,7 +18,7 @@ por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, si
 Regla del timeline fija durante scroll vertical, cabezal arrastrable a cualquier altura y glow sutil
 del panel activo. Rangos I/O de Origen/Programa arrastrables como video, audio o ambos, con guía.
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
-configurable. 116 comandos disponibles, 104 reservas pendientes y 629 asignaciones de Premiere 2026
+configurable. 121 comandos disponibles, 99 reservas pendientes y 629 asignaciones de Premiere 2026
 auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
 Chat simplificado con IA/modelo y cuenta en vistas secundarias; mascota/logo vectoriales basados
 en el personaje de Lino. Apertura animada y conversación/borrador conservados al ocultar el panel.
@@ -36,7 +36,82 @@ Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en C
 Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de audio genéricas, Foley,
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
+Menús contextuales, búsqueda Añadir, grupos/etiquetas y secuencias vacías desde Proyecto.
+Barra de volumen constante, ganancia hasta 400 %, canales locales, velocidad constante y congelados.
+Gráficos editables (sólido/cuadrado) y ajustes básicos en capas, con exportación directa/anidada probada.
+
 ## Registro
+
+### 2026-10-20 — Volumen, edición contextual, secuencias y buscador Añadir (Codex)
+
+**Implementado y decisiones**
+- Revisadas fechas de AGENTS/ROADMAP/PROGRESS en repositorio (20 de octubre). Montaje principal
+  conservado; QA en origen 5174 y archivos de muestra fuera del repo.
+- Clic derecho sobre clip: cortar/copiar/borrar/ripple, enlazar/desenlazar, grupos, anidar,
+  etiquetas, velocidad/duración, ganancia, canales y tres formas de congelado. Estado según
+  selección/candados; menú ajustado al espacio real y accesible por flechas/Escape.
+- Aclaración de Lino: zona vacía → Añadir abre un buscador de secuencias/elementos; no asignar
+  Espacio al buscador. Busca secuencias y textos/gráficos existentes (también dentro de secuencias),
+  o crea Texto, Sólido, Cuadrado y Capa de ajuste. Colocación desde el clic; pista B pulsada
+  para secuencias. Proyecto ofrece Nueva secuencia con nombre y formato heredado.
+- `groupId`/`labelColor` persistidos. Grupo selecciona/mueve conjuntamente, Alt permite aislar;
+  copiar/duplicar remapea grupo/enlaces para no seleccionar originales accidentalmente.
+- Anidar sustituye selección por bloque(s) en pistas nuevas para conservar material ajeno;
+  referencias editables, doble clic para abrir, historial compartido y guardas contra ciclos.
+  Acortar contenido ajusta referencias que excederían el final; guardar/exportar sigue siendo válido.
+  Conservar orden frente a overlays no seleccionados, transparencia de secuencias y solo de audio.
+  Anidación intercalada con capas no seleccionadas se rechaza para no cambiar la composición.
+- AudioClip: barrita de ganancia en dB sobre la onda. Preview del valor al arrastrar, commit al
+  soltar en un paso de historial; Shift fino, doble clic a 0 dB y control por teclado. Nivel
+  constante 0..4, sin keyframes; Ganancia dB aplica una sola vez a cada audio enlazado.
+- `playbackRate` 0.25..4 en archivos: duración, imagen/audio, cortes, trim, slip, rangos,
+  transcripción y ondas con offsets de origen. Sin ripple automático; extender sobrescribe.
+  Tiempos de origen siguen enteros (cuantización inferior a un frame en velocidades fraccionarias).
+- `freezeFrame` absoluto: mantener todo el clip, mantener desde cabezal o insertar segmento
+  mudo con desplazamiento global de pistas/marcadores. Audio original continúa en los otros
+  modos; candados afectados bloquean la inserción. Quitar congelado permite recuperar movimiento.
+- Canales estéreo original/mono/L/R: copia PCM WAV completa y caché local serial vía FFmpeg;
+  `channelSource` conserva original, resultado reversible. Diálogo cerrado/documento cambiado
+  no aplica resultados. No altera archivos importados.
+- GraphicClip y pista graphic en JSON: sólido, rectángulo y ajuste con nombre, color, posición,
+  dimensiones y opacidad; brillo/contraste/saturación para ajuste sobre capas inferiores.
+  Composición separa audio de pila visual; gráficos sobreviven copia/rango/anidación/validación.
+- Amplificación de preview por Web Audio; ref explícito para nivel de medición (el pool no
+  propaga data-*), mute del monitor respetado. Export usa FFmpeg, sin Web Audio/crossOrigin
+  anónimo: este último bloqueó cargar metadata en la primera exportación anidada y se corrigió.
+- Comandos habilitados: Ctrl+N, Ctrl+R, Shift+G, Ctrl+G y Ctrl+Shift+G; mapa 121 disponibles/99
+  reservas. Chat ve gráficos en su resumen; las nuevas operaciones aún no tienen tools dedicadas.
+
+**Pruebas realizadas**
+- 82/82 pruebas: ganancia/candados, grupos/copias/etiquetas, velocidad y sincronía, cortes/rangos/
+  slip/sobrescritura, congelados/inserción, gráficos/copia/secuencias, guardado y ciclos.
+- Typecheck y build aprobados; aviso previo de chunks >500 kB continúa.
+- UI: arrastre real de barra 1.0 → -6.5 dB; velocidad 200 % reduce ambos clips 432 → 216 px;
+  canales L en WAV local y onda nueva; diferencia L-R del derivado medida en silencio (-inf dB).
+- UI: ajuste Saturación=0 produce filtro saturate(0); sólido/cuadrado/texto creados y deshechos;
+  Nueva secuencia «Montaje QA» encontrada por búsqueda. «Plano anidado QA» creado, abierto
+  por doble clic, pintado violeta y agrupado; metadatos comprobados en JSON descargado.
+  Ajuste renombrado «Look QA», encontrado en Añadir y reutilizado (1 → 2 clips; Deshacer vuelve a 1).
+  Anidar solo un cuadrado conserva transparente el fondo y permite ver el video inferior.
+- UI: Opciones de congelado y Deshacer recuperan movimiento; insertar 0.5 s pasa de 3 a 5
+  clips de video y un Deshacer vuelve a 3. Clic derecho funciona también sobre el cabezal.
+- Dos exports reales H.264/AAC, directo y anidado: 160×284, 30 fps, 90 frames/3 s, audio
+  AAC 3.008 s. Decodificación completa sin errores. Contienen velocidad 200 %, ganancia 2,
+  congelado de 1 s, ajuste de color y cuadrado. Ambas salidas tienen mismo RMS -16.39 dBFS.
+  En el hueco de congelado RMS -inf; diferencia RGB media de fotogramas 30/59 ~0.015/255
+  (compresión H.264). Esto verifica señal/estructura, no aprobación editorial de voz o movimiento.
+- No se llamó a servicios de pago ni se cambió la configuración de IA.
+
+**Pendiente y límites**
+- Volumen con keyframes; rampas/inversa y velocidad de anidaciones; multicanal arbitrario,
+  cambios de FPS/dimensiones de secuencia y biblioteca persistente de presets gráficos.
+- Velocidad no retima títulos/subtítulos independientes ya colocados. Congelados operan sobre
+  el primer video seleccionado. Ajustes básicos por CSS, sin LUTs/gestión de color profesional.
+- Limpieza de audio y quitar silencios en clips ya retimados/congelados se rechazan con mensaje
+  para evitar desincronizar; se pueden hacer antes. Visión sí mapea velocidad constante.
+- Revisar comodidad/escucha con Lino, probar montajes largos, 4K y proyectos grandes; siguen
+  las condiciones de MVP de QUALITY_AUDIT. No declarar equivalencia profesional a Premiere.
+
 
 ### 2026-10-20 — Regla fija, cabezal, rangos de monitor y panel activo (Codex)
 
