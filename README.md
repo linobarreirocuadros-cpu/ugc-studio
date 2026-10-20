@@ -22,7 +22,9 @@ npm run dev   # http://localhost:5173
 
 - **Importar**: botón en el panel Proyecto. Usa ☰ para la vista de lista o ▦ para la cuadrícula.
 - **Previsualizar y elegir un fragmento**: un clic en un archivo lo abre en el monitor **Origen**. Reproduce hasta el punto deseado y marca **I · Entrada** y **O · Salida**. El monitor **Programa** muestra la edición. Puedes usar **Dos visores** o **Pestañas**.
-- **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Insertar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. El audio extraído de un video entra en **A0 Voz**; allí se muestra su onda.
+- **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Insertar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. Un video completo añade imagen y audio original enlazados; el sonido aparece con su onda en una pista de audio libre. **Solo video** y **+ B2** añaden únicamente imagen; **Solo audio** utiliza Audio 1 por defecto.
+- **Pistas**: se llaman **B1, B2, B3…** y **Audio 1, Audio 2, Audio 3…**, sin funciones asignadas. Pulsa **+ B** o **+ Audio**, en la cabecera del timeline, para añadir más. También puedes pedírselo al chat. Los archivos de audio nuevos entran al volumen original, sin fades automáticos.
+- **Imagen y sonido enlazados**: al mover, recortar, cortar, deslizar contenido o borrar uno, se modifica también su pareja. Puedes trasladar la imagen a otra pista de video conservando el audio en su pista. Selecciona el audio para ajustar volumen/fades. Los proyectos anteriores muestran su audio después de comprobar localmente el archivo; la conversión se puede deshacer. El original no se recodifica y no suena dos veces.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
 - **Seleccionar varios**: mantén el clic izquierdo en un espacio vacío de Proyecto o del timeline
   y arrastra el recuadro sobre los elementos. Funciona en lista y cuadrícula. Shift/Ctrl+clic
@@ -51,7 +53,7 @@ La columna a la izquierda del timeline incluye:
   Shift+clic limita la selección a esa pista. Arrastra para mover el conjunto.
 - **C · Cuchilla:** clic sobre un clip crea un corte en ese punto; Shift+clic corta todas las pistas.
 - **B · Recorte ripple en esta pista:** arrastra el borde de un video/audio; se desplazan los clips
-  posteriores de esa pista. No sincroniza automáticamente las otras pistas ni actúa sobre solapamientos.
+  posteriores de esa pista y sus parejas enlazadas. No sincroniza las pistas independientes ni actúa sobre solapamientos.
 - **Y · Deslizar contenido:** arrastra el centro de un video/audio para cambiar el fragmento de origen,
   conservando su posición y duración. Respeta el inicio/final del archivo.
 - **H · Mano:** arrastra para desplazar la vista del timeline.
@@ -173,8 +175,9 @@ información perdida. Se integra el denoiser neuronal, no el módulo enhancer de
 No se integra Adobe Podcast ni se requiere subir el video a un servicio externo.
 
 Los resultados/cachés viven en `UGC Studio/audio-procesado/` y `UGC Studio/media/`; nunca se
-sobrescribe el archivo original. Las pistas derivadas son independientes: el vínculo automático
-al mover/cortar después el video todavía está pendiente. Se pueden ajustar como cualquier audio.
+sobrescribe el archivo original. Las pistas derivadas del procesamiento son independientes: su vínculo
+automático al mover/cortar después el video todavía está pendiente. El audio original sí permanece
+enlazado con su imagen. Tampoco hay aún un control para desvincular/revincular las parejas.
 
 El adaptador STFT está basado en la conversión ONNX de Santtu Keskinen (aviso MIT en
 `scripts/licenses/resemble-denoiser.LICENSE`). Los pesos originales de ResembleAI se publican

@@ -7,14 +7,61 @@ dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer 
 Transcripción precisa local con faster-whisper large-v3 instalada y probada en este PC.
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
 Barra de herramientas, medidor estéreo dBFS del Programa y paneles de tamaño/posición ajustables.
+Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
+enlazado con su imagen durante las operaciones principales de edición.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
 
-Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, audio (música/SFX/voz), Foley,
-tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y miniaturas.
+Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de audio genéricas, Foley,
+tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Pistas genéricas, ampliables y audio original visible (Codex)
+
+**Decisiones e implementación**
+- Petición de Lino: nombres literales B1, B2, B3… y Audio 1, Audio 2, Audio 3…; sin roles
+  prefijados. Se mantienen los IDs internos antiguos para abrir proyectos y herramientas existentes.
+- Botones **+ B / + Audio** en la cabecera fija del timeline; herramienta `add_track` para el chat.
+  La vista se desplaza a la pista añadida. Normalización conserva pistas adicionales al reabrir.
+- Importar/inserir video completo crea un AudioClip del mismo archivo, con onda, rango, offset
+  y volumen originales; se silencia el audio embebido del VideoClip para no duplicarlo. No se
+  recodifica el medio. Busca una pista de audio libre y crea otra si hay solapamientos.
+- Metadatos `hasAudio` verificados localmente con ffprobe. Proyectos anteriores convierten su
+  sonido embebido en una operación reversible; Deshacer no dispara de inmediato otra conversión.
+  Videos sin sonido y **Solo video / + B2** no crean una pareja de audio.
+- Referencias recíprocas `linkedClipId`: movimiento, recorte, cuchilla, slip y borrado operan
+  sobre ambas partes. El traslado vertical cambia únicamente la pista elegida; el tiempo sigue
+  enlazado. Ripple actualiza también las parejas posteriores situadas en otras pistas de audio.
+- Resumen por rangos y quitar silencios conservan los enlaces de cada fragmento. Reconectar un
+  archivo actualiza imagen y sonido. Inspector y procesamiento/restauración usan el volumen
+  efectivo del audio enlazado. Audios nuevos entran al nivel original y sin fades automáticos.
+- Chat recibe nombres, IDs, tipos y enlaces; puede crear pistas y elegirlas por nombre o ID.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**27/27**, seis pruebas nuevas), `npm run build` y
+  `git diff --check` correctos. Build conserva el aviso de tamaño de paquetes de Vite.
+- Operaciones puras: numeración y compatibilidad, creación única, solo imagen/sin sonido,
+  sincronía al mover/recortar/cortar/slip/borrar, rangos de resumen, silencios, ripple en pistas
+  distintas, limpieza/restauración sin duplicación y reconexión. Se comprueba inmutabilidad.
+- Interfaz aislada: proyecto antiguo con tres videos muestra tres audios con ondas alineadas;
+  Deshacer retira la conversión y Rehacer la recupera. Arrastrar imagen desplaza su audio;
+  cuchilla crea cuatro parejas y Deshacer recupera tres. **+ B / + Audio** muestran B3 y Audio 4.
+  Programa reproduce hasta el final y el medidor registra picos de -7.8 dBFS.
+- Export real de resumen de 15 s con tres parejas: completado. Comparado con el export anterior
+  al separar pistas, el PCM decodificado estéreo a 48 kHz resulta idéntico: 720896 muestras,
+  correlación 1.0, diferencia RMS 0 dB y diferencia máxima absoluta 0. Sin duplicación ni cambio
+  de ganancia en ese caso. Los archivos de prueba quedan fuera del repositorio.
+- Editor principal actualizado: cinco audios enlazados, todos con ondas; botones nuevos y nombres
+  visibles correctos. Servidor principal permanece abierto; pestaña/servidor de QA cerrados.
+
+**Pendiente y siguiente paso**
+- Falta control de desvincular/revincular. Los stems de limpieza/separación siguen independientes
+  y no heredan el vínculo al cortar/mover después. No hay bloqueo global de sincronía de pistas.
+- Validar con Lino comodidad al seleccionar parejas, montajes largos y continuidad editorial de
+  su video. No inferir calidad creativa por pruebas técnicas ni por igualdad del audio exportado.
+- Continuar con esa validación; después abordar desvinculación y sincronía de derivados.
 
 ### 2026-10-19 — Fase 0 (Claude)
 - Proyecto creado: Vite + React + TypeScript + Remotion 4.0.536 + servidor Express.

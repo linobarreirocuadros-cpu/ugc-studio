@@ -14,6 +14,7 @@ import { createLocalTasks } from "./localTasks";
 import { registerVision } from "./vision";
 import { registerAudioProcessing } from "./audioProcessing";
 import { registerTranscription } from "./transcription";
+import { localMedia } from "./localTasks";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
@@ -55,6 +56,16 @@ const upload = multer({
 
 const proxyJobs = new Map<string, Promise<string>>();
 const waveformJobs = new Map<string, Promise<string>>();
+const audioInfo = new Map<string, Promise<boolean>>();
+const hasAudio = (file: string) => {
+  const key = `${file}:${fs.statSync(file).mtimeMs}`;
+  if (!audioInfo.has(key)) audioInfo.set(key, RenderInternals.callFf({ bin: "ffprobe", args: ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "json", file], indent: false, logLevel: "error", binariesDirectory: null, cancelSignal: undefined }).then((r) => Boolean(JSON.parse(r.stdout).streams?.length)).catch((error) => { audioInfo.delete(key); throw error; }));
+  return audioInfo.get(key)!;
+};
+app.post("/api/media-info", async (req, res) => {
+  try { res.json({ hasAudio: await hasAudio(localMedia(DATA_DIR, req.body.src)) }); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : String(error) }); }
+});
 
 const makeProxy = (filename: string) => {
   const existing = proxyJobs.get(filename);
@@ -157,7 +168,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
       console.error("No se pudo crear el proxy:", err); // se sigue usando el original
     }
   }
-  res.json({ src, proxySrc, name: req.file.originalname, kind: isAudio ? "audio" : "video" });
+  res.json({ src, proxySrc, name: req.file.originalname, kind: isAudio ? "audio" : "video", hasAudio: isAudio || await hasAudio(req.file.path).catch(() => true) });
 });
 
 // Para proyectos creados antes de que existieran los proxies.

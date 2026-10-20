@@ -27,7 +27,7 @@ import { TimelineTools, TIMELINE_TOOLS, type TimelineTool } from "./TimelineTool
 import { AudioMeter } from "./AudioMeter";
 import { useWorkspace } from "./workspace";
 
-type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
+type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
 
 const STORAGE_KEY = "ugc-studio:autosave";
@@ -49,6 +49,16 @@ const readDurationInFrames = (src: string, fps: number) =>
     v.onerror = () => reject(new Error("No se pudo leer el archivo"));
     v.src = src;
   });
+
+const readHasAudio = async (src: string) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch("/api/media-info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ src }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error);
+      return Boolean(data.hasAudio);
+    } catch (error) { if (attempt >= 3) throw error; await new Promise((resolve) => setTimeout(resolve, 500)); }
+  }
+};
 
 // El cabezal actualiza App en cada frame. Mantener el Player aislado evita volver a
 // sincronizar el elemento <video> 30 veces por segundo durante la reproducción.
@@ -89,6 +99,9 @@ export function App() {
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const [revealTrackId, setRevealTrackId] = useState<string | null>(null);
+  const migratedAudio = useRef(new Set<string>());
+  const mediaInfo = useRef(new Map<string, Promise<boolean>>());
   const selectionPanel = useRef<"timeline" | "bin">("timeline");
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const setSelectedId = (id: string | null) => setSelectedIds(id ? [id] : []);
@@ -115,6 +128,22 @@ export function App() {
   const duration = getProjectDuration(project);
   const selected = selectedId ? ops.findClip(project, selectedId)?.clip ?? null : null;
   const sourceMedia = media.find((m) => m.src === sourceSrc) ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is VideoClip => c.kind === "video" && !c.linkedClipId && c.audioMode !== "none" && c.audioMode !== "separate" && !migratedAudio.current.has(c.id));
+    void Promise.all(candidates.map(async (clip) => {
+      const known = media.find((m) => m.src === clip.src)?.hasAudio;
+      if (known !== undefined) return known ? clip.id : null;
+      if (!mediaInfo.current.has(clip.src)) mediaInfo.current.set(clip.src, readHasAudio(clip.src).catch((error) => { mediaInfo.current.delete(clip.src); throw error; }));
+      return await mediaInfo.current.get(clip.src)!.catch(() => false) ? clip.id : null;
+    })).then((ids) => {
+      if (cancelled) return;
+      const ready = ids.filter((id): id is string => id !== null);
+      ready.forEach((id) => migratedAudio.current.add(id));
+      if (ready.length) history.apply((p) => ops.exposeEmbeddedAudio(p, ready));
+    }).catch(() => { /* conservar el audio embebido si el medio no está disponible */ });
+    return () => { cancelled = true; };
+  }, [project, media, history.apply]);
   useEffect(() => {
     const valid = new Set(project.tracks.flatMap((t) => t.clips).map((c) => c.id));
     setSelectedIds((ids) => ids.every((id) => valid.has(id)) ? ids : ids.filter((id) => valid.has(id)));
@@ -225,7 +254,7 @@ export function App() {
         body.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body });
         if (!res.ok) throw new Error("Error al subir " + file.name);
-        const { src, name, proxySrc, kind } = await res.json();
+        const { src, name, proxySrc, kind, hasAudio } = await res.json();
         const durationInFrames = await readDurationInFrames(proxySrc ?? src, project.fps).catch(() =>
           readDurationInFrames(src, project.fps),
         );
@@ -233,9 +262,9 @@ export function App() {
         const lost = media.find((m) => m.name === name && missing.has(m.src));
         if (lost) {
           history.apply((p) => ops.relinkMedia(p, lost.src, src, proxySrc));
-          setMedia((list) => list.map((x) => (x.src === lost.src ? { src, name, durationInFrames, proxySrc, kind } : x)));
+          setMedia((list) => list.map((x) => (x.src === lost.src ? { src, name, durationInFrames, proxySrc, kind, hasAudio } : x)));
         } else {
-          setMedia((m) => [...m, { src, name, durationInFrames, proxySrc, kind }]);
+          setMedia((m) => [...m, { src, name, durationInFrames, proxySrc, kind, hasAudio }]);
         }
       }
     } catch (e) {
@@ -246,8 +275,12 @@ export function App() {
   };
 
   const addMedia = (m: MediaItem) =>
-    history.apply((p) => (m.kind === "audio" ? ops.addAudioClip(p, m, "A1", frame) : ops.addVideoClip(p, m)));
-  const addBroll = (m: MediaItem) => history.apply((p) => ops.addVideoClip(p, m, "V2", frame));
+    history.apply((p) => (m.kind === "audio" ? ops.addSourceRange(p, m, "A0", frame) : ops.addVideoClip(p, m)));
+  const addBroll = (m: MediaItem) => history.apply((p) => ops.addVideoClip(p, m, "V2", frame, true));
+  const addTrack = (kind: "video" | "audio") => history.apply((p) => {
+    const next = ops.addTrack(p, kind), added = next.tracks.find((t) => !p.tracks.some((prior) => prior.id === t.id))!;
+    setRevealTrackId(added.id); return next;
+  });
 
   const addSource = (m: MediaItem, trackId: string, at: number, inFrame = 0, outFrame = m.durationInFrames, videoOnly = false) => {
     history.apply((p) => ops.addSourceRange(p, m, trackId, at, inFrame, outFrame, videoOnly));
@@ -365,6 +398,7 @@ export function App() {
     history.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
     setSelectedIds([]); setSelectedMedia([]); setSourceSrc(null);
+    migratedAudio.current.clear(); setRevealTrackId(null);
     setTool("select"); seek(0);
   };
 
@@ -470,9 +504,9 @@ export function App() {
                     e.stopPropagation();
                     addBroll(m);
                   }}
-                  title="Agregar como B-roll en V2, donde está el cabezal (sin sonido)"
+                  title="Añadir solo imagen en B2, donde está el cabezal (sin sonido)"
                 >
-                  + B-roll
+                  + B2
                 </button>
               )}
               {missing.has(m.src) && <div className="bin-missing">⚠ Archivo no encontrado. Impórtalo de nuevo y se reconecta solo.</div>}
@@ -550,7 +584,7 @@ export function App() {
           />
         )}
         {selected?.kind === "audio" && <AudioInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
-        {selected?.kind === "video" && <VideoInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
+        {selected?.kind === "video" && <VideoInspector clip={{ ...selected, volume: ops.effectiveVolume(project, selected) }} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
         <div className="shortcuts">
           <b>Atajos</b>
           <div>Espacio · reproducir</div>
@@ -563,12 +597,13 @@ export function App() {
       </aside>
 
       <section className="timeline-area dock-panel" {...workspace.dropProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
-        <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
+        <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
         <div className="timeline-workspace">
         <TimelineTools tool={tool} onTool={setTool} snapping={snapping} onSnap={() => setSnapping((value) => !value)} onFit={() => { const viewport = workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll"); const width = viewport?.clientWidth ?? 800; if (viewport) viewport.scrollLeft = 0; setPxPerFrame(Math.max(0.02, Math.min(20, (width - 30) / duration))); }} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
         <div className="timeline-main">
         <Timeline
           project={project}
+          revealTrackId={revealTrackId}
           frame={frame}
           selectedIds={selectedIds}
           pxPerFrame={pxPerFrame}
@@ -682,7 +717,7 @@ function AudioInspector({ clip, fps, onChange }: { clip: AudioClip; fps: number;
         Fade out (segundos)
         <input type="number" min={0} step={0.1} value={seconds(clip.fadeOut)} onChange={(e) => onChange({ fadeOut: Math.round(Number(e.target.value) * fps) })} />
       </label>
-      <div className="hint">Arrastra el clip arriba o abajo para pasarlo entre A1 (música) y A2 (efectos).</div>
+      <div className="hint">Puedes moverlo entre pistas de audio. Si está enlazado con un video, ambos conservan su sincronía.</div>
     </div>
   );
 }

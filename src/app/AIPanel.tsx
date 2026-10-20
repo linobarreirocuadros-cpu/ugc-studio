@@ -109,12 +109,12 @@ export function AIPanel({ project, apply }: Props) {
         </button>
         <button disabled={busy || sources.length === 0} onClick={() => void run("Volviendo a transcribir…", () => transcribePending(true))} title="Actualiza el texto; después pulsa Generar subtítulos para reemplazar los anteriores">Volver a transcribir</button>
         {sources.some(([src]) => project.transcripts?.[src]?.length) && <details className="transcript-preview"><summary>Leer transcripción</summary>{sources.map(([src, name]) => <div key={src}><b>{name}</b><p>{project.transcripts?.[src]?.map((w) => w.text).join(" ")}</p></div>)}</details>}
-        <button disabled={busy || sources.length === 0} onClick={cutSilences} title="Corta las pausas sin voz de los clips en V1">
+        <button disabled={busy || sources.length === 0} onClick={cutSilences} title="Corta las pausas sin voz de los clips en B1">
           Quitar silencios
         </button>
         <div className="hint">
           {sources.length === 0
-            ? "Pon un video en V1 para empezar."
+            ? "Pon un video en B1 para empezar."
             : `Transcritos: ${done}/${sources.length} archivos. Consejo: quita silencios antes de generar subtítulos.`}
         </div>
         {status && <div className={status.startsWith("Error") ? "status error" : "status"}>{status}</div>}

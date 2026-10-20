@@ -22,7 +22,8 @@ const font = {
 const position = { type: "string", enum: ["arriba", "centro", "abajo"], description: "Posición vertical en pantalla" };
 
 export const TOOLS: ToolDef[] = [
-  { name: "read_transcript", description: "Transcribe o lee el diálogo de V1, con palabras y tiempos del timeline. Úsala antes de resumir coherentemente; force vuelve a transcribir si el usuario reporta errores. No hace cortes.", parameters: { type: "object", properties: { force: { type: "boolean" } }, additionalProperties: false } },
+  { name: "add_track", description: "Crea otra pista numerada B (video) o Audio. Devuelve su nombre e ID. Consulta las pistas antes de elegir un destino.", parameters: { type: "object", properties: { kind: { type: "string", enum: ["video", "audio"] } }, required: ["kind"], additionalProperties: false } },
+  { name: "read_transcript", description: "Transcribe o lee el diálogo de B1, con palabras y tiempos del timeline. Úsala antes de resumir coherentemente; force vuelve a transcribir si el usuario reporta errores. No hace cortes.", parameters: { type: "object", properties: { force: { type: "boolean" } }, additionalProperties: false } },
   { name: "create_edit_plan", description: "Prepara un resumen conservando rangos del montaje en orden. Los rangos deben sumar exactamente la duración objetivo, sin cortar palabras. Mantiene sonido, textos, subtítulos y B-roll sincronizados. Devuelve propuesta visible, sin aplicar aún.", parameters: { type: "object", properties: {
     target_duration_s: { type: "number" }, summary: { type: "string", description: "Qué historia conserva: gancho, argumento y cierre, según el brief" },
     ranges: { type: "array", items: { type: "object", properties: { start_s: { type: "number" }, end_s: { type: "number" }, reason: { type: "string" } }, required: ["start_s", "end_s", "reason"], additionalProperties: false } },
@@ -56,7 +57,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "remove_silences",
-    description: "Corta automáticamente las pausas sin voz de los clips en V1 (jump cuts). Transcribe el video si hace falta.",
+    description: "Corta automáticamente las pausas sin voz de los clips en B1 (jump cuts). Transcribe el video si hace falta.",
     parameters: {
       type: "object",
       properties: { min_silence_s: { type: "number", description: "Pausa mínima a cortar, en segundos (por defecto 0.5)" } },
@@ -158,13 +159,13 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "move_clip",
-    description: "Mueve un clip a otro momento y opcionalmente a otra pista del mismo tipo (V1↔V2, A1↔A2).",
+    description: "Mueve un clip y su pareja enlazada en el tiempo; opcionalmente cambia la pista del clip indicado a otra del mismo tipo.",
     parameters: {
       type: "object",
       properties: {
         clip_id: { type: "string" },
         start_s: { type: "number" },
-        track: { type: "string", enum: ["V1", "V2", "A1", "A2"] },
+        track: { type: "string", description: "Nombre visible o ID de una pista existente del mismo tipo" },
       },
       required: ["clip_id", "start_s"],
       additionalProperties: false,
@@ -198,13 +199,13 @@ export const TOOLS: ToolDef[] = [
   {
     name: "add_media",
     description:
-      "Pone en la línea de tiempo un archivo ya importado (buscado por nombre). V1 = video principal (se agrega al final), V2 = B-roll encima (sin sonido), A1 = música.",
+      "Inserta un archivo importado en una pista existente por nombre o ID. Video completo crea también su audio enlazado; una pista Audio recibe solo el sonido. Consulta get_project_state.",
     parameters: {
       type: "object",
       properties: {
         name: { type: "string", description: "Parte del nombre del archivo" },
-        track: { type: "string", enum: ["V1", "V2", "A1"] },
-        start_s: { type: "number", description: "Para V2 y A1; por defecto 0" },
+        track: { type: "string", description: "Ej. B1, B3, Audio 1, Audio 4, o su ID" },
+        start_s: { type: "number", description: "Inicio; si se omite, video al final de su pista y audio en cero" },
         volume_percent: { type: "number" },
       },
       required: ["name", "track"],
@@ -213,7 +214,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "add_sound_effect",
-    description: "Agrega un efecto de sonido de la biblioteca de Foley (buscado por nombre o carpeta, ej. 'whoosh', 'pop') en la pista A2.",
+    description: "Agrega un efecto de sonido de la biblioteca de Foley (buscado por nombre o carpeta, ej. 'whoosh', 'pop') en Audio 3 (ID A2).",
     parameters: {
       type: "object",
       properties: {
@@ -242,7 +243,8 @@ El usuario es editor de video profesional y te habla en español. Responde en es
 Cómo trabajas:
 - Editas el proyecto usando las herramientas. Nunca digas que hiciste algo sin haber llamado la herramienta.
 - Si necesitas ids de clips, tiempos o el texto hablado, llama primero a get_project_state.
-- Los tiempos son en segundos. Pistas: V1 video principal, V2 B-roll encima, T1 textos, SUB subtítulos, A1 música, A2 efectos (Foley).
+- Los tiempos son en segundos. Las pistas visibles son B1, B2... y Audio 1, Audio 2... sin roles prefijados. Consulta nombres e IDs con get_project_state; add_track crea más. V1/V2 y A0/A1/A2 son IDs antiguos internos, no sus nombres visibles. T1 es texto y SUB subtítulos.
+- Los pares video/audio están enlazados: mover, recortar, cortar o borrar uno modifica su pareja. No repitas la misma edición sobre ambos IDs ni actives el sonido embebido de un video cuyo audio ya está separado.
 - Si una herramienta devuelve un error, explícalo en pocas palabras y propone qué hacer.
 - Al terminar, confirma en 1 o 2 frases qué cambiaste. No repitas datos técnicos (ids) salvo que te los pidan.
 - El estado incluye selección y cabezal: úsalos para resolver referencias como "este clip".

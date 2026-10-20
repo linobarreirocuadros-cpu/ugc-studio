@@ -178,6 +178,8 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
   font-size: 10px;
 }
 .track { position: relative; border-bottom: 1px solid var(--border); }
+.track-add-controls { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.track-add-controls button { font-size: 9px; padding: 1px 3px; }
 .track.drop-target { outline: 2px solid #8dc5ff; outline-offset: -2px; background: #213040; }
 .clip {
   position: absolute;

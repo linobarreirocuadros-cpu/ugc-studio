@@ -12,6 +12,8 @@ export type VideoClip = {
   trimStart: number; // frames recortados desde el inicio del archivo
   sourceDurationInFrames: number; // duración total del archivo
   volume: number; // 0..1
+  linkedClipId?: string;
+  audioMode?: "embedded" | "separate" | "none";
 };
 
 /** Música, voz en off o efecto de sonido (Foley). */
@@ -28,6 +30,7 @@ export type AudioClip = {
   fadeIn: number; // frames
   fadeOut: number; // frames
   derivedFrom?: { clipId: string; src: string; originalVolume: number; mode: string };
+  linkedClipId?: string;
 };
 
 export type TextClip = {
@@ -110,11 +113,11 @@ export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
 };
 
 const DEFAULT_TRACKS: Omit<Track, "clips">[] = [
-  { id: "A2", kind: "audio", name: "A2 SFX" },
-  { id: "A1", kind: "audio", name: "A1 Música" },
-  { id: "A0", kind: "audio", name: "A0 Voz" },
-  { id: "V1", kind: "video", name: "V1" },
-  { id: "V2", kind: "video", name: "V2 B-roll" }, // se dibuja encima de V1
+  { id: "A2", kind: "audio", name: "Audio 3" },
+  { id: "A1", kind: "audio", name: "Audio 2" },
+  { id: "A0", kind: "audio", name: "Audio 1" },
+  { id: "V1", kind: "video", name: "B1" },
+  { id: "V2", kind: "video", name: "B2" },
   { id: "T1", kind: "text", name: "T1" },
   { id: "S1", kind: "caption", name: "SUB" },
 ];
@@ -132,13 +135,25 @@ export const createEmptyProject = (): Project => ({
 /** Agrega las pistas que falten a proyectos guardados con versiones anteriores del editor. */
 export const normalizeProject = (project: Project): Project => {
   const missing = DEFAULT_TRACKS.filter((d) => !project.tracks.some((t) => t.id === d.id));
-  if (missing.length === 0) return project;
-  const tracks = [...project.tracks, ...missing.map((t) => ({ ...t, clips: [] }))];
-  // Orden de dibujo: audio (invisible) y video abajo, luego textos y subtítulos encima
-  const order = DEFAULT_TRACKS.map((t) => t.id);
-  tracks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-  return { ...project, tracks };
+  const tracks = [...project.tracks];
+  for (const track of missing) {
+    const later = DEFAULT_TRACKS.slice(DEFAULT_TRACKS.indexOf(track) + 1).map((t) => t.id);
+    const index = tracks.findIndex((t) => later.includes(t.id));
+    tracks.splice(index < 0 ? tracks.length : index, 0, { ...track, clips: [] });
+  }
+  return nameTracks(missing.length ? { ...project, tracks } : project);
 };
+
+/** IDs antiguos se conservan; los nombres visibles son genéricos y consecutivos. */
+export function nameTracks(project: Project): Project {
+  let video = 0, audio = project.tracks.filter((t) => t.kind === "audio").length, changed = false;
+  const tracks = project.tracks.map((t) => {
+    const name = t.kind === "video" ? `B${++video}` : t.kind === "audio" ? `Audio ${audio--}` : t.name;
+    if (name === t.name) return t;
+    changed = true; return { ...t, name };
+  });
+  return changed ? { ...project, tracks } : project;
+}
 
 /** Duración del video: la marcan video, textos y subtítulos. El audio (ej. una canción más larga)
  *  no alarga el video, salvo que el proyecto tenga solo audio. */

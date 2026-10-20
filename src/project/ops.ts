@@ -3,6 +3,7 @@
 
 import {
   getProjectDuration,
+  nameTracks,
   DEFAULT_CAPTION_STYLE,
   DEFAULT_TEXT_STYLE,
   type CaptionClip,
@@ -34,32 +35,80 @@ export const findClip = (project: Project, clipId: string) => {
   return null;
 };
 
+export const linkedIds = (project: Project, ids: string[]): string[] => {
+  const result = new Set(ids);
+  for (const id of ids) {
+    const clip = findClip(project, id)?.clip;
+    if (clip && (clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId && findClip(project, clip.linkedClipId)) result.add(clip.linkedClipId);
+  }
+  return [...result];
+};
+
+const alignLinkedChanges = (before: Project, after: Project): Project => {
+  const updates = new Map<string, { from: number; durationInFrames: number; trimStart: number }>();
+  const seen = new Set<string>();
+  for (const clip of after.tracks.flatMap((t) => t.clips)) {
+    if ((clip.kind !== "video" && clip.kind !== "audio") || !clip.linkedClipId || seen.has(clip.id)) continue;
+    const mate = findClip(after, clip.linkedClipId)?.clip, old = findClip(before, clip.id)?.clip;
+    if (!mate || (mate.kind !== "video" && mate.kind !== "audio") || !old || (old.kind !== "video" && old.kind !== "audio")) continue;
+    if (clip.from !== old.from || clip.durationInFrames !== old.durationInFrames || clip.trimStart !== old.trimStart) {
+      updates.set(mate.id, { from: clip.from, durationInFrames: clip.durationInFrames, trimStart: clip.trimStart });
+      seen.add(clip.id); seen.add(mate.id);
+    }
+  }
+  return updates.size ? mapTracks(after, (t) => ({ ...t, clips: t.clips.map((c) => updates.has(c.id) ? { ...c, ...updates.get(c.id)! } : c) })) : after;
+};
+
+export const effectiveVolume = (project: Project, clip: VideoClip | AudioClip): number => {
+  const linked = clip.kind === "video" && clip.linkedClipId ? findClip(project, clip.linkedClipId)?.clip : null;
+  return linked?.kind === "audio" ? linked.volume : clip.volume;
+};
+
+export const resolveTrackId = (project: Project, value: string) => {
+  const track = project.tracks.find((t) => t.id === value || t.name.toLowerCase() === value.trim().toLowerCase());
+  if (!track) throw new Error(`No existe la pista ${value}. Consulta las pistas disponibles.`);
+  return track.id;
+};
+
+export const addTrack = (project: Project, kind: "video" | "audio"): Project => {
+  const prefix = kind === "video" ? "V" : "A";
+  const number = Math.max(kind === "video" ? 0 : -1, ...project.tracks.map((t) => new RegExp(`^${prefix}(\\d+)$`).exec(t.id)).filter((m) => m !== null).map((m) => Number(m![1]))) + 1;
+  const track: Track = { id: `${prefix}${number}`, kind, name: "", clips: [] };
+  const tracks = [...project.tracks];
+  const index = kind === "audio" ? 0 : tracks.findIndex((t) => t.kind === "text" || t.kind === "caption");
+  tracks.splice(index < 0 ? tracks.length : index, 0, track);
+  return nameTracks({ ...project, tracks });
+};
+
+/** Hace visible el audio embebido sin recodificar ni cambiar su nivel audible. */
+export const exposeEmbeddedAudio = (project: Project, ids: string[]): Project => {
+  let next = project;
+  for (const id of ids) {
+    const video = findClip(next, id)?.clip;
+    if (!video || video.kind !== "video" || video.linkedClipId || video.audioMode === "none" || video.audioMode === "separate") continue;
+    let target = [...next.tracks].reverse().find((t) => t.kind === "audio" && !t.clips.some((c) => c.from < video.from + video.durationInFrames && c.from + c.durationInFrames > video.from));
+    if (!target) { next = addTrack(next, "audio"); target = next.tracks[0]; }
+    const audioId = newId();
+    const audio: AudioClip = { id: audioId, kind: "audio", src: video.src, name: video.name, from: video.from, durationInFrames: video.durationInFrames, trimStart: video.trimStart, sourceDurationInFrames: video.sourceDurationInFrames, volume: video.volume, fadeIn: 0, fadeOut: 0, linkedClipId: video.id };
+    next = mapTracks(next, (t) => ({ ...t, clips: [...t.clips.map((c): Clip => c.id === video.id ? { ...video, volume: 0, audioMode: "separate", linkedClipId: audioId } : c), ...(t.id === target!.id ? [audio] : [])] }));
+  }
+  return next;
+};
+
 /**
- * Agrega un video al track indicado: por defecto al final de V1. Con `from` se coloca en ese frame
- * (ej. B-roll en V2 donde está el cabezal); el B-roll entra en silencio para no tapar la voz.
+ * Agrega video al final de B1 por defecto. `from` elige posición y `videoOnly` omite el sonido.
+ * Con metadatos de audio, inserta también su pareja enlazada en una pista libre.
  */
 export const addVideoClip = (
   project: Project,
-  media: { src: string; name: string; durationInFrames: number; proxySrc?: string },
+  media: { src: string; name: string; durationInFrames: number; proxySrc?: string; hasAudio?: boolean },
   trackId = "V1",
   from?: number,
-): Project =>
-  mapTracks(project, (track) => {
-    if (track.id !== trackId) return track;
-    const clip: VideoClip = {
-      id: newId(),
-      kind: "video",
-      src: media.src,
-      proxySrc: media.proxySrc,
-      name: media.name,
-      from: from === undefined ? trackEnd(track) : Math.max(0, Math.round(from)),
-      durationInFrames: media.durationInFrames,
-      trimStart: 0,
-      sourceDurationInFrames: media.durationInFrames,
-      volume: trackId === "V1" ? 1 : 0,
-    };
-    return { ...track, clips: [...track.clips, clip] };
-  });
+  videoOnly = false,
+): Project => {
+  const track = project.tracks.find((t) => t.id === trackId && t.kind === "video");
+  return track ? addSourceRange(project, media, trackId, from ?? trackEnd(track), 0, media.durationInFrames, videoOnly) : project;
+};
 
 /** Agrega música o un efecto de sonido en la pista indicada, desde el frame `from`. */
 export const addAudioClip = (
@@ -79,9 +128,9 @@ export const addAudioClip = (
       durationInFrames: media.durationInFrames,
       trimStart: 0,
       sourceDurationInFrames: media.durationInFrames,
-      volume: trackId === "A1" ? 0.25 : 0.8, // música baja por defecto para no tapar la voz
+      volume: 1,
       fadeIn: 0,
-      fadeOut: trackId === "A1" ? 15 : 0,
+      fadeOut: 0,
     };
     return { ...track, clips: [...track.clips, clip] };
   });
@@ -89,14 +138,15 @@ export const addAudioClip = (
 /** Inserta un rango marcado en el monitor de origen, como video o solo audio. */
 export const addSourceRange = (
   project: Project,
-  media: { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" },
+  media: { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean },
   trackId: string,
   from: number,
   inFrame = 0,
   outFrame = media.durationInFrames,
   videoOnly = false,
-): Project =>
-  mapTracks(project, (track) => {
+): Project => {
+  let addedId: string | undefined;
+  const next = mapTracks(project, (track) => {
     if (track.id !== trackId || (track.kind !== "video" && track.kind !== "audio")) return track;
     if (track.kind === "video" && media.kind === "audio") return track;
     const start = Math.max(0, Math.min(media.durationInFrames - 1, Math.round(inFrame)));
@@ -106,10 +156,13 @@ export const addSourceRange = (
       trimStart: start, durationInFrames: end - start, sourceDurationInFrames: media.durationInFrames,
     };
     const clip: VideoClip | AudioClip = track.kind === "video"
-      ? { ...common, kind: "video", proxySrc: media.proxySrc, volume: trackId === "V1" && !videoOnly ? 1 : 0 }
-      : { ...common, kind: "audio", volume: trackId === "A1" ? 0.25 : 1, fadeIn: 0, fadeOut: 0 };
+      ? { ...common, kind: "video", proxySrc: media.proxySrc, volume: videoOnly ? 0 : 1, audioMode: videoOnly || media.hasAudio === false ? "none" : "embedded" }
+      : { ...common, kind: "audio", volume: 1, fadeIn: 0, fadeOut: 0 };
+    addedId = clip.id;
     return { ...track, clips: [...track.clips, clip] };
   });
+  return addedId && media.hasAudio === true && !videoOnly ? exposeEmbeddedAudio(next, [addedId]) : next;
+};
 
 export const addTextClip = (
   project: Project,
@@ -134,11 +187,15 @@ export const addTextClip = (
     };
   });
 
-export const updateClip = (project: Project, clipId: string, patch: Partial<Clip>): Project =>
-  mapTracks(project, (track) => ({
+export const updateClip = (project: Project, clipId: string, patch: Partial<Clip>): Project => {
+  const clip = findClip(project, clipId)?.clip;
+  const volume = "volume" in patch && typeof patch.volume === "number" ? patch.volume : undefined;
+  const linkedAudio = clip?.kind === "video" && clip.linkedClipId && volume !== undefined ? clip.linkedClipId : undefined;
+  return mapTracks(project, (track) => ({
     ...track,
-    clips: track.clips.map((c) => (c.id === clipId ? ({ ...c, ...patch } as Clip) : c)),
+    clips: track.clips.map((c) => c.id === clipId ? ({ ...c, ...patch, ...(linkedAudio ? { volume: 0 } : {}) } as Clip) : c.id === linkedAudio ? ({ ...c, volume } as Clip) : c),
   }));
+};
 
 /** Dos cortes en un clip, en una sola operación de historial. No mueve otras pistas. */
 export const splitClipRange = (project: Project, clipId: string, start: number, end: number): Project => {
@@ -156,9 +213,10 @@ export const applyProcessedAudio = (project: Project, clipId: string, stems: Pro
   const clip = findClip(project, clipId)?.clip;
   if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || !stems.length) return project;
   const prior = project.tracks.flatMap((t) => t.clips).find((c): c is AudioClip => c.kind === "audio" && c.derivedFrom?.clipId === clipId);
-  const originalVolume = prior?.derivedFrom?.originalVolume ?? clip.volume;
+  const originalVolume = prior?.derivedFrom?.originalVolume ?? effectiveVolume(project, clip);
   const clean = restoreOriginalAudio(project, clipId);
-  const tracks = clean.tracks.map((t) => ({ ...t, clips: t.clips.map((c) => c.id === clipId ? { ...c, volume: 0 } as Clip : c) }));
+  const silenced = updateClip(clean, clipId, { volume: 0 });
+  const tracks = silenced.tracks.map((t) => ({ ...t, clips: [...t.clips] }));
   for (const stem of stems) {
     const trackId = `A_LOCAL_${stem.role}_${clipId}`;
     const audio: AudioClip = {
@@ -172,23 +230,28 @@ export const applyProcessedAudio = (project: Project, clipId: string, stems: Pro
     if (existing) existing.clips.push(audio);
     else tracks.unshift({ id: trackId, kind: "audio", name: stem.name, clips: [audio] });
   }
-  return { ...clean, tracks };
+  return nameTracks({ ...clean, tracks });
 };
 
 export const restoreOriginalAudio = (project: Project, clipId: string): Project => {
   const prior = project.tracks.flatMap((t) => t.clips).find((c): c is AudioClip => c.kind === "audio" && c.derivedFrom?.clipId === clipId);
   if (!prior?.derivedFrom) return project;
   const volume = prior.derivedFrom.originalVolume;
-  return { ...project, tracks: project.tracks.map((t) => ({ ...t, clips: t.clips
+  const cleaned = { ...project, tracks: project.tracks.map((t) => ({ ...t, clips: t.clips
     .filter((c) => !(c.kind === "audio" && c.derivedFrom?.clipId === clipId))
-    .map((c) => c.id === clipId ? { ...c, volume } as Clip : c) }))
+    }))
     .filter((t) => t.clips.length || ![ `A_LOCAL_voice_${clipId}`, `A_LOCAL_background_${clipId}` ].includes(t.id)) };
+  return nameTracks(updateClip(cleaned, clipId, { volume }));
 };
 
 /** Mueve un clip en el tiempo y, opcionalmente, a otra pista del mismo tipo (ej. A1 → A2). */
 export const moveClip = (project: Project, clipId: string, from: number, toTrackId?: string): Project => {
   const found = findClip(project, clipId);
   if (!found) return project;
+  if ((found.clip.kind === "video" || found.clip.kind === "audio") && found.clip.linkedClipId) {
+    const target = project.tracks.findIndex((t) => t.id === toTrackId && t.kind === found.track.kind);
+    return moveClips(project, [clipId], from - found.clip.from, target < 0 ? 0 : target - project.tracks.indexOf(found.track));
+  }
   const moved = { ...found.clip, from: Math.max(0, Math.round(from)) } as Clip;
   const target = project.tracks.find((t) => t.id === toTrackId);
   if (!target || target.id === found.track.id || target.kind !== found.track.kind) {
@@ -204,29 +267,26 @@ export const moveClip = (project: Project, clipId: string, from: number, toTrack
 };
 
 export const deleteClip = (project: Project, clipId: string): Project =>
-  mapTracks(project, (track) => ({
-    ...track,
-    clips: track.clips.filter((c) => c.id !== clipId),
-  }));
+  deleteClips(project, [clipId]);
 
 /** Un único desplazamiento para conservar las distancias del grupo, también al llegar a cero. */
 export const moveClips = (project: Project, ids: string[], deltaFrames: number, trackOffset = 0): Project => {
-  const selected = new Set(ids);
+  const selected = new Set(linkedIds(project, ids)), vertical = new Set(ids);
   const clips = project.tracks.flatMap((t) => t.clips).filter((c) => selected.has(c.id));
   if (!clips.length || !Number.isFinite(deltaFrames) || !Number.isInteger(trackOffset)) return project;
   const delta = Math.max(-Math.min(...clips.map((c) => c.from)), Math.round(deltaFrames));
-  const validOffset = project.tracks.every((track, index) => !track.clips.some((c) => selected.has(c.id)) || project.tracks[index + trackOffset]?.kind === track.kind) ? trackOffset : 0;
+  const validOffset = project.tracks.every((track, index) => !track.clips.some((c) => vertical.has(c.id)) || project.tracks[index + trackOffset]?.kind === track.kind) ? trackOffset : 0;
   if (!delta && !validOffset) return project;
   return { ...project, tracks: project.tracks.map((track, index) => ({ ...track, clips: !validOffset ? track.clips.map((c) => selected.has(c.id) ? { ...c, from: c.from + delta } : c) : [
-    ...track.clips.filter((c) => !selected.has(c.id)),
-    ...(project.tracks[index - validOffset]?.clips ?? []).filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from + delta })),
+    ...track.clips.filter((c) => !vertical.has(c.id)).map((c) => selected.has(c.id) ? { ...c, from: c.from + delta } : c),
+    ...(project.tracks[index - validOffset]?.clips ?? []).filter((c) => vertical.has(c.id)).map((c) => ({ ...c, from: c.from + delta })),
   ] })) };
 };
 
 /** Borrado de selección en una transacción; ripple cierra la unión de sus huecos por pista. */
 export const deleteClips = (project: Project, ids: string[], ripple = false): Project => {
-  const selected = new Set(ids);
-  return mapTracks(project, (track) => {
+  const selected = new Set(linkedIds(project, ids));
+  const next = mapTracks(project, (track) => {
     const ranges: { start: number; end: number }[] = [];
     if (ripple) for (const clip of track.clips.filter((c) => selected.has(c.id)).sort((a, b) => a.from - b.from)) {
       const last = ranges.at(-1), end = clip.from + clip.durationInFrames;
@@ -235,12 +295,14 @@ export const deleteClips = (project: Project, ids: string[], ripple = false): Pr
     }
     return { ...track, clips: track.clips.filter((c) => !selected.has(c.id)).map((c) => ({ ...c, from: c.from - ranges.reduce((sum, r) => sum + (r.end <= c.from ? r.end - r.start : 0), 0) })) };
   });
+  return ripple ? alignLinkedChanges(project, next) : next;
 };
 
 /** Borra el clip y corre hacia la izquierda los clips que venían después (como "Ripple Delete"). */
 export const rippleDeleteClip = (project: Project, clipId: string): Project => {
   const found = findClip(project, clipId);
   if (!found) return project;
+  if ((found.clip.kind === "video" || found.clip.kind === "audio") && found.clip.linkedClipId) return deleteClips(project, [clipId], true);
   const { clip, track } = found;
   const gapEnd = clip.from + clip.durationInFrames;
   return mapTracks(project, (t) => {
@@ -255,15 +317,19 @@ export const rippleDeleteClip = (project: Project, clipId: string): Project => {
 };
 
 /** Corta cualquier clip que pase por el frame indicado (como la herramienta Razor / Cmd+K). */
-export const splitAt = (project: Project, frame: number, onlyClipId?: string): Project =>
-  mapTracks(project, (track) => ({
+export const splitAt = (project: Project, frame: number, onlyClipId?: string): Project => {
+  const targets = onlyClipId ? new Set(linkedIds(project, [onlyClipId])) : null;
+  const rightIds = new Map(project.tracks.flatMap((t) => t.clips).filter((c) => (!targets || targets.has(c.id)) && frame > c.from && frame < c.from + c.durationInFrames).map((c) => [c.id, newId()]));
+  return mapTracks(project, (track) => ({
     ...track,
     clips: track.clips.flatMap((c): Clip[] => {
-      if (onlyClipId && c.id !== onlyClipId) return [c];
+      if (targets && !targets.has(c.id)) return [c];
       const offset = frame - c.from;
       if (offset <= 0 || offset >= c.durationInFrames) return [c];
       const left = { ...c, durationInFrames: offset };
-      const right = { ...c, id: newId(), from: frame, durationInFrames: c.durationInFrames - offset };
+      const right = { ...c, id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
+      if ((right.kind === "video" || right.kind === "audio") && right.linkedClipId) right.linkedClipId = rightIds.get(right.linkedClipId);
+      if (right.kind === "audio" && right.derivedFrom && rightIds.has(right.derivedFrom.clipId)) right.derivedFrom = { ...right.derivedFrom, clipId: rightIds.get(right.derivedFrom.clipId)! };
       if (right.kind === "video" || right.kind === "audio") right.trimStart = (c as VideoClip | AudioClip).trimStart + offset;
       if (left.kind === "caption" && right.kind === "caption" && c.kind === "caption") {
         left.words = c.words.filter((w) => w.start < offset).map((w) => ({ ...w, end: Math.min(w.end, offset) }));
@@ -274,9 +340,10 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       return [left, right as Clip];
     }),
   }));
+};
 
 /** Ajusta el inicio o el final de un clip sin salirse del archivo original. */
-export const trimClip = (
+const trimSingle = (
   project: Project,
   clipId: string,
   edge: "start" | "end",
@@ -300,16 +367,30 @@ export const trimClip = (
   return updateClip(project, clipId, patch);
 };
 
+export const trimClip = (project: Project, id: string, edge: "start" | "end", deltaFrames: number): Project => {
+  if (!findClip(project, id) || !Number.isFinite(deltaFrames)) return project;
+  const ids = linkedIds(project, [id]);
+  let delta = Math.round(deltaFrames);
+  for (const clipId of ids) {
+    const before = findClip(project, clipId)!.clip, after = findClip(trimSingle(project, clipId, edge, delta), clipId)!.clip;
+    delta = edge === "start" ? after.from - before.from : after.durationInFrames - before.durationInFrames;
+  }
+  return ids.reduce((p, clipId) => trimSingle(p, clipId, edge, delta), project);
+};
+
 /** Cambia el contenido visible sin mover los bordes del clip. */
 export const slipClip = (project: Project, clipId: string, deltaFrames: number): Project => {
   const clip = findClip(project, clipId)?.clip;
   if (!clip || (clip.kind !== "video" && clip.kind !== "audio") || !Number.isFinite(deltaFrames)) return project;
   const trimStart = Math.max(0, Math.min(clip.sourceDurationInFrames - clip.durationInFrames, clip.trimStart + Math.round(deltaFrames)));
-  return trimStart === clip.trimStart ? project : updateClip(project, clipId, { trimStart });
+  let delta = trimStart - clip.trimStart;
+  const ids = linkedIds(project, [clipId]);
+  for (const id of ids) { const other = findClip(project, id)!.clip; if (other.kind === "video" || other.kind === "audio") delta = Math.max(-other.trimStart, Math.min(delta, other.sourceDurationInFrames - other.durationInFrames - other.trimStart)); }
+  return !delta ? project : ids.reduce((p, id) => { const c = findClip(p, id)!.clip; return c.kind === "video" || c.kind === "audio" ? updateClip(p, id, { trimStart: c.trimStart + delta }) : p; }, project);
 };
 
 /** Recorte ripple en la pista del clip: conserva su inicio y desplaza los clips posteriores. */
-export const rippleTrimClip = (project: Project, clipId: string, edge: "start" | "end", deltaFrames: number): Project => {
+const rippleTrimSingle = (project: Project, clipId: string, edge: "start" | "end", deltaFrames: number): Project => {
   const found = findClip(project, clipId);
   if (!found || !Number.isFinite(deltaFrames)) return project;
   const { clip, track } = found, oldEnd = clip.from + clip.durationInFrames;
@@ -332,6 +413,17 @@ export const rippleTrimClip = (project: Project, clipId: string, edge: "start" |
   }) });
 };
 
+export const rippleTrimClip = (project: Project, clipId: string, edge: "start" | "end", deltaFrames: number): Project => {
+  const ids = linkedIds(project, [clipId]); let delta = deltaFrames;
+  for (const id of ids) {
+    const before = findClip(project, id)?.clip, after = findClip(rippleTrimSingle(project, id, edge, delta), id)?.clip;
+    if (!before || !after) return project;
+    delta = (after.durationInFrames - before.durationInFrames) * (edge === "start" ? -1 : 1);
+    if (!delta) return project;
+  }
+  return alignLinkedChanges(project, ids.reduce((p, id) => rippleTrimSingle(p, id, edge, delta), project));
+};
+
 /** Asigna el proxy de vista previa a todos los clips de un archivo. */
 export const setProxy = (project: Project, src: string, proxySrc: string): Project =>
   mapTracks(project, (t) => ({
@@ -343,7 +435,7 @@ export const setProxy = (project: Project, src: string, proxySrc: string): Proje
 export const relinkMedia = (project: Project, oldSrc: string, newSrc: string, proxySrc?: string): Project => {
   const relinked = mapTracks(project, (t) => ({
     ...t,
-    clips: t.clips.map((c) => (c.kind === "video" && c.src === oldSrc ? { ...c, src: newSrc, proxySrc } : c)),
+    clips: t.clips.map((c) => ((c.kind === "video" || c.kind === "audio") && c.src === oldSrc ? { ...c, src: newSrc, ...(c.kind === "video" ? { proxySrc } : {}) } : c)),
   }));
   const transcript = project.transcripts?.[oldSrc];
   if (!transcript) return relinked;
@@ -386,6 +478,7 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
         const base = { ...clip, id: identities.get(`${index}:${clip.id}`)!, from: cursor + a - range.start, durationInFrames: length };
         if (base.kind === "video" || base.kind === "audio") {
           base.trimStart += offset;
+          if (base.linkedClipId) base.linkedClipId = identities.get(`${index}:${base.linkedClipId}`);
           if (base.kind === "audio") {
             base.fadeIn = offset === 0 ? Math.min(base.fadeIn, length) : 0;
             base.fadeOut = b === clip.from + clip.durationInFrames ? Math.min(base.fadeOut, length) : 0;
@@ -495,16 +588,27 @@ export const setCaptionText = (project: Project, clipId: string, text: string): 
 export const removeSilences = (
   project: Project,
   opts: { minSilenceFrames: number; padFrames: number } = { minSilenceFrames: 15, padFrames: 4 },
-): Project =>
-  mapTracks(project, (track) => {
+): Project => {
+  const audioPieces = new Map<string, AudioClip[]>();
+  const next = mapTracks(project, (track) => {
     if (track.id !== "V1") return track;
     const sorted = [...track.clips].sort((a, b) => a.from - b.from);
     const out: Clip[] = [];
     let shift = 0;
     for (const clip of sorted) {
+      const push = (part: Clip) => {
+        const mate = clip.kind === "video" && clip.linkedClipId ? findClip(project, clip.linkedClipId)?.clip : null;
+        if (mate?.kind === "audio" && part.kind === "video" && clip.kind === "video") {
+          const id = part.id === clip.id ? mate.id : newId();
+          part = { ...part, linkedClipId: id };
+          const fragment: AudioClip = { ...mate, id, linkedClipId: part.id, from: part.from, durationInFrames: part.durationInFrames, trimStart: mate.trimStart + part.trimStart - clip.trimStart, fadeIn: part.trimStart === clip.trimStart ? mate.fadeIn : 0, fadeOut: part.trimStart + part.durationInFrames === clip.trimStart + clip.durationInFrames ? mate.fadeOut : 0 };
+          audioPieces.set(mate.id, [...audioPieces.get(mate.id) ?? [], fragment]);
+        }
+        out.push(part);
+      };
       const words = clip.kind === "video" ? project.transcripts?.[clip.src] : undefined;
       if (clip.kind !== "video" || !words?.length) {
-        out.push({ ...clip, from: clip.from - shift });
+        push({ ...clip, from: clip.from - shift });
         continue;
       }
       const inStart = clip.trimStart;
@@ -520,15 +624,17 @@ export const removeSilences = (
         else ranges.push([a, b]);
       }
       if (ranges.length === 0) {
-        out.push({ ...clip, from: clip.from - shift });
+        push({ ...clip, from: clip.from - shift });
         continue;
       }
       let cursor = clip.from - shift;
       ranges.forEach(([a, b], i) => {
-        out.push({ ...clip, id: i === 0 ? clip.id : newId(), from: cursor, trimStart: a, durationInFrames: b - a });
+        push({ ...clip, id: i === 0 ? clip.id : newId(), from: cursor, trimStart: a, durationInFrames: b - a });
         cursor += b - a;
       });
       shift += clip.durationInFrames - (cursor - (clip.from - shift));
     }
     return { ...track, clips: out };
   });
+  return mapTracks(next, (t) => ({ ...t, clips: t.clips.flatMap((c) => audioPieces.get(c.id) ?? [c]) }));
+};

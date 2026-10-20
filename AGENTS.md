@@ -20,6 +20,10 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - Lino quiere espacios de trabajo fáciles de cambiar desde una barra inferior, inspirados
   en la organización de Resolve. Nombres, número de espacios y diseño final requieren su criterio.
 - Sigue vigente: dos visores Origen/Programa por defecto y opción de alternar por pestañas.
+- Nombres aprobados el 2026-10-20: B1, B2… y Audio 1, Audio 2…; pistas genéricas y ampliables.
+  Los IDs internos V1/V2/A0/A1/A2 se conservan por compatibilidad. El audio original del video
+  se representa como AudioClip enlazado, con el video silenciado para evitar duplicación.
+  Mover/recortar/cortar/borrar respeta esa pareja; los stems procesados siguen independientes.
 - El 2026-10-20 Lino aprobó herramientas a la izquierda del timeline y medidor a la derecha,
   y pidió paneles adaptables/reubicables. Primera implementación: cuatro zonas intercambiables,
   separadores y persistencia local; ventanas flotantes y separación de pestañas siguen pendientes.

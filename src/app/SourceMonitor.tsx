@@ -45,11 +45,11 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart }: {
         <div className="source-range">Rango: {formatTimecode(inFrame, fps)} → {formatTimecode(outFrame, fps)}</div>
         <div className="source-actions">
           {!isAudio && <>
-            <button onClick={() => onInsert("V1", inFrame, outFrame, false)} title="Colocar video con sonido en V1 desde el cabezal">Insertar video</button>
-            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "video")} onClick={() => onInsert("V1", inFrame, outFrame, true)} title="Arrastra a V1 o V2; clic para insertar en V1 sin sonido">Solo video ↗</button>
-            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A0", inFrame, outFrame, false)} title="Arrastra a una pista de audio; clic para insertar en A0 Voz">Solo audio ↗</button>
+            <button onClick={() => onInsert("V1", inFrame, outFrame, false)} title="Colocar imagen en B1 y su sonido enlazado en una pista Audio">Insertar video</button>
+            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "video")} onClick={() => onInsert("V1", inFrame, outFrame, true)} title="Arrastra a una pista B; clic para insertar en B1 sin sonido">Solo video ↗</button>
+            <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A0", inFrame, outFrame, false)} title="Arrastra a una pista Audio; clic para insertar en Audio 1">Solo audio ↗</button>
           </>}
-          {isAudio && <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A1", inFrame, outFrame, false)}>Insertar audio ↗</button>}
+          {isAudio && <button draggable onDragStart={(e) => onDragStart(e, inFrame, outFrame, "audio")} onClick={() => onInsert("A0", inFrame, outFrame, false)}>Insertar audio ↗</button>}
         </div>
       </>}
     </div>

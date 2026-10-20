@@ -112,11 +112,14 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
       persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino
 - [ ] Validar arrastre nativo de cabeceras y comodidad de distribución con Lino; ventanas flotantes
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
-- [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en A0 Voz
+- [x] Marcas de entrada/salida e inserción de video, solo video o solo audio en Audio 1
 - [x] Arrastre de medios del panel Proyecto y del monitor Origen a pistas compatibles
 - [x] Comprobar integridad y reproducción local del video UGC original en un proyecto aislado
 - [ ] Validar con Lino el arrastre y la continuidad visual de la reproducción en sus videos
-- [ ] Audio y video vinculados al insertar un clip completo; desvincular y editar cada parte
+- [x] Pistas genéricas B1, B2… y Audio 1, Audio 2…; botones para añadir más desde el timeline y chat
+- [x] Audio original visible con ondas al insertar video completo y al migrar proyectos anteriores;
+      parejas enlazadas al mover, recortar, cortar, deslizar contenido y borrar; sin duplicar sonido
+- [ ] Control para desvincular/revincular cada pareja; sincronía de stems procesados y bloqueo global de pistas
 
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)
@@ -128,9 +131,9 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Tipografías reales incluidas en el programa (13 fuentes, funcionan sin internet)
 - [ ] Panel de transcripción: leer el texto y borrar frases para cortar el video
 - [ ] Opción de transcripción en la nube (ElevenLabs Scribe / OpenAI) para más precisión
-- [x] Pistas de audio A1 (música) y A2 (efectos) con volumen y fade in/out
+- [x] Pistas genéricas Audio 1, Audio 2… con volumen y fade in/out
 - [x] Arrastrar clips entre pistas del mismo tipo
-- [x] Pista V2 para B-roll (botón "+ B-roll" en el panel, entra en silencio donde está el cabezal)
+- [x] Pista B2 (botón "+ B2" en el panel, solo imagen donde está el cabezal)
 - [x] Ondas de audio en las pistas, generadas localmente
 - [ ] Miniaturas de video en la línea de tiempo
 

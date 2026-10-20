@@ -15,7 +15,7 @@ import { transcribeMissing } from "../transcribe";
 import { processAudio, searchVisual, sourceClip, type AssistantContext } from "../localAssistant";
 import { applyEditPlan, createEditPlan, type EditPlan } from "../editPlan";
 
-export type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
+export type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean };
 type FoleyFolder = { folder: string; files: { name: string; src: string }[] };
 
 export type ToolContext = AssistantContext & {
@@ -120,6 +120,11 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
     );
 
   switch (name) {
+    case "add_track": {
+      if (input.kind !== "video" && input.kind !== "audio") throw new Error("Indica video o audio.");
+      const next = ops.addTrack(project, input.kind), track = next.tracks.find((t) => !project.tracks.some((prior) => prior.id === t.id))!;
+      commit(next); return JSON.stringify({ id: track.id, nombre: track.name });
+    }
     case "read_transcript": {
       await transcribeMissing(ctx.getProject(), (src, words, info) => commit(ops.setTranscript(ctx.getProject(), src, words, info)), ctx.onStatus, bool(input.force) ?? false);
       const current = ctx.getProject();
@@ -147,7 +152,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
         clip_seleccionado: ctx.selectedClipId ?? null,
         clips_seleccionados: ctx.selectedClipIds ?? (ctx.selectedClipId ? [ctx.selectedClipId] : []),
         cabezal_s: round((ctx.currentFrame ?? 0) / fps),
-        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, clips: t.clips.map((c) => clipSummary(c, fps)) })),
+        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, clips: t.clips.map((c) => ({ ...clipSummary(c, fps), ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
         foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),
@@ -258,7 +263,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
 
     case "move_clip": {
       const { clip } = requireClip(project, input.clip_id);
-      commit(ops.moveClip(project, clip.id, f(input.start_s), str(input.track)));
+      commit(ops.moveClip(project, clip.id, f(input.start_s), str(input.track) ? ops.resolveTrackId(project, str(input.track)!) : undefined));
       return "Clip movido.";
     }
 
@@ -291,17 +296,18 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
       const query = (str(input.name) ?? "").toLowerCase();
       const item = ctx.media.find((m) => m.name.toLowerCase().includes(query));
       if (!item) throw new Error(`No hay ningún archivo importado que se llame "${input.name}".`);
-      const track = str(input.track) ?? "V1";
+      const track = ops.resolveTrackId(project, str(input.track) ?? "V1");
+      const target = project.tracks.find((t) => t.id === track)!;
       let next: Project;
-      if (track === "A1") next = ops.addAudioClip(project, item, "A1", f(input.start_s));
-      else if (track === "V2") next = ops.addVideoClip(project, item, "V2", f(input.start_s));
-      else next = ops.addVideoClip(project, item, "V1");
+      if (target.kind === "audio") next = ops.addSourceRange(project, item, track, f(input.start_s));
+      else if (target.kind === "video" && item.kind !== "audio") next = ops.addVideoClip(project, item, track, num(input.start_s) !== undefined ? f(input.start_s) : undefined);
+      else throw new Error("El tipo de archivo no es compatible con la pista elegida.");
       if (num(input.volume_percent) !== undefined) {
         const added = next.tracks.find((t) => t.id === track)?.clips.at(-1);
         if (added) next = ops.updateClip(next, added.id, { volume: num(input.volume_percent)! / 100 } as Partial<Clip>);
       }
       commit(next);
-      return `"${item.name}" agregado en ${track}.`;
+      return `"${item.name}" agregado en ${target.name}.`;
     }
 
     case "add_sound_effect": {
