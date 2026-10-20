@@ -22,10 +22,14 @@ npm run dev   # http://localhost:5173
 
 - **Importar**: botón en el panel Proyecto. Usa ☰ para la vista de lista o ▦ para la cuadrícula.
 - **Previsualizar y elegir un fragmento**: un clic en un archivo lo abre en el monitor **Origen**. Reproduce hasta el punto deseado y marca **I · Entrada** y **O · Salida**. El monitor **Programa** muestra la edición. Puedes usar **Dos visores** o **Pestañas**.
-- **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Insertar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. Un video completo añade imagen y audio original enlazados; el sonido aparece con su onda en una pista de audio libre. **Solo video** y **+ B2** añaden únicamente imagen; **Solo audio** utiliza Audio 1 por defecto.
+- **Llevar a la línea de tiempo**: arrastra un archivo desde Proyecto a una pista, o usa **Colocar video**, **Solo video** y **Solo audio** en Origen. También puedes arrastrar los botones de solo video/audio a la pista deseada. Un video completo añade imagen y audio original enlazados; el sonido aparece con su onda en la pista Audio destino. **Solo video** y **+ B2** añaden únicamente imagen; **Solo audio** utiliza Audio 1 por defecto.
 - **Pistas**: se llaman **B1, B2, B3…** y **Audio 1, Audio 2, Audio 3…**, sin funciones asignadas. Pulsa **+ B** o **+ Audio**, en la cabecera del timeline, para añadir más. También puedes pedírselo al chat. Los archivos de audio nuevos entran al volumen original, sin fades automáticos.
 - **Imagen y sonido enlazados**: al mover, recortar, cortar, deslizar contenido o borrar uno, se modifica también su pareja. Puedes trasladar la imagen a otra pista de video conservando el audio en su pista. Selecciona el audio para ajustar volumen/fades. Los proyectos anteriores muestran su audio después de comprobar localmente el archivo; la conversión se puede deshacer. El original no se recodifica y no suena dos veces.
 - **Editar**: arrastra clips, arrastra los bordes para recortar, Ctrl/Cmd+K corta en el cabezal.
+- **Sobrescribir**: colocar, mover o extender un video/audio sobre otro en la misma pista sustituye
+  el tramo ocupado; conserva lo anterior y posterior, con su audio enlazado y offsets de origen.
+  No corre los clips siguientes. Usa otra pista B para superponer imagen. Ctrl/Cmd+Z recupera
+  el montaje previo completo. Los solapamientos antiguos no se corrigen automáticamente al abrir.
 - **Seleccionar varios**: mantén el clic izquierdo en un espacio vacío de Proyecto o del timeline
   y arrastra el recuadro sobre los elementos. Funciona en lista y cuadrícula. Shift/Ctrl+clic
   suma o quita elementos; Esc limpia la selección. Ctrl/Cmd+A selecciona todo en el panel activo.
@@ -45,6 +49,26 @@ y muestra el tiempo de espera cuando el modelo está pensando. También puedes u
 límite) o Claude/OpenAI API (de pago, opcionales) pegando su clave en **Configurar**.
 
 ## Herramientas, medidor de audio y paneles
+
+### Controles de cada pista
+
+- **Candado**: protege los clips de la pista frente a movimientos, cortes, borrados y cambios del
+  chat. Si su pareja está bloqueada, tampoco se modifica el otro componente. No cambia el sonido.
+- **Nombre azul**: elige la pista destino para colocar desde Origen o añadir desde Proyecto.
+  Video y audio tienen destinos independientes. Arrastrar directamente sobre una pista elige ese
+  destino de imagen/audio; un video completo envía su sonido a la pista Audio marcada.
+- **Seguir ripple** (flecha): incluye esa pista en el cierre de huecos de borrado/recorte ripple.
+  Está desactivado inicialmente; las parejas enlazadas se mantienen sincronizadas aunque no lo actives.
+  Las pistas bloqueadas permanecen protegidas. Es una primera versión, sin todos los modos de Premiere.
+- **Ojo**: oculta video/texto/subtítulos tanto en Programa como al exportar.
+- **M**: silencia toda esa pista de audio. **S**: escucha solo las pistas con S activada; admite varias.
+  Estos cambios se guardan en el proyecto y también afectan la exportación.
+- **Micrófono**: graba voz en la pista Audio elegida. Coloca primero el cabezal donde debe comenzar,
+  pulsa el micrófono y permite el acceso en el navegador. Programa se pausa para la toma. Pulsa
+  **Detener y añadir** para guardar un WAV local y crear su clip con onda, o **Cancelar** para descartar
+  la toma. La grabación sobrescribe el tramo que ocupa en esa pista; se puede deshacer. Máximo 10 minutos.
+  Si se bloquea la pista durante la toma, el archivo se conserva en Proyecto para colocarlo después.
+  Si falla el guardado, puedes descargar la toma desde el aviso. No se envía a un servicio de IA.
 
 La columna a la izquierda del timeline incluye:
 

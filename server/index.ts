@@ -171,6 +171,20 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
   res.json({ src, proxySrc, name: req.file.originalname, kind: isAudio ? "audio" : "video", hasAudio: isAudio || await hasAudio(req.file.path).catch(() => true) });
 });
 
+// Convierte la toma del micrófono a WAV con duración fiable (WebM puede declarar Infinity).
+app.post("/api/record-voice", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No se recibió la grabación" });
+  try {
+    if (req.file.size > 50 * 1024 * 1024 || !req.file.mimetype.startsWith("audio/")) throw new Error("Usa una toma de audio de hasta 50 MB.");
+    const filename = `${req.file.filename.replace(/\.[^.]+$/, "")}.wav`, output = path.join(MEDIA_DIR, filename);
+    await RenderInternals.callFf({ bin: "ffmpeg", args: ["-y", "-i", req.file.path, "-vn", "-t", "600", "-ar", "48000", "-c:a", "pcm_s16le", output], indent: false, logLevel: "error", binariesDirectory: null, cancelSignal: undefined });
+    const info = await RenderInternals.callFf({ bin: "ffprobe", args: ["-v", "error", "-show_entries", "format=duration", "-of", "json", output], indent: false, logLevel: "error", binariesDirectory: null, cancelSignal: undefined });
+    const durationSeconds = Number(JSON.parse(info.stdout).format?.duration);
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) throw new Error("La grabación no contiene audio válido.");
+    res.json({ src: `/media/${filename}`, name: `Grabación ${new Date().toLocaleTimeString("es", { hour12: false })}.wav`, kind: "audio", hasAudio: true, durationSeconds });
+  } catch (failure) { res.status(400).json({ error: failure instanceof Error ? failure.message : "No se pudo guardar la grabación" }); }
+});
+
 // Para proyectos creados antes de que existieran los proxies.
 app.post("/api/proxy", async (req, res) => {
   const src = String(req.body.src ?? "");

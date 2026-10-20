@@ -43,6 +43,7 @@ export function useMarqueeSelection(options: Options) {
       setBox(rectangle);
       const parent = node.getBoundingClientRect();
       const ids = [...node.querySelectorAll<HTMLElement>("[data-selection-id]")].filter((item) => {
+        if (item.dataset.selectionDisabled) return false;
         const rect = item.getBoundingClientRect(), x = rect.left - parent.left + node.scrollLeft, y = rect.top - parent.top + node.scrollTop;
         return x < rectangle.x + rectangle.width && x + rect.width > rectangle.x && y < rectangle.y + rectangle.height && y + rect.height > rectangle.y;
       }).map((item) => item.dataset.selectionId!);

@@ -9,6 +9,8 @@ Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado con
 Barra de herramientas, medidor estéreo dBFS del Programa y paneles de tamaño/posición ajustables.
 Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visible con ondas y
 enlazado con su imagen durante las operaciones principales de edición.
+Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
+local de voz desde el timeline implementados; captura con micrófono físico pendiente de confirmar.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -17,6 +19,57 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Sobrescritura, controles de pista y grabación de voz (Codex)
+
+**Decisiones e implementación**
+- Lino pidió que los videos no se montaran en una misma pista. Se aplicó sobrescritura:
+  al colocar, mover o extender video/audio se recorta lo ocupado, conservando los dos extremos
+  cuando procede, sus offsets de origen y sus parejas de audio. No corre el montaje posterior.
+  Todo pasa por ops y un paso de Deshacer; no se alteran automáticamente solapamientos antiguos.
+- Cabeceras ampliadas con candado, destino (nombre azul), seguir ripple optativo, ojo para
+  imagen/texto/subtítulos, M y S para audio. Los estados son JSON y se guardan/deshacen.
+  Ojo/M/S utilizan la misma composición para Programa y export. M tiene prioridad sobre S;
+  se pueden escuchar varias pistas en solo. El bloqueo no afecta la reproducción.
+- Candados protegen edición de clips y de sus parejas, destinos y víctimas de sobrescritura.
+  Los resúmenes globales piden desbloquear las pistas con clips. Seguir ripple está inicialmente
+  desactivado para conservar el comportamiento previo; permite cerrar huecos en pistas optadas.
+  El chat consulta estados y dispone de `set_track_state`; no debe desbloquear sin petición.
+- Origen y doble clic en Proyecto respetan destino de imagen/audio. Video completo coloca el
+  sonido en el destino Audio marcado; si está bloqueado, no se inserta una pareja incompleta.
+  La migración de videos antiguos conserva su estrategia de buscar audio libre.
+- Lino confirmó incluir grabación de voz. Micrófono en cada pista Audio: permiso explícito del
+  navegador, pausa del Programa, contador, detener/añadir y cancelar. Captura con MediaRecorder;
+  `/api/record-voice` convierte a WAV local con FFmpeg incluido y obtiene duración con ffprobe.
+  Inserta desde el cabezal inicial, crea onda y puede deshacerse. Máximo 10 minutos / 50 MB.
+  Al cancelar o cerrar se liberan los tracks del micrófono; no hay envío a servicios externos.
+  Si la pista se bloquea, conserva el archivo en Proyecto; si falla el guardado ofrece descargar
+  la toma del navegador. Abrir otro proyecto cancela la sesión activa.
+
+**Pruebas realizadas**
+- Interfaz aislada: arrastre de B2 a B1 a 3 s sobre un video de 10 s conserva fragmentos
+  [0,3), reemplazo [3,5) y [5,10), con tres audios alineados y ondas. Candado impide moverlos;
+  ojo oculta imagen sin borrar clips. Botones M/S cambian sus estados y estilos.
+- Exportaciones reales: montaje de sobrescritura completado (2 s), salida con B1 oculta y
+  Audio 1 silenciada completada (2 s; RGB máximo 0 y amplitud de audio 0 tras decodificar).
+- Flujo de guardado de toma probado con audio WebM de prueba de 1.25 s: conversión WAV y
+  generación de onda HTTP 200; importado en UI, reproducido (pico -5.7 dBFS) y exportado con
+  audio no nulo. La duración contenedora MP4 de 1.28 s incluye redondeo de frames/padding AAC.
+  Esta prueba no valida la captura del micrófono físico ni sus permisos. Lino indicó que lo
+  probaría; aún no informó el resultado. Medios/pruebas permanecen fuera del repositorio.
+- Pruebas automáticas nuevas cubren sobrescribir principio/centro/final/todo y audio independiente,
+  movimiento entre pistas, extensión de bordes, offsets, parejas, candados, salida y destinos,
+  seguimiento ripple con pistas bloqueadas y serialización. `npm run typecheck`, `npm test`
+  (**36/36**), `npm run build` y `git diff --check` correctos. Build mantiene el aviso previo
+  de tamaño de paquetes de Vite.
+
+**Pendientes y siguiente paso**
+- Confirmar con Lino la captura real y escucha de su micrófono; probar errores de dispositivo,
+  permiso revocado y guardado interrumpido en navegador. No se declara esa validación completada.
+- Completar desvinculación/revinculación y sincronía de stems procesados; estos siguen independientes.
+- Validar montajes complejos y comodidad de controles. Esta primera versión no reproduce todos
+  los modos de source patching, sync lock, inserción ripple ni monitorización/latencia de Premiere.
+- Continuar desde la prueba de Lino y corregir cualquier fallo real antes de ampliar modos.
 
 ### 2026-10-20 — Pistas genéricas, ampliables y audio original visible (Codex)
 

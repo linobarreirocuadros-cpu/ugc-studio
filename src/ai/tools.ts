@@ -22,6 +22,7 @@ const font = {
 const position = { type: "string", enum: ["arriba", "centro", "abajo"], description: "Posición vertical en pantalla" };
 
 export const TOOLS: ToolDef[] = [
+  { name: "set_track_state", description: "Cambia controles de una pista por nombre o ID: locked protege edición, hidden oculta imagen, muted silencia, solo aísla audio, targeted elige destino, sync_lock sigue cambios ripple. No desbloquees una pista sin petición del usuario.", parameters: { type: "object", properties: { track: { type: "string" }, locked: { type: "boolean" }, hidden: { type: "boolean" }, muted: { type: "boolean" }, solo: { type: "boolean" }, targeted: { type: "boolean" }, sync_lock: { type: "boolean" } }, required: ["track"], additionalProperties: false } },
   { name: "add_track", description: "Crea otra pista numerada B (video) o Audio. Devuelve su nombre e ID. Consulta las pistas antes de elegir un destino.", parameters: { type: "object", properties: { kind: { type: "string", enum: ["video", "audio"] } }, required: ["kind"], additionalProperties: false } },
   { name: "read_transcript", description: "Transcribe o lee el diálogo de B1, con palabras y tiempos del timeline. Úsala antes de resumir coherentemente; force vuelve a transcribir si el usuario reporta errores. No hace cortes.", parameters: { type: "object", properties: { force: { type: "boolean" } }, additionalProperties: false } },
   { name: "create_edit_plan", description: "Prepara un resumen conservando rangos del montaje en orden. Los rangos deben sumar exactamente la duración objetivo, sin cortar palabras. Mantiene sonido, textos, subtítulos y B-roll sincronizados. Devuelve propuesta visible, sin aplicar aún.", parameters: { type: "object", properties: {
@@ -244,6 +245,7 @@ Cómo trabajas:
 - Editas el proyecto usando las herramientas. Nunca digas que hiciste algo sin haber llamado la herramienta.
 - Si necesitas ids de clips, tiempos o el texto hablado, llama primero a get_project_state.
 - Los tiempos son en segundos. Las pistas visibles son B1, B2... y Audio 1, Audio 2... sin roles prefijados. Consulta nombres e IDs con get_project_state; add_track crea más. V1/V2 y A0/A1/A2 son IDs antiguos internos, no sus nombres visibles. T1 es texto y SUB subtítulos.
+- Colocar/mover/extender clips en una pista ocupada SOBRESCRIBE ese tramo, conservando los extremos y el audio enlazado; no superpone clips de una misma pista. Para superponer imagen usa otra pista B. Respeta los candados y no desbloquees sin petición explícita. set_track_state controla bloqueo, salida y destino; estas opciones se guardan y afectan al export.
 - Los pares video/audio están enlazados: mover, recortar, cortar o borrar uno modifica su pareja. No repitas la misma edición sobre ambos IDs ni actives el sonido embebido de un video cuyo audio ya está separado.
 - Si una herramienta devuelve un error, explícalo en pocas palabras y propone qué hacer.
 - Al terminar, confirma en 1 o 2 frases qué cambiaste. No repitas datos técnicos (ids) salvo que te los pidan.

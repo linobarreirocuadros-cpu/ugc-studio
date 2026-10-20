@@ -5,6 +5,7 @@ import {
   createEmptyProject,
   getProjectDuration,
   normalizeProject,
+  destinationTrack,
   type AudioClip,
   type CaptionClip,
   type CaptionStyle,
@@ -26,6 +27,7 @@ import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
 import { TimelineTools, TIMELINE_TOOLS, type TimelineTool } from "./TimelineTools";
 import { AudioMeter } from "./AudioMeter";
 import { useWorkspace } from "./workspace";
+import { useVoiceRecording } from "./useVoiceRecording";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -128,6 +130,13 @@ export function App() {
   const duration = getProjectDuration(project);
   const selected = selectedId ? ops.findClip(project, selectedId)?.clip ?? null : null;
   const sourceMedia = media.find((m) => m.src === sourceSrc) ?? null;
+  const recording = useVoiceRecording((voice, trackId, at, fps) => {
+    const item: MediaItem = { src: voice.src, name: voice.name, kind: "audio", hasAudio: true, durationInFrames: Math.max(1, Math.round(voice.durationSeconds * fps)) };
+    setMedia((list) => [...list, item]);
+    const before = history.current(), next = ops.addSourceRange(before, item, trackId, at);
+    if (next === before) return false;
+    history.apply(() => next); setRevealTrackId(trackId); return true;
+  }, () => playerRef.current?.pause());
   useEffect(() => {
     let cancelled = false;
     const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is VideoClip => c.kind === "video" && !c.linkedClipId && c.audioMode !== "none" && c.audioMode !== "separate" && !migratedAudio.current.has(c.id));
@@ -274,8 +283,10 @@ export function App() {
     }
   };
 
-  const addMedia = (m: MediaItem) =>
-    history.apply((p) => (m.kind === "audio" ? ops.addSourceRange(p, m, "A0", frame) : ops.addVideoClip(p, m)));
+  const addMedia = (m: MediaItem) => history.apply((p) => {
+    const track = destinationTrack(p, m.kind === "audio" ? "audio" : "video");
+    return !track ? p : m.kind === "audio" ? ops.addSourceRange(p, m, track, frame) : ops.addVideoClip(p, m, track);
+  });
   const addBroll = (m: MediaItem) => history.apply((p) => ops.addVideoClip(p, m, "V2", frame, true));
   const addTrack = (kind: "video" | "audio") => history.apply((p) => {
     const next = ops.addTrack(p, kind), added = next.tracks.find((t) => !p.tracks.some((prior) => prior.id === t.id))!;
@@ -348,7 +359,7 @@ export function App() {
         setTool("select");
       } else if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        selectionPanel.current === "timeline" ? setSelectedIds(project.tracks.flatMap((t) => t.clips).map((c) => c.id)) : setSelectedMedia(media.map((m) => m.src));
+        selectionPanel.current === "timeline" ? setSelectedIds(project.tracks.filter((t) => !t.locked).flatMap((t) => t.clips).map((c) => c.id)) : setSelectedMedia(media.map((m) => m.src));
       } else if (e.key === "ArrowLeft") {
         seek(Math.max(0, frame - (e.shiftKey ? 5 : 1)));
       } else if (e.key === "ArrowRight") {
@@ -394,6 +405,7 @@ export function App() {
   const openProjectFile = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
+    recording.cancel();
     const data = JSON.parse(await file.text());
     history.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
@@ -533,7 +545,7 @@ export function App() {
               key={sourceMedia?.src ?? "empty"}
               media={sourceMedia}
               fps={project.fps}
-              onInsert={(trackId, inFrame, outFrame, videoOnly) => sourceMedia && addSource(sourceMedia, trackId, frame, inFrame, outFrame, videoOnly)}
+              onInsert={(trackId, inFrame, outFrame, videoOnly) => { const target = destinationTrack(project, trackId === "A0" ? "audio" : "video"); if (sourceMedia && target) addSource(sourceMedia, target, frame, inFrame, outFrame, videoOnly); }}
               onDragStart={(e, inFrame, outFrame, mode) => sourceMedia && startMediaDrag(e, sourceMedia, inFrame, outFrame, mode)}
             />
           </div>
@@ -598,12 +610,19 @@ export function App() {
 
       <section className="timeline-area dock-panel" {...workspace.dropProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
         <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
+        {(recording.state || recording.error) && <div className="recording-status" role="status">
+          {recording.state ? <><span>{recording.state.phase === "permission" ? "Permite el micrófono en el navegador" : recording.state.phase === "saving" ? "Guardando voz localmente…" : `● Grabando ${recording.state.seconds} s`}</span>{recording.state.phase === "recording" && <button onClick={recording.stop}>Detener y añadir</button>}<button onClick={recording.cancel}>Cancelar</button></> : <span>{recording.error}</span>}
+          {recording.recovery && <a href={recording.recovery} download="Grabacion-recuperada.webm">Descargar grabación</a>}
+        </div>}
         <div className="timeline-workspace">
         <TimelineTools tool={tool} onTool={setTool} snapping={snapping} onSnap={() => setSnapping((value) => !value)} onFit={() => { const viewport = workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll"); const width = viewport?.clientWidth ?? 800; if (viewport) viewport.scrollLeft = 0; setPxPerFrame(Math.max(0.02, Math.min(20, (width - 30) / duration))); }} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
         <div className="timeline-main">
         <Timeline
           project={project}
           revealTrackId={revealTrackId}
+          onTrackChange={(id, patch) => history.apply((p) => ops.setTrackState(p, id, patch))}
+          onRecord={(id) => { if (recording.state?.track === id) recording.stop(); else if (!project.tracks.find((t) => t.id === id)?.locked) void recording.start(id, frame, project.fps); }}
+          recordingTrack={recording.state?.track ?? null}
           frame={frame}
           selectedIds={selectedIds}
           pxPerFrame={pxPerFrame}

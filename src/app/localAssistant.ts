@@ -78,6 +78,7 @@ export function splitVisualMatch(ctx: AssistantContext, result: VisualResult, ma
 
 export async function processAudio(ctx: AssistantContext, mode: "clean" | "separate" | "separate-clean", id: string | undefined, status: (text: string) => void, signal?: AbortSignal) {
   const project = ctx.getProject(), clip = sourceClip(ctx, id);
+  if (!ops.clipsEditable(project, [clip.id])) throw new Error("La pista o su pareja está bloqueada. Desbloquéala antes de procesar el audio.");
   if (clip.kind === "audio" && clip.derivedFrom) throw new Error("Selecciona el clip original para volver a procesar su voz; esta pista ya es un resultado derivado.");
   const stamp = clipStamp(clip, project.fps), volume = ops.effectiveVolume(project, clip);
   const result = await runLocalTask<{ duration: number; engine: string; stems: ops.ProcessedStem[] }>("/api/audio/process", {
@@ -85,6 +86,7 @@ export async function processAudio(ctx: AssistantContext, mode: "clean" | "separ
   }, status, signal);
   signal?.throwIfAborted();
   const current = ctx.getProject(), now = ops.findClip(current, clip.id)?.clip;
+  if (!ops.clipsEditable(current, [clip.id])) throw new Error("La pista se bloqueó durante el proceso. El resultado está guardado; desbloquéala para aplicarlo.");
   if (!now || (now.kind !== "video" && now.kind !== "audio") || clipStamp(now, current.fps) !== stamp || ops.effectiveVolume(current, now) !== volume) throw new Error("El clip cambió durante el proceso. El resultado quedó guardado; vuelve a ejecutar para aplicarlo al rango actual.");
   if (Math.abs(result.duration * project.fps - clip.durationInFrames) > 2) throw new Error("La duración del audio no coincide con el clip; no se aplicó para evitar desincronía.");
   ctx.commit(ops.applyProcessedAudio(current, clip.id, result.stems, mode));

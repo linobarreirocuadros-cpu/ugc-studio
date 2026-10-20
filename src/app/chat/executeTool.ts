@@ -76,6 +76,7 @@ const textStylePatch = (input: Input, current?: TextStyle): Partial<TextStyle> =
 const requireClip = (project: Project, id: unknown) => {
   const found = ops.findClip(project, String(id ?? ""));
   if (!found) throw new Error(`No existe un clip con id "${id}". Usa get_project_state para ver los ids.`);
+  if (!ops.clipsEditable(project, [found.clip.id])) throw new Error("La pista del clip o de su pareja está bloqueada. Desbloquéala antes de editar.");
   return found;
 };
 
@@ -120,6 +121,13 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
     );
 
   switch (name) {
+    case "set_track_state": {
+      const id = ops.resolveTrackId(project, str(input.track) ?? "");
+      const patch: Parameters<typeof ops.setTrackState>[2] = {};
+      for (const key of ["locked", "hidden", "muted", "solo", "targeted"] as const) if (bool(input[key]) !== undefined) patch[key] = bool(input[key]);
+      if (bool(input.sync_lock) !== undefined) patch.syncLock = bool(input.sync_lock);
+      commit(ops.setTrackState(project, id, patch)); return "Controles de pista actualizados.";
+    }
     case "add_track": {
       if (input.kind !== "video" && input.kind !== "audio") throw new Error("Indica video o audio.");
       const next = ops.addTrack(project, input.kind), track = next.tracks.find((t) => !project.tracks.some((prior) => prior.id === t.id))!;
@@ -152,7 +160,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
         clip_seleccionado: ctx.selectedClipId ?? null,
         clips_seleccionados: ctx.selectedClipIds ?? (ctx.selectedClipId ? [ctx.selectedClipId] : []),
         cabezal_s: round((ctx.currentFrame ?? 0) / fps),
-        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, clips: t.clips.map((c) => ({ ...clipSummary(c, fps), ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
+        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, bloqueada: Boolean(t.locked), oculta: Boolean(t.hidden), silencio: Boolean(t.muted), solo: Boolean(t.solo), destino: Boolean(t.targeted), seguir_ripple: Boolean(t.syncLock), clips: t.clips.map((c) => ({ ...clipSummary(c, fps), ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
         foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),
@@ -298,10 +306,12 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
       if (!item) throw new Error(`No hay ningún archivo importado que se llame "${input.name}".`);
       const track = ops.resolveTrackId(project, str(input.track) ?? "V1");
       const target = project.tracks.find((t) => t.id === track)!;
+      if (target.locked) throw new Error("La pista destino está bloqueada.");
       let next: Project;
       if (target.kind === "audio") next = ops.addSourceRange(project, item, track, f(input.start_s));
       else if (target.kind === "video" && item.kind !== "audio") next = ops.addVideoClip(project, item, track, num(input.start_s) !== undefined ? f(input.start_s) : undefined);
       else throw new Error("El tipo de archivo no es compatible con la pista elegida.");
+      if (next === project) throw new Error("No se pudo colocar: una pista o pareja afectada está bloqueada.");
       if (num(input.volume_percent) !== undefined) {
         const added = next.tracks.find((t) => t.id === track)?.clips.at(-1);
         if (added) next = ops.updateClip(next, added.id, { volume: num(input.volume_percent)! / 100 } as Partial<Clip>);

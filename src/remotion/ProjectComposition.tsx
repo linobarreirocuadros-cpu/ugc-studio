@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { AudioClip, CaptionClip, Project, TextClip, VideoClip } from "../project/types";
+import { trackOutputEnabled } from "../project/types";
 import { cssFont, ensureFont, fontWeightFor } from "./fonts";
 
 // Convierte rutas relativas (/media/x.mp4) en absolutas para el render en el servidor.
@@ -158,7 +159,7 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
 
 export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview }) => (
   <AbsoluteFill style={{ backgroundColor: "black" }}>
-    {project.tracks.map((track) =>
+    {project.tracks.filter((track) => trackOutputEnabled(project, track)).map((track) =>
       track.clips.map((clip) => (
         <Sequence
           key={clip.id}

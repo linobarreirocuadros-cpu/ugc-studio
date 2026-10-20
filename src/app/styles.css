@@ -178,6 +178,18 @@ textarea { width: 100%; min-height: 60px; resize: vertical; user-select: text; }
   font-size: 10px;
 }
 .track { position: relative; border-bottom: 1px solid var(--border); }
+.track-header { gap: 3px; }
+.track-header button { width: 21px; height: 25px; padding: 3px; border: 0; background: transparent; color: var(--muted); font-size: 11px; }
+.track-header button svg { width: 15px; height: 15px; }
+.track-header .track-name { width: 65px; flex-shrink: 0; font-size: 11px; text-align: center; }
+.track-header button.active { background: #254c72; color: #cbe6ff; border-radius: 3px; }
+.track-header button[aria-label^="Silenciar"].active { background: #665321; color: #ffe39a; }
+.track-header button[aria-label^="Escuchar"].active { background: #606120; color: #f7ff91; }
+.track-header button[aria-label^="Detener"].active { background: #843737; color: white; }
+.track.locked { background: repeating-linear-gradient(135deg, transparent, transparent 6px, #ffffff08 6px, #ffffff08 8px); }
+.track.locked .clip { cursor: not-allowed; }
+.track.output-off .clip { opacity: .42; }
+.recording-status { display: flex; gap: 6px; align-items: center; color: #ffb3ad; font-size: 11px; }
 .track-add-controls { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .track-add-controls button { font-size: 9px; padding: 1px 3px; }
 .track.drop-target { outline: 2px solid #8dc5ff; outline-offset: -2px; background: #213040; }

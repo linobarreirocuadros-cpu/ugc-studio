@@ -79,6 +79,12 @@ export type Track = {
   kind: "video" | "audio" | "text" | "caption";
   name: string;
   clips: Clip[];
+  locked?: boolean;
+  hidden?: boolean;
+  muted?: boolean;
+  solo?: boolean;
+  targeted?: boolean;
+  syncLock?: boolean;
 };
 
 export type Project = {
@@ -90,6 +96,19 @@ export type Project = {
   tracks: Track[]; // el primer track se dibuja abajo, el último arriba
   transcripts?: Record<string, Word[]>; // por archivo (clave = src)
   transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
+};
+
+/** La salida es la misma para Programa y exportación. Bloquear no cambia la reproducción. */
+export const trackOutputEnabled = (project: Project, track: Track): boolean => {
+  if (track.kind !== "audio") return !track.hidden;
+  return !track.muted && (!project.tracks.some((t) => t.kind === "audio" && t.solo) || Boolean(track.solo));
+};
+
+export const destinationTrack = (project: Project, kind: "video" | "audio"): string | undefined => {
+  const targeted = project.tracks.find((t) => t.kind === kind && t.targeted);
+  if (targeted) return targeted.locked ? undefined : targeted.id;
+  const tracks = kind === "audio" ? [...project.tracks].reverse() : project.tracks;
+  return tracks.find((t) => t.kind === kind && !t.locked)?.id;
 };
 
 export const DEFAULT_TEXT_STYLE: TextStyle = {
