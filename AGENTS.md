@@ -59,8 +59,10 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - Dirección visual vigente (última referencia de Lino, 2026-10-20): fondo degradado azul noche
   con luz azul superior y ámbar lateral, tarjetas oscuras redondeadas/translúcidas, bordes y glow
   delicados. Sustituye la paleta anterior Pale Sky/Dusty Denim. UI en Poppins local (OFL),
-  escala de texto 9/10/11 px e iconos compactos 12/14 px. No imponer esa tipografía al contenido
-  del video. El tema vive en `src/app/studio-theme.css`; acabado y legibilidad se afinan con Lino.
+  escala reducida de nuevo por Lino tomando la barra vertical como referencia: texto base 9 px,
+  auxiliar 8 px, títulos 10 px, iconos 12 px y controles de unos 20 px. No imponer esa tipografía
+  ni escala al contenido del video. El tema vive en `src/app/studio-theme.css` y la densidad en
+  `src/app/compact-ui.css`, cargada al final; acabado y legibilidad se afinan con Lino.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en

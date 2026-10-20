@@ -1,0 +1,176 @@
+/* Densidad indicada por Lino: la referencia son las herramientas de 12 px / celdas de 20 px.
+   Medidas de interfaz reales: no escalar el canvas ni alterar coordenadas de edición con zoom CSS. */
+:root {
+  --ui-size: 9px;
+  --ui-small: 8px;
+  --ui-title: 10px;
+  --ui-icon: 12px;
+  --ui-control: 20px;
+  --ui-chrome-height: 56px;
+}
+body { line-height: 1.4; }
+.app { padding: 6px; gap: 6px; }
+.dock-panel { border-radius: 10px; }
+.app button, .app select, .app input, .app textarea,
+.shortcut-dialog button, .shortcut-dialog select, .shortcut-dialog input,
+.command-dialog button, .command-dialog select, .command-dialog input,
+.app-dropdown button, .timeline-popover button, .timeline-popover input, .timeline-popover select,
+.timeline-tool-menu button {
+  font-size: var(--ui-size); line-height: 1.4; border-radius: 5px;
+  min-height: var(--ui-control); padding: 2px 6px;
+}
+.app button svg, .app-dropdown button svg, .timeline-tool-menu svg { width: var(--ui-icon); height: var(--ui-icon); flex-shrink: 0; }
+.app input[type=checkbox] { min-height: 0; width: 11px; height: 11px; margin: 2px; padding: 0; }
+.app input[type=range] { appearance: none; min-height: 16px; padding: 0; background: transparent; border: 0; }
+.app input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--accent); }
+.app input[type=range]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; margin-top: -3.5px; border: 0; border-radius: 50%; background: var(--pale-sky); }
+.app input[type=range]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--accent); }
+.app input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--pale-sky); }
+.app input[type=color], .timeline-popover input[type=color] { height: 20px; width: 28px; padding: 1px; }
+.app textarea { min-height: 42px; padding: 4px 5px; }
+
+/* Menús, nombre y acciones del proyecto. */
+.app-chrome .topbar { height: 34px; flex-basis: 34px; padding: 0 6px; gap: 5px; border-radius: 9px; }
+.app-menubar { height: 20px; padding: 0 3px; }
+.app-menubar > button { min-height: 18px; padding: 1px 7px; }
+.studio-brand { gap: 5px; padding-right: 8px; font-size: var(--ui-title); }
+.studio-mark { width: 20px; height: 20px; border-radius: 6px; }
+.studio-mark svg { width: var(--ui-icon); height: var(--ui-icon); }
+.topbar .project-name { width: 150px; padding: 2px 6px; font-size: var(--ui-size); }
+.topbar .toolbar, .topbar .export { gap: 3px; }
+.topbar button, .topbar select { padding: 2px 6px; }
+.export .primary { padding: 2px 9px; gap: 5px; border-radius: 12px; }
+.export select { max-width: 154px; }
+.app-dropdown { width: min(300px,calc(100vw - 16px)); padding: 4px; border-radius: 7px; }
+.app-dropdown > button { padding: 4px 6px; gap: 8px; }
+.app-dropdown kbd, .app-dropdown small { font-size: var(--ui-small); }
+.render-status { padding: 3px 7px; gap: 5px; font-size: var(--ui-size); }
+
+/* Títulos, agarres, campos e información auxiliar. */
+.panel, .monitor { padding: 6px; }
+.panel-title { margin-bottom: 5px; }
+.panel-title, .monitor-toolbar, .timeline-panel-header strong { font-size: var(--ui-size); }
+.tabs { gap: 1px; }
+.app .tabs button, .app .monitor-toolbar button { padding: 2px 4px; font-size: var(--ui-size); border-radius: 5px; }
+.panel-dock-controls .panel-grip, .panel-dock-controls .panel-maximize,
+.inspector .panel-dock-controls .panel-grip, .panel-dock-controls select {
+  width: 16px; height: 18px; min-height: 18px; padding: 2px;
+}
+.panel-dock-controls svg { width: var(--ui-icon); height: var(--ui-icon); }
+.workspace-panel-title { padding: 2px 4px; }
+.workspace-panel-title strong { font-size: var(--ui-small); }
+.fields { gap: 7px; padding: 1px; }
+.fields label { font-size: var(--ui-size); gap: 3px; }
+.app .fields input:not([type=checkbox]):not([type=range]), .app .fields select { padding: 2px 5px; }
+.hint { margin-block: 6px; }
+.local-assistant { padding: 6px; font-size: var(--ui-size); }
+.local-assistant p, .transcript-preview { font-size: var(--ui-size); line-height: 1.4; }
+.local-assistant h3, .local-assistant h4 { font-size: var(--ui-title); margin-block: 7px; }
+.local-assistant form, .audio-local-actions { gap: 5px; }
+.visual-results article { padding: 6px 0; }
+.shortcuts { margin-top: 12px; padding: 7px 1px; }
+.sequence-navigation, .recording-status { font-size: var(--ui-size); padding: 2px 5px; gap: 5px; }
+
+/* Proyecto: miniaturas, nombres y acciones mantienen la misma escala. */
+.bin-controls { margin-top: 2px; padding-top: 4px; gap: 3px; }
+.app .bin-controls button { padding: 1px 5px; }
+.selection-hint { font-size: var(--ui-small); line-height: 1.4; margin-block: 3px; padding-inline: 1px; }
+.bin-media { padding: 2px 2px 18px; }
+.bin-media.grid { grid-template-columns: repeat(auto-fill,minmax(min(84px,100%),1fr)); gap: 4px; }
+.bin-item { padding: 4px; gap: 6px; border-radius: 7px; margin-bottom: 2px; }
+.bin-item video, .bin-audio { width: 30px; height: 44px; border-radius: 4px; }
+.bin-media.grid .bin-item video, .bin-media.grid .bin-audio { height: 76px; }
+.bin-name, .bin-media.grid .bin-name { font-size: var(--ui-size); line-height: 1.4; }
+.bin-dur { font-size: var(--ui-small); margin-top: 2px; }
+.bin-audio { font-size: 12px; }
+.bin-sequences { padding-block: 6px; gap: 4px; }
+.bin-sequence { padding: 5px; border-radius: 6px; gap: 3px; }
+.ai-panel { margin-top: 10px; padding-top: 7px; }
+
+/* Origen y Programa: solo sus controles; el contenido del video tiene su propia tipografía. */
+.monitor-toolbar { padding: 0 1px 5px; gap: 3px; }
+.monitor-view { gap: 5px; }
+.source-pane, .program-pane { padding: 4px; border-radius: 7px; }
+.monitor-label { font-size: var(--ui-small); padding: 1px 1px 4px; }
+.timecode, .source-timecode, .source-range, .monitor-marks { font-size: var(--ui-small); padding-top: 3px; }
+.source-markers, .source-actions { gap: 2px; padding-top: 3px; }
+.app .source-markers button, .app .source-actions button { font-size: var(--ui-small); padding: 2px 4px; }
+.source-preview > .hint { font-size: var(--ui-size); line-height: 1.4; }
+.program-preview button[aria-label] { width: 20px !important; height: 20px !important; min-width: 20px; min-height: 20px; padding: 3px !important; }
+.program-preview button[aria-label] svg { width: var(--ui-icon) !important; height: var(--ui-icon) !important; }
+.source-preview video::-webkit-media-controls-current-time-display,
+.source-preview video::-webkit-media-controls-time-remaining-display { font-size: var(--ui-small); }
+
+/* Chat, modelos, propiedades y ajustes locales. */
+.chat { gap: 4px; min-height: 120px; }
+.chat-header, .chat-connection, .chat-engine-actions, .chat-account { gap: 4px; }
+.chat-engine, .chat-connection, .chat-engine-picker label, .chat-engine-picker select { font-size: var(--ui-size); }
+.app .chat-header button { padding: 1px 5px; min-width: 20px; }
+.chat-engine-picker.fields { padding: 5px; gap: 3px 5px; }
+.chat-engine-picker p { margin-block: 2px; }
+.chat-messages, .chat-examples { gap: 4px; }
+.chat-msg { padding: 6px 8px; border-radius: 7px; font-size: var(--ui-size); line-height: 1.45; }
+.chat-msg.action, .chat-msg.status, .chat-msg.failed { padding: 0 3px; }
+.app .chat-example { padding: 5px 7px; font-size: var(--ui-size); border-radius: 7px; }
+.chat-input { padding: 4px; gap: 3px; border-radius: 8px; }
+.app .chat-input textarea { height: 26px; min-height: 26px; padding: 2px 3px; font-size: var(--ui-size); }
+.chat-buttons { gap: 4px; }
+.app .chat-buttons button { padding: 2px 8px; border-radius: 11px; }
+.chat-edit-plan, .chat-settings { padding: 7px; border-radius: 8px; }
+.chat-edit-plan p, .chat-edit-plan li { font-size: var(--ui-size); }
+.badge { font-size: var(--ui-small); padding: 0 4px; margin-left: 4px; }
+.chat-connection button, .chat-account a, .chat-engine-actions button { font-size: var(--ui-small); }
+
+/* El timeline toma la barra vertical como referencia, sin cambiar altura de pistas elegida. */
+.timeline-panel-header { min-height: 22px; padding: 2px 5px; gap: 3px; }
+.timeline-toolbar { min-height: 26px; padding: 2px 4px; gap: 2px; }
+.app .timeline-toolbar > button { width: 20px; height: 20px; padding: 3px; min-height: 20px; }
+.timeline-time-input { margin-right: 2px; }
+.app .timeline-time-input input { width: 90px; padding: 2px 3px; font-size: var(--ui-small); }
+.timeline-selection-status, .timeline-edit-mode, .track-add-controls button { font-size: var(--ui-small); }
+.timeline-selection-status { padding: 2px 4px; }
+.timeline-edit-mode { margin-left: 3px; }
+.app .track-add-controls button { min-height: 18px; padding: 1px 3px; }
+.app .timeline-tools button { width: var(--tool-cell,20px); height: var(--tool-cell,20px); min-height: 0; padding: 2px; font-size: var(--ui-size); }
+.app .track-header button { height: 20px; min-height: 0; padding: 2px; font-size: var(--ui-small); }
+.app .track-header .track-name { font-size: var(--ui-size); }
+.app .track-header button svg { width: 11px; height: 11px; }
+.clip { border-radius: 5px; }
+.clip-label { font-size: var(--ui-small); padding-inline: 5px; }
+.app .timeline-marker { min-height: 0; padding: 0; font-size: 10px; }
+.timeline-popover { padding: 8px; gap: 5px; border-radius: 8px; }
+.timeline-popover label { font-size: var(--ui-size); gap: 4px; }
+.timeline-popover form { gap: 5px; }
+.timeline-tool-menu { padding: 4px; }
+.timeline-tool-menu button { padding: 4px 6px; gap: 6px; }
+.meter-panel .audio-meter { padding: 4px; gap: 2px; }
+.meter-panel .meter-top button, .meter-panel .meter-reset { min-height: 16px; padding: 0 3px; font-size: var(--ui-small); }
+.meter-top, .meter-values, .meter-scale, .audio-meter small { font-size: var(--ui-small); }
+
+/* Diálogos y editor de teclado con la misma densidad que el editor. */
+.shortcut-dialog, .command-dialog { font-size: var(--ui-size); padding: 10px; border-radius: 10px; }
+.shortcut-dialog[open] { gap: 7px; }
+.shortcut-dialog h2, .command-dialog h2 { font-size: 12px; }
+.shortcut-dialog h3 { font-size: var(--ui-title); }
+.shortcut-dialog header span, .keyboard-modifiers span, .keyboard-legend,
+.shortcut-tabs label, .shortcut-note, .shortcut-command-list kbd,
+.premiere-reference > p, .premiere-reference table { font-size: var(--ui-small); }
+.shortcut-dialog footer { gap: 5px; padding-top: 6px; }
+.shortcut-tabs, .shortcut-filters { gap: 4px; }
+.shortcut-assignment { padding: 7px; }
+.shortcut-command-list > button { padding: 4px 5px; gap: 6px; }
+.shortcut-command-list small { font-size: var(--ui-small); }
+.visual-keyboard button { height: 27px; min-height: 0; padding: 2px 3px; }
+.visual-keyboard button span { font-size: var(--ui-size); }
+.keyboard-row, .visual-keyboard { gap: 3px; }
+.gesture-editor > label { padding-block: 5px; gap: 8px; }
+.gesture-editor p { font-size: var(--ui-size); line-height: 1.45; }
+.premiere-reference td, .premiere-reference th { padding: 4px 6px; }
+.command-dialog label { margin-block: 7px; gap: 6px; }
+.command-dialog footer { gap: 5px; margin-top: 10px; }
+.command-feedback { font-size: var(--ui-size); padding: 5px 8px; }
+
+@container trackheaders (max-width: 164px) { .app .track-header button { height: 100%; padding: 1px; } }
+@container inspector (max-height: 240px) { .chat { min-height: 100px; } .app .chat-input textarea { height: 22px; min-height: 22px; } }
+@media(max-width:950px) { .topbar .project-name { width: 112px; } .export select { max-width: 130px; } }
+@media(max-width:760px) { .shortcut-dialog { padding: 8px; } .visual-keyboard button { height: 22px; } }

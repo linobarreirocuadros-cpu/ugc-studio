@@ -29,6 +29,32 @@ tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcr
 
 ## Registro
 
+### 2026-10-20 — Densidad global a escala de la barra de herramientas (Codex)
+
+**Implementado y decisiones**
+- Lino pidió reducir proporcionalmente textos, botones y elementos tomando los iconos de la barra
+  vertical como referencia. Nueva capa `compact-ui.css`: texto base 9 px, auxiliar 8 px, títulos
+  10 px, iconos 12 px y controles habituales de 20 px. Se conservan Poppins y el tema vigente.
+- Menús, barra superior, Proyecto/lista/cuadrícula, chat/configuración, propiedades, análisis local,
+  monitores, timeline, medidor, popovers y diálogos de comandos/atajos comparten esta densidad.
+  Rellenos, separaciones, miniaturas y sliders se reducen. La cabecera pasa de 74 a 56 px.
+- Son medidas de interfaz reales, sin zoom CSS ni cambios de Project JSON. Se conservan la regla,
+  las coordenadas de edición, la altura de pista elegida y la tipografía del contenido del video.
+  Los controles nativos del video de Origen siguen dependiendo del navegador.
+
+**Pruebas realizadas**
+- Inspección en el editor real a 756×589 y copia aislada a 1280×720 con medios locales: selección
+  de clip, campos de Propiedades y apertura/cierre de Atajos. Los cinco paneles de la copia aislada
+  no desbordan horizontalmente; herramientas y medidor visibles en los tamaños comprobados.
+- Medidas DOM: controles principales 20 px, fuentes 9 px, iconos de Programa 12 px. Sin errores
+  de consola en la copia aislada durante esta revisión. Captura de resultado guardada fuera del repo.
+- `npm run typecheck` y `npm run build` correctos; Vite mantiene su aviso de tamaño de bundles.
+  No se repitió la suite de operaciones: esta sesión solo cambia presentación y altura de cabecera.
+
+**Pendiente**
+- Revisión de Lino de comodidad y legibilidad con su pantalla/escala de Windows. No se declara
+  validación editorial ni prueba de todas las funciones por esta revisión visual.
+
 ### 2026-10-20 — Menús y atajos editables basados en Premiere Windows (Codex)
 
 **Investigación y decisiones**
