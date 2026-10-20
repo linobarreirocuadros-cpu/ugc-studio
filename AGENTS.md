@@ -4,9 +4,27 @@ Este archivo lo leen Claude Code (vía CLAUDE.md), Codex/ChatGPT y cualquier otr
 Es la fuente de verdad sobre cómo trabajar en este repo. Responde al usuario en español.
 
 ## Qué es
-Editor de video personal para editar videos UGC (anuncios verticales para marcas), con flujo
-parecido a Premiere Pro, vista previa y render con Remotion, y (en fases futuras) un chat de IA
-que edita el proyecto. Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
+Editor de video personal para editar videos UGC (anuncios verticales para marcas), dirigido
+mediante chat y voz, con una línea de tiempo editable que refleja las operaciones de la IA.
+Premiere, DaVinci y Descript son referencias de flujo, no objetivos de réplica. La visión de
+Lino incluye comprender imagen, acciones, gestos observables y sonido, además de transcribir.
+El chat básico ya existe; el análisis multimodal sigue pendiente. La vista previa y el render
+actuales usan Remotion. Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
+
+## Dirección de producto (aclarada por Lino el 2026-10-19)
+- Chat y voz como vías principales de edición, con selección visual y ajustes manuales.
+- Toda edición debe verse en la línea de tiempo y poder deshacerse. No dar por implementadas
+  capas de ajuste, efectos o animación hasta ampliar el modelo y sus operaciones.
+- Lino quiere espacios de trabajo fáciles de cambiar desde una barra inferior, inspirados
+  en la organización de Resolve. Nombres, número de espacios y diseño final requieren su criterio.
+- Sigue vigente: dos visores Origen/Programa por defecto y opción de alternar por pestañas.
+- La transcripción es una parte del análisis. Remotion/HyperFrames componen y renderizan;
+  reconocer acciones o sonidos requiere modelos y análisis adicionales.
+- La dirección explícita es open source y un flujo completo utilizable sin servicios de pago.
+  Revisar licencias del código, pesos y recursos para uso comercial UGC; no equiparar
+  código disponible, pesos descargables, servicio con cuota gratuita y licencia open source.
+- La investigación y las propuestas del roadmap no autorizan dar por aprobado un rediseño
+  visual. Consultar a Lino antes de decisiones importantes de composición, timing y estilo.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en

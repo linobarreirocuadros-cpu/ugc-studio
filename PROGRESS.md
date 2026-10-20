@@ -164,7 +164,45 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
   Quedaron una copia de prueba y su proxy en `UGC Studio/media/` porque el intento de borrarlos
   fue rechazado por la política automática del entorno; no están referenciados por su proyecto.
 
-## Siguiente paso sugerido
-Reproducir el tramo exacto donde Lino aún vea el bucle y registrar cuadro a cuadro la imagen
-del monitor Programa y los relojes del Player y del video. Corregir el reproductor con ese fallo
-reproducido. Después validar arrastre y una edición real por chat.
+### 2026-10-19 — Investigación del rumbo de producto (Codex)
+
+- Lino pidió detener el avance de funciones para investigar cómo orientar el editor. Aclaró que
+  busca dirigir la edición por texto/voz y comprender imagen, sonido y gestos, con todo resultado
+  reflejado en el timeline. Quiere organización por espacios con barra inferior; Premiere,
+  Resolve y Descript son referencias, no productos que haya que replicar.
+- Se verificaron fechas, estado de Git, `AGENTS.md`, `ROADMAP.md`, este historial, tipos del
+  proyecto y herramientas del chat. Se consultaron fuentes oficiales de productos, repositorios,
+  modelos y artículos de investigación; los enlaces y requisitos derivados están en `ROADMAP.md`.
+- Hallazgo del código: el chat actual recibe texto/estado/transcripciones, sin enviar imagen o
+  audio al modelo. Remotion compone/renderiza; HyperFrames sigue sin integrar. El modelo del
+  proyecto aún no representa capas de ajuste, efectos genéricos o keyframes. El prompt actual
+  propone recortar silencios y poner efectos en cortes por defecto; revisar ese criterio a la
+  luz del brief y las decisiones de Lino queda como trabajo pendiente.
+- Recomendación, todavía propuesta de diseño: conversación persistente, selección contextual,
+  análisis audiovisual local con tiempos verificables, operaciones reversibles y variantes.
+  Espacios candidatos: Medios, Edición, Audio, Crear y Exportar. Nodos como opción avanzada
+  para generación/composición. Se conserva la preferencia ya aprobada de dos visores/pestañas.
+- Candidatos investigados, NO instalados ni probados aquí: Qwen3-VL 4B/8B en Ollama, PySceneDetect,
+  faster-whisper, CLAP, Chatterbox Multilingual, ACE-Step 1.5 y ComfyUI con video local. Probar
+  trabajos pesados de uno en uno en los 12 GB de VRAM; las cifras publicadas no son benchmarks
+  de la RTX 5070 de Lino. Primero localizar un plano visualmente y editarlo con Deshacer.
+- Licencias: no hay `LICENSE` en la raíz. Remotion tiene condiciones de licencia empresarial;
+  revisar su alcance y dependencias antes de prometer uso gratuito para cualquiera. HyperFrames
+  publica Apache-2.0. MMAudio tiene código MIT pero pesos no comerciales: se excluye como
+  recomendación del flujo de anuncios. No se decidió una migración ni una licencia del proyecto.
+- Conexiones opcionales: la documentación actual de OpenAI describe Sign in with ChatGPT para
+  planes Plus/Pro elegibles en apps locales/open source. No está implementado. La documentación
+  de Anthropic no permite ofrecer login/cuotas de claude.ai a terceros sin aprobación;
+  Gemini API ofrece cuota gratuita para ciertos modelos. La vía gratuita local sigue siendo base.
+- Cambios de esta sesión: documentación de intención en `AGENTS.md`, investigación y propuesta
+  en `ROADMAP.md`, e historial. Ninguna nueva función del programa ni cambio visual. No se
+  ejecutaron pruebas audiovisuales o de IA adicionales; los resultados previos siguen separados.
+  `npm run typecheck` y `git diff --check` completados sin errores.
+
+## Siguiente paso sugerido para Codex
+
+Revisar con Lino la dirección propuesta y la distribución de espacios antes de rediseñar.
+La siguiente entrega técnica recomendada es una prueba pequeña de visión local sobre un video
+UGC: encontrar un plano por lo que muestra (también sin diálogo), enseñar su rango, editarlo
+mediante operaciones del proyecto y verificar Deshacer. Validar reproducción/sincronía y cerrar
+el fallo de bucle si Lino aún lo observa. Después ampliar el flujo a Foley y versiones de duración.
