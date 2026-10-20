@@ -143,8 +143,22 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
 - Pendiente: validación visual por Lino de la reproducción y del arrastre; miniaturas de video;
   clips de video/audio vinculados; probar una edición real por chat y revisar avisos de `multer`.
 
+### 2026-10-19 — Diagnóstico del archivo UGC original (Codex)
+- Lino proporcionó el archivo fuente que asocia con el bucle. Se inspeccionó sin modificarlo:
+  H.264, 1080 × 1920, 24000/1001 fps, 626 fotogramas y 26.109 s. Los 626 tiempos de
+  fotograma crecen de forma regular (~41.708 ms); FFmpeg lo decodificó sin avisos.
+- La copia previamente importada tiene igual duración y número de fotogramas, pero distinto
+  hash y diferente texto incrustado en al menos un fotograma. Es otra versión del montaje:
+  reproducirla en el proyecto no equivale a probar exactamente el archivo recién enviado.
+- En UGC Studio se reprodujo la copia importada de principio a fin. Se observaron el cabezal
+  y el reloj interno del elemento de video a ~2.5, 5.4 y 8 s: avanzaron sincronizados. En
+  capturas de ~4, 15, 18 y 24 s cambiaron imagen y texto. No se reprodujo un retroceso del
+  cabezal ni un bucle visual en esos puntos; esto no descarta saltos breves entre muestras.
+- No hubo cambios de código. Pendiente: confirmar con Lino si el bucle persiste en la versión
+  actual y obtener el segundo exacto o una grabación de pantalla. Si persiste, probar el archivo
+  original en un proyecto aislado y registrar cuadro a cuadro reloj de Player y video.
+
 ## Siguiente paso sugerido
-Pedir a Lino una comprobación breve de su video UGC: reproducir varios puntos, arrastrar
-un medio a V2 y comparar el resultado visual. Si el bucle persiste, capturar el segundo exacto
-y examinar el reloj interno del video. Luego probar una edición concreta por chat sobre una
-copia de un proyecto UGC y seguir con miniaturas y clips vinculados antes de Brand Kits o motion.
+Reproducir el tramo exacto donde Lino aún vea el bucle, usando el archivo original en un
+proyecto aislado; comparar los relojes y fotogramas del monitor Origen y Programa. Corregir el
+reproductor solo con un fallo reproducido. Después validar arrastre y una edición real por chat.
