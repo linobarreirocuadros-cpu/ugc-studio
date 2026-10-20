@@ -55,6 +55,12 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - `src/ai/tools.ts` — herramientas del chat (JSON Schema, tiempos en segundos) + system prompt
 - `src/app/chat/` — panel de chat y `executeTool.ts` (ejecuta herramientas en el navegador)
 - `server/llm.ts` — proveedores de IA, conversación en memoria, `/api/chat`, `/api/settings`, `/api/models`
+- `server/chatgpt.ts` y `server/responses.ts` — Sign in with ChatGPT oficial, credenciales DPAPI
+  en Windows y herramientas mediante Responses; no hereda esta conversación de ChatGPT/Codex
+- `server/transcription.ts` y `scripts/transcribe_local.py` — faster-whisper large-v3 local,
+  cola/caché y marcas por palabra; Whisper del navegador sigue como alternativa ligera
+- `src/app/editPlan.ts` — propuestas de resumen validadas; `keepTimelineRanges` en ops aplica
+  todos los rangos del montaje en un solo paso reversible, conservando la sincronía entre pistas
 - `server/vision.ts` — muestras con tiempo, caché visual y búsqueda/verificación con Ollama local
 - `server/audioProcessing.ts` — FFmpeg y Resemble Denoiser ONNX (pesos MIT); resultados derivados
 - `server/localTasks.ts` — cola local serial, progreso/cancelación y resolución de medios locales
@@ -74,6 +80,11 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 - Todas las versiones de paquetes `remotion` y `@remotion/*` deben ser exactamente iguales.
 - Textos de la interfaz en español.
 - Tiempos siempre en frames (no segundos) dentro del modelo de datos.
+- ChatGPT usa el plan elegible y sus límites; OpenAI API es una opción separada con cobro por uso.
+  No guardar tokens de ChatGPT en config.json/frontend/logs. El DevKit SIWC tiene licencia no
+  comercial: esta integración usa un cliente propio del protocolo público y jose (MIT).
+- No declarar un resumen coherente o una transcripción perfecta por pasar pruebas técnicas:
+  la revisión editorial, de texto y de escucha corresponde a Lino.
 
 ## Al terminar cada sesión de trabajo (obligatorio)
 1. Actualiza `PROGRESS.md`: qué hiciste, qué quedó pendiente, decisiones tomadas.

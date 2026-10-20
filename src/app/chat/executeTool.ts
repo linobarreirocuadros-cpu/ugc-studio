@@ -13,11 +13,14 @@ import {
 import { FONT_FAMILIES } from "../../remotion/fonts";
 import { transcribeMissing } from "../transcribe";
 import { processAudio, searchVisual, sourceClip, type AssistantContext } from "../localAssistant";
+import { applyEditPlan, createEditPlan, type EditPlan } from "../editPlan";
 
 export type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio" };
 type FoleyFolder = { folder: string; files: { name: string; src: string }[] };
 
 export type ToolContext = AssistantContext & {
+  getEditPlan?: () => EditPlan | null;
+  setEditPlan?: (plan: EditPlan | null) => void;
   undo: () => void;
   media: MediaItem[];
   fetchFoley: () => Promise<FoleyFolder[]>;
@@ -112,11 +115,31 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
   const transcribeIfNeeded = () =>
     transcribeMissing(
       ctx.getProject(),
-      (src, words) => commit(ops.setTranscript(ctx.getProject(), src, words)),
+      (src, words, info) => commit(ops.setTranscript(ctx.getProject(), src, words, info)),
       ctx.onStatus,
     );
 
   switch (name) {
+    case "read_transcript": {
+      await transcribeMissing(ctx.getProject(), (src, words, info) => commit(ops.setTranscript(ctx.getProject(), src, words, info)), ctx.onStatus, bool(input.force) ?? false);
+      const current = ctx.getProject();
+      const clips = current.tracks.find((t) => t.id === "V1")?.clips ?? [];
+      const words = clips.filter((c): c is VideoClip => c.kind === "video").flatMap((c) => ops.wordsOnTimeline(current, c)).sort((a, b) => a.start - b.start);
+      return JSON.stringify({ transcripcion: transcriptLines(current), palabras: words.map((w) => ({ texto: w.text, inicio_s: w.start / fps, fin_s: w.end / fps })), aviso: "Transcripción automática: puede contener errores. Conserva palabras completas al planificar cortes; usa visión si necesitas saber qué se ve." });
+    }
+    case "create_edit_plan": {
+      if (!Array.isArray(input.ranges) || num(input.target_duration_s) === undefined || !str(input.summary)) throw new Error("Indica rangos, duración objetivo y explicación editorial.");
+      const plan = createEditPlan(ctx.getProject(), Number(input.target_duration_s), input.ranges as { start_s: number; end_s: number; reason: string }[], String(input.summary));
+      if (!ctx.setEditPlan) throw new Error("El chat no admite propuestas de montaje en esta vista.");
+      ctx.setEditPlan(plan);
+      return JSON.stringify({ duracion_s: plan.durationFrames / fps, rangos: plan.ranges.map((r) => ({ inicio_s: r.start / fps, fin_s: r.end / fps, motivo: r.reason })), mensaje: "Propuesta validada y visible en el chat. Todavía no se modificó el timeline; usa apply_edit_plan si el usuario pidió ejecutar el resumen." });
+    }
+    case "apply_edit_plan": {
+      const plan = ctx.getEditPlan?.();
+      if (!plan) throw new Error("Crea primero una propuesta con create_edit_plan.");
+      commit(applyEditPlan(ctx.getProject(), plan)); ctx.setEditPlan?.(null); ctx.onSeek?.(0);
+      return `Resumen aplicado: ${plan.durationFrames / fps} s. Cortes visibles en todas las pistas, con sonido, textos y subtítulos ajustados al mismo montaje. Un paso de Deshacer recupera la versión anterior.`;
+    }
     case "get_project_state": {
       const foley = await ctx.fetchFoley().catch(() => []);
       return JSON.stringify({
@@ -124,7 +147,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
         clip_seleccionado: ctx.selectedClipId ?? null,
         cabezal_s: round((ctx.currentFrame ?? 0) / fps),
         pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, clips: t.clips.map((c) => clipSummary(c, fps)) })),
-        transcripcion: transcriptLines(project) || "(sin transcribir: generate_captions o remove_silences la crean)",
+        transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
         foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),
       });

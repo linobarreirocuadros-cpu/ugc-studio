@@ -32,9 +32,47 @@ Así, al descargar una versión nueva del programa, no pierdes nada.
 
 **Chat con IA (gratis):** instala [Ollama](https://ollama.com/download), abre PowerShell y escribe
 `ollama pull qwen3:8b` para empezar; `qwen3:30b-a3b` ofrece otra opción, pero responde más lento.
-En el editor, pestaña **Chat IA** → ⚙ → Motor "Ollama". El panel indica si Ollama está conectado
+En el editor, pestaña **Chat IA** → **Motor: Ollama** → elige **Modelo**. El panel indica si Ollama está conectado
 y muestra el tiempo de espera cuando el modelo está pensando. También puedes usar Gemini/Groq/OpenRouter (gratis con
-límite diario) o Claude/ChatGPT (de pago) pegando su clave.
+límite) o Claude/OpenAI API (de pago, opcionales) pegando su clave en **Configurar**.
+
+## Usar tu cuenta ChatGPT para editar
+
+1. En **Chat IA**, elige **Motor: ChatGPT** y pulsa **Continue with ChatGPT**.
+2. Completa tú el acceso y los permisos en la página oficial. Si no se abre una ventana, pulsa
+   **Abrir acceso de ChatGPT**, que aparece mientras la conexión está pendiente.
+3. Cuando aparezca **ChatGPT conectado · Plan autorizado**, elige un modelo del catálogo de tu cuenta.
+4. Prueba: «Resume el video coherentemente a 15 segundos, conserva el gancho y la llamada a la
+   acción y aplica los cortes en la línea de tiempo». El chat lee el montaje/transcripción,
+   valida un plan por rangos y lo aplica. **Deshacer** recupera la edición anterior en un paso.
+
+Necesitas un plan ChatGPT elegible y conexión a internet; se aplican sus permisos y límites.
+Es opcional: Ollama mantiene la vía local gratuita. **OpenAI API** es otra conexión, con
+facturación por uso separada de ChatGPT. El editor no hereda el historial de esta conversación:
+escribe dentro del editor el brief y tus criterios. Cambiar motor/modelo inicia una conversación nueva.
+
+Esta primera conexión de cuenta funciona en Windows. Las credenciales se guardan cifradas para
+tu usuario de Windows (DPAPI), en `UGC Studio/chatgpt/`; no se entregan al navegador ni van en
+el proyecto. **Cuenta y uso** permite gestionar uso o desconectar. No hay selector de varias cuentas.
+Se utiliza un cliente propio del protocolo público, no el DevKit de licencia no comercial.
+
+## Mejorar la transcripción gratis y localmente
+
+1. Con Python 3.10 o superior instalado, ejecuta **Preparar transcripcion local (Windows).bat** una vez.
+   Prepara un entorno propio y descarga faster-whisper **large-v3** (varios GB, código/pesos MIT).
+2. En el panel de transcripción, elige **Local preciso · Whisper large-v3**, idioma automático o el idioma
+   hablado y, si hace falta, añade nombres de marcas/productos al vocabulario.
+3. Pulsa **Volver a transcribir**. Revisa el texto y después **Generar subtítulos** para sustituir
+   los subtítulos anteriores; retranscribir por sí solo no los reemplaza.
+
+El modelo funciona en CPU y puede tardar. Whisper del navegador sigue disponible como alternativa
+ligera; se corrigió la separación incorrecta de fragmentos de una misma palabra. Ningún motor
+garantiza texto perfecto: revisa nombres, cifras y voces superpuestas. ChatGPT conectado dirige
+las herramientas; esta transcripción utiliza el modelo local, no la transcripción de ChatGPT.
+
+Entorno/modelos fuera del repositorio; caché en `UGC Studio/transcripciones/`. Límite inicial:
+30 minutos por archivo, tareas seriales cancelables. Para instalaciones personalizadas,
+`UGC_WHISPER_PYTHON` selecciona el Python del entorno y `UGC_WHISPER_MODEL_DIR` un modelo local.
 
 **Foley:** copia tus efectos de sonido a las carpetas de `UGC Studio/Foley` (Whoosh, Impactos,
 Pops y clicks…) y aparecen en la pestaña **Foley** del editor.

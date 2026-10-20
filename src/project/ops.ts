@@ -2,6 +2,7 @@
 // La UI las usa hoy; en la Fase 2 el chat de IA las llamará como "tools".
 
 import {
+  getProjectDuration,
   DEFAULT_CAPTION_STYLE,
   DEFAULT_TEXT_STYLE,
   type CaptionClip,
@@ -294,10 +295,49 @@ const ensureCaptionTrack = (project: Project): Project =>
     ? project
     : { ...project, tracks: [...project.tracks, { id: "S1", kind: "caption", name: "SUB", clips: [] }] };
 
-export const setTranscript = (project: Project, src: string, words: Word[]): Project => ({
+export const setTranscript = (project: Project, src: string, words: Word[], info?: NonNullable<Project["transcriptInfo"]>[string]): Project => ({
   ...project,
   transcripts: { ...project.transcripts, [src]: words },
+  ...(info ? { transcriptInfo: { ...project.transcriptInfo, [src]: info } } : {}),
 });
+
+/** Conserva rangos del montaje completo y cierra los huecos en todas las pistas a la vez. */
+export const keepTimelineRanges = (project: Project, ranges: { start: number; end: number }[]): Project => {
+  const duration = getProjectDuration(project);
+  if (!ranges.length || ranges.some((r, i) => !Number.isInteger(r.start) || !Number.isInteger(r.end) || r.start < 0 || r.end <= r.start || r.end > duration || (i > 0 && r.start < ranges[i - 1].end))) throw new Error("Los rangos deben estar ordenados, dentro del montaje y sin solaparse.");
+  const identities = new Map<string, string>(), seen = new Set<string>();
+  for (const [index, range] of ranges.entries()) for (const track of project.tracks) for (const clip of track.clips) {
+    if (clip.from < range.end && clip.from + clip.durationInFrames > range.start) {
+      identities.set(`${index}:${clip.id}`, seen.has(clip.id) ? newId() : clip.id); seen.add(clip.id);
+    }
+  }
+  return { ...project, tracks: project.tracks.map((track) => {
+    let cursor = 0;
+    const clips: Clip[] = [];
+    ranges.forEach((range, index) => {
+      for (const clip of track.clips) {
+        const a = Math.max(clip.from, range.start), b = Math.min(clip.from + clip.durationInFrames, range.end);
+        if (b <= a) continue;
+        const offset = a - clip.from, length = b - a;
+        const base = { ...clip, id: identities.get(`${index}:${clip.id}`)!, from: cursor + a - range.start, durationInFrames: length };
+        if (base.kind === "video" || base.kind === "audio") {
+          base.trimStart += offset;
+          if (base.kind === "audio") {
+            base.fadeIn = offset === 0 ? Math.min(base.fadeIn, length) : 0;
+            base.fadeOut = b === clip.from + clip.durationInFrames ? Math.min(base.fadeOut, length) : 0;
+            if (base.derivedFrom) base.derivedFrom = { ...base.derivedFrom, clipId: identities.get(`${index}:${base.derivedFrom.clipId}`) ?? base.derivedFrom.clipId };
+          }
+        } else if (base.kind === "caption") {
+          base.words = base.words.filter((w) => w.end > offset && w.start < offset + length).map((w) => ({ ...w, start: Math.max(0, w.start - offset), end: Math.min(length, w.end - offset) }));
+          if (!base.words.length) continue;
+        }
+        clips.push(base);
+      }
+      cursor += range.end - range.start;
+    });
+    return { ...track, clips };
+  }) };
+};
 
 /** Palabras de un clip de video, ya convertidas a frames de la línea de tiempo. */
 export const wordsOnTimeline = (project: Project, clip: VideoClip): Word[] => {

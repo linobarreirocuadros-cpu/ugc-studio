@@ -1,22 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { executeTool, type ToolContext } from "./executeTool";
 import { loadPref, savePref, transcribeVoice } from "../transcribe";
-
-type ProviderId = "ollama" | "gemini" | "groq" | "openrouter" | "anthropic" | "openai";
-type ProviderInfo = { label: string; free: boolean; needsKey: boolean; keyUrl?: string; suggested: string[] };
-type SettingsView = {
-  provider: ProviderId;
-  models: Partial<Record<ProviderId, string>>;
-  ollamaUrl: string;
-  hasKey: Record<ProviderId, boolean>;
-  providers: Record<ProviderId, ProviderInfo>;
-};
+import { ChatEnginePicker, type ProviderId, type SettingsView } from "./ChatEnginePicker";
+import { applyEditPlan, type EditPlan } from "../editPlan";
 
 type UiMessage = { role: "user" | "assistant" | "action" | "failed" | "error" | "status"; text: string };
 type ChatReply = { text: string; toolCalls: { id: string; name: string; input: Record<string, unknown> }[]; error?: string };
 type OllamaStatus = { state: "checking" | "ready" | "offline" | "missing"; detail?: string };
 
 const TOOL_LABEL: Record<string, string> = {
+  read_transcript: "Leyendo la transcripción",
+  create_edit_plan: "Preparando propuesta de montaje",
+  apply_edit_plan: "Aplicando cortes del resumen",
   search_visual: "Buscando en las imágenes del video",
   split_clip_range: "Cortando los bordes del rango",
   process_audio: "Procesando audio local",
@@ -58,6 +53,9 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>({ state: "checking" });
   const [connectionCheck, setConnectionCheck] = useState(0);
   const [recording, setRecording] = useState(false);
+  const [editPlan, setEditPlan] = useState<EditPlan | null>(null);
+  const editPlanRef = useRef<EditPlan | null>(null);
+  const updatePlan = (plan: EditPlan | null) => { editPlanRef.current = plan; setEditPlan(plan); };
   const conversationId = useRef(newConversationId());
   const recorder = useRef<MediaRecorder | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -105,12 +103,13 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
     setMessages((list) => [...list.filter((x) => x.role !== "status"), m]);
 
   const send = async (text: string) => {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || !settings) return;
+    const engine = { provider: settings.provider, model: settings.models[settings.provider] };
     setInput("");
     setBusy(true);
     push({ role: "user", text });
     try {
-      let reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, userText: text });
+      let reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, userText: text, ...engine });
       if (settings?.provider === "ollama") setOllamaStatus({ state: "ready" });
       for (let step = 0; step < MAX_STEPS; step++) {
         if (reply.text) push({ role: "assistant", text: reply.text });
@@ -121,6 +120,8 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
           try {
             const content = await executeTool(call.name, call.input, {
               ...ctx(),
+              getEditPlan: () => editPlanRef.current,
+              setEditPlan: updatePlan,
               onStatus: (s) => push({ role: "status", text: s }),
             });
             if (call.name !== "get_project_state") push({ role: "action", text: `✓ ${TOOL_LABEL[call.name] ?? call.name}` });
@@ -131,7 +132,7 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
             results.push({ id: call.id, content: `Error: ${msg}`, isError: true });
           }
         }
-        reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, toolResults: results });
+        reply = await post<ChatReply>("/api/chat", { conversationId: conversationId.current, toolResults: results, ...engine });
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -149,6 +150,7 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
     post("/api/chat/reset", { conversationId: conversationId.current }).catch(() => {});
     conversationId.current = newConversationId();
     setMessages([]);
+    updatePlan(null);
   };
 
   // --- Voz: graba, transcribe con Whisper (gratis, en el navegador) y envía ---
@@ -189,11 +191,14 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
       <div className="chat-header">
         <span className="chat-engine" title="Motor de IA">
           {provider ? `${provider.label.split(" (")[0]} · ${settings!.models[settings!.provider] ?? "sin modelo"}` : "Sin conexión"}
-          {provider && <span className={`badge ${provider.free ? "free" : "paid"}`}>{provider.free ? "gratis" : "de pago"}</span>}
+          {provider && <span className={`badge ${provider.free ? "free" : "paid"}`}>{settings?.provider === "chatgpt" ? "tu plan" : provider.free ? "gratis" : "de pago"}</span>}
         </span>
-        <button onClick={newChat} title="Nueva conversación">＋</button>
-        <button onClick={() => setShowSettings((v) => !v)} title="Configuración">⚙</button>
+        <button onClick={newChat} disabled={busy} title="Nueva conversación">＋</button>
+        <button onClick={() => setShowSettings((v) => !v)} disabled={busy} title="Configuración">⚙</button>
       </div>
+      {settings && !showSettings && <ChatEnginePicker settings={settings} disabled={busy || recording} onConfigure={() => setShowSettings(true)} onSelect={async (provider, model) => {
+        await post("/api/settings", { provider, model }); newChat(); await loadSettings();
+      }} />}
 
       {settings?.provider === "ollama" && (
         <div className={`chat-connection ${ollamaStatus.state}`} role="status">
@@ -208,7 +213,7 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
         </div>
       )}
 
-      {busy && <div className="chat-wait" role="status">Pensando… {waitSeconds} s{waitSeconds >= 20 ? " · El modelo local puede tardar en cargar." : ""}</div>}
+      {busy && <div className="chat-wait" role="status">Procesando… {waitSeconds} s{waitSeconds >= 20 && settings?.provider === "ollama" ? " · El modelo local puede tardar en cargar." : ""}</div>}
 
       {showSettings && settings && (
         <ChatSettings
@@ -227,7 +232,7 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
             {[
               "Quita los silencios y pon subtítulos karaoke en amarillo",
               "Pon un hook arriba en los primeros 3 segundos que diga 'Esto cambió mi piel'",
-              "Baja la música al 20% y agrega un whoosh en cada corte",
+              "Resume el video coherentemente a 15 segundos y aplica los cortes",
             ].map((ex) => (
               <button key={ex} className="chat-example" onClick={() => send(ex)} disabled={busy}>
                 {ex}
@@ -240,6 +245,12 @@ export function ChatPanel({ ctx }: { ctx: () => Omit<ToolContext, "onStatus"> })
             {m.text}
           </div>
         ))}
+      {editPlan && <div className="chat-edit-plan">
+        <b>Propuesta · {(editPlan.durationFrames / ctx().getProject().fps).toFixed(2)} s</b><p>{editPlan.summary}</p>
+        <ol>{editPlan.ranges.map((r, i) => <li key={i}>{(r.start / ctx().getProject().fps).toFixed(2)}–{(r.end / ctx().getProject().fps).toFixed(2)} s · {r.reason}</li>)}</ol>
+        <button disabled={busy} className="primary" onClick={() => { try { ctx().commit(applyEditPlan(ctx().getProject(), editPlan)); updatePlan(null); ctx().onSeek?.(0); push({ role: "action", text: "✓ Resumen aplicado. Un paso de Deshacer recupera el montaje anterior." }); } catch (e) { push({ role: "error", text: String(e) }); } }}>Aplicar cortes</button>
+        <button disabled={busy} onClick={() => updatePlan(null)}>Descartar propuesta</button>
+      </div>}
       </div>
 
       <form

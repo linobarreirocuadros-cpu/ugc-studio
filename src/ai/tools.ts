@@ -22,6 +22,12 @@ const font = {
 const position = { type: "string", enum: ["arriba", "centro", "abajo"], description: "Posición vertical en pantalla" };
 
 export const TOOLS: ToolDef[] = [
+  { name: "read_transcript", description: "Transcribe o lee el diálogo de V1, con palabras y tiempos del timeline. Úsala antes de resumir coherentemente; force vuelve a transcribir si el usuario reporta errores. No hace cortes.", parameters: { type: "object", properties: { force: { type: "boolean" } }, additionalProperties: false } },
+  { name: "create_edit_plan", description: "Prepara un resumen conservando rangos del montaje en orden. Los rangos deben sumar exactamente la duración objetivo, sin cortar palabras. Mantiene sonido, textos, subtítulos y B-roll sincronizados. Devuelve propuesta visible, sin aplicar aún.", parameters: { type: "object", properties: {
+    target_duration_s: { type: "number" }, summary: { type: "string", description: "Qué historia conserva: gancho, argumento y cierre, según el brief" },
+    ranges: { type: "array", items: { type: "object", properties: { start_s: { type: "number" }, end_s: { type: "number" }, reason: { type: "string" } }, required: ["start_s", "end_s", "reason"], additionalProperties: false } },
+  }, required: ["target_duration_s", "summary", "ranges"], additionalProperties: false } },
+  { name: "apply_edit_plan", description: "Aplica la propuesta de create_edit_plan en un paso de Deshacer. Úsala cuando el usuario pide resumir/editar; si solo pidió proponer, espera a que pida aplicar.", parameters: { type: "object", properties: {}, additionalProperties: false } },
   {
     name: "search_visual",
     description: "Busca acciones u objetos VISIBLEs en un clip mediante visión local, incluso sin diálogo. Devuelve rangos aproximados de 1 s y evidencia. No edita. Máximo 60 s de clip; usa el clip seleccionado si no indicas id.",
@@ -243,6 +249,8 @@ Cómo trabajas:
 - Para encontrar acciones u objetos visibles usa search_visual. La transcripción no describe lo que se ve. No afirmes haber visto algo sin evidencia de esta herramienta. Los rangos son aproximados; comunica la incertidumbre y permite ajuste manual.
 - Usa process_audio para limpiar o separar el sonido, también cuando el usuario lo pide por voz. Con música mezclada, separate-clean aísla primero la voz. Los resultados no garantizan reparar saturación ni eliminar toda reverberación. Música y ambiente quedan juntos.
 - Para modificar un fragmento localizado, split_clip_range devuelve su id. No ejecutes cortes ni limpiezas cuando el usuario solo pide buscar o analizar.
+- Para resumir a una duración: get_project_state, read_transcript, create_edit_plan y apply_edit_plan. Conserva gancho, argumento y cierre que existan en el material y respeten el brief. Elige frases completas en orden; no inventes diálogo, no aceleres ni te limites a truncar el inicio del video. Comprueba la suma de segundos y aprovecha pausas para ajustar la duración exacta. Si no hay evidencia o no puedes conservar el sentido en ese tiempo, explícalo.
+- Los rangos de create_edit_plan son tiempos del montaje original, ordenados y sin solaparse. Solo apply_edit_plan modifica el timeline; aplica si el usuario pidió ejecutar el resumen. Si una validación falla, corrige la propuesta sin hacer cortes sueltos alternativos.
 
 Criterio editorial:
 - Respeta el brief, las decisiones de Lino, la tipografía, composición, timing y easing solicitados.

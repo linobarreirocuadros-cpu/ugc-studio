@@ -4,10 +4,13 @@
 import type { Express } from "express";
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT, TOOLS } from "../src/ai/tools";
+import { registerChatGPT, localRequest } from "./chatgpt";
+import { stepResponses, type ResponsesConversation } from "./responses";
 
-export type ProviderId = "ollama" | "gemini" | "groq" | "openrouter" | "anthropic" | "openai";
+export type ProviderId = "ollama" | "gemini" | "groq" | "openrouter" | "anthropic" | "openai" | "chatgpt";
 
 type ProviderInfo = {
   label: string;
@@ -19,6 +22,9 @@ type ProviderInfo = {
 };
 
 export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
+  chatgpt: {
+    label: "ChatGPT (tu cuenta y plan elegible)", free: false, needsKey: false, suggested: [],
+  },
   ollama: {
     label: "Ollama (local, gratis, sin internet)",
     free: true,
@@ -58,7 +64,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
     suggested: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
   },
   openai: {
-    label: "ChatGPT / OpenAI (de pago)",
+    label: "OpenAI API (cobro por uso, opcional)",
     free: false,
     needsKey: true,
     baseURL: "https://api.openai.com/v1",
@@ -93,6 +99,7 @@ type OpenAIMessage = {
 };
 
 type Conversation =
+  | ResponsesConversation
   | { kind: "openai"; provider: ProviderId; model: string; messages: OpenAIMessage[] }
   | { kind: "anthropic"; model: string; messages: Anthropic.Beta.BetaMessageParam[] };
 
@@ -102,6 +109,7 @@ export type ChatReply = { text: string; toolCalls: ToolCall[] };
 class ChatError extends Error {}
 
 export function registerChatRoutes(app: Express, dataDir: string) {
+  const chatgpt = registerChatGPT(app, dataDir);
   const configPath = path.join(dataDir, "config.json");
   const conversations = new Map<string, Conversation>();
 
@@ -152,7 +160,15 @@ export function registerChatRoutes(app: Express, dataDir: string) {
     const provider = (req.query.provider as ProviderId) ?? s.provider;
     try {
       let ids: string[] = [];
-      if (provider === "anthropic") {
+      if (!PROVIDERS[provider]) throw new ChatError("Motor desconocido.");
+      if (provider === "chatgpt") {
+        localRequest(req);
+        const response = await fetch("https://api.openai.com/v1/models", { headers: { Authorization: `Bearer ${await chatgpt.getToken()}` }, signal: AbortSignal.timeout(20000) });
+        if (!response.ok) throw new ChatError(`ChatGPT respondió ${response.status}. Revisa tu cuenta y permisos.`);
+        const catalog = await response.json();
+        const models = (catalog.models ?? []).filter((m: { visibility: string }) => m.visibility === "list").map((m: { slug: string; display_name: string }) => ({ id: m.slug, label: m.display_name }));
+        return res.json({ models: models.map((m: { id: string }) => m.id), choices: models });
+      } else if (provider === "anthropic") {
         ids = PROVIDERS.anthropic.suggested;
       } else {
         const r = await fetch(`${baseURLFor(provider, s)}/models`, {
@@ -171,15 +187,19 @@ export function registerChatRoutes(app: Express, dataDir: string) {
   });
 
   app.post("/api/chat", async (req, res) => {
-    const { conversationId, userText, toolResults } = req.body as {
+    const { conversationId, userText, toolResults, provider: requestedProvider, model: requestedModel } = req.body as {
       conversationId: string;
       userText?: string;
       toolResults?: { id: string; content: string; isError?: boolean }[];
+      provider?: ProviderId;
+      model?: string;
     };
     const s = loadSettings();
-    const provider = s.provider;
-    const model = s.models[provider] || PROVIDERS[provider].suggested[0];
+    const provider = requestedProvider ?? s.provider;
+    const model = requestedModel || s.models[provider] || PROVIDERS[provider]?.suggested[0];
     try {
+      if (!PROVIDERS[provider]) throw new ChatError("Motor desconocido.");
+      if (provider === "chatgpt") localRequest(req);
       if (!model) throw new ChatError("Elige un modelo en la configuración del chat (⚙).");
       if (PROVIDERS[provider].needsKey && !s.keys[provider]) {
         throw new ChatError(`Falta la clave de ${PROVIDERS[provider].label.split(" (")[0]}. Agrégala en ⚙.`);
@@ -190,15 +210,20 @@ export function registerChatRoutes(app: Express, dataDir: string) {
       const sameEngine =
         conv && (conv.kind === "anthropic" ? provider === "anthropic" : conv.provider === provider) && conv.model === model;
       if (!conv || !sameEngine) {
+        if (toolResults?.length) throw new ChatError("El motor cambió durante la petición. Inicia una nueva petición para continuar.");
         conv =
-          provider === "anthropic"
+          provider === "chatgpt" || provider === "openai"
+            ? { kind: "responses", provider, model, input: [] }
+            : provider === "anthropic"
             ? { kind: "anthropic", model, messages: [] }
             : { kind: "openai", provider, model, messages: [{ role: "system", content: SYSTEM_PROMPT }] };
         conversations.set(conversationId, conv);
       }
 
       const reply =
-        conv.kind === "anthropic"
+        conv.kind === "responses"
+          ? await stepResponses(conv, provider === "chatgpt" ? await chatgpt.getToken() : s.keys.openai!, userText, toolResults)
+          : conv.kind === "anthropic"
           ? await stepAnthropic(conv, s.keys.anthropic!, userText, toolResults)
           : await stepOpenAI(conv, baseURLFor(provider, s), s.keys[provider], userText, toolResults);
       res.json({ ...reply, provider, model });
@@ -223,6 +248,7 @@ async function stepOpenAI(
   userText?: string,
   toolResults?: { id: string; content: string }[],
 ): Promise<ChatReply> {
+  if (conv.provider === "ollama") return stepOllama(conv, baseURL.replace(/\/v1$/, ""), userText, toolResults);
   const pending: OpenAIMessage[] = [];
   for (const r of toolResults ?? []) pending.push({ role: "tool", tool_call_id: r.id, content: r.content });
   if (userText) pending.push({ role: "user", content: userText });
@@ -235,18 +261,13 @@ async function stepOpenAI(
       messages: [...conv.messages, ...pending],
       tools: TOOLS.map((t) => ({ type: "function", function: t })),
       tool_choice: "auto",
-      // Ollama puede tardar varios minutos con un modelo grande. En modo streaming
-      // envía cabeceras enseguida y evita el timeout de fetch antes del primer token.
-      ...(conv.provider === "ollama" ? { stream: true } : {}),
     }),
   });
   if (!r.ok) {
     const body = await r.text();
     throw new ChatError(`(${r.status}) ${body.slice(0, 300)}`);
   }
-  const msg = conv.provider === "ollama"
-    ? await readOpenAIStream(r)
-    : ((await r.json()) as { choices: { message: OpenAIMessage }[] }).choices?.[0]?.message;
+  const msg = ((await r.json()) as { choices: { message: OpenAIMessage }[] }).choices?.[0]?.message;
   if (!msg || (!msg.content && !msg.tool_calls?.length)) throw new ChatError("El modelo no devolvió respuesta.");
 
   // Algunos modelos locales muestran su razonamiento entre <think>…</think>: no se muestra.
@@ -260,44 +281,38 @@ async function stepOpenAI(
   return { text, toolCalls };
 }
 
-/** Reconstruye una respuesta OpenAI compatible a partir de eventos SSE de Ollama. */
-async function readOpenAIStream(response: Response): Promise<OpenAIMessage> {
-  if (!response.body) throw new ChatError("Ollama no abrió el flujo de respuesta.");
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  const calls = new Map<number, { id: string; type: "function"; function: { name: string; arguments: string } }>();
-  let buffer = "";
-  let content = "";
+/** API nativa: /v1 de Ollama no permite ampliar su contexto de 4096 tokens. */
+async function stepOllama(conv: Extract<Conversation, { kind: "openai" }>, base: string, userText?: string, results?: { id: string; content: string }[]): Promise<ChatReply> {
+  const pending: OpenAIMessage[] = (results ?? []).map((r) => ({ role: "tool", tool_call_id: r.id, content: r.content }));
+  if (userText) pending.push({ role: "user", content: userText });
+  const history = [...conv.messages, ...pending];
+  const messages = history.map((message) => ({ role: message.role, content: (message.content ?? "") + (message.role === "user" && /^qwen3(?::|$)/.test(conv.model) ? "\n/no_think" : ""),
+    ...(message.role === "tool" ? { tool_name: history.flatMap((m) => m.tool_calls ?? []).find((call) => call.id === message.tool_call_id)?.function.name } : {}),
+    ...(message.tool_calls ? { tool_calls: message.tool_calls.map((call) => ({ function: { name: call.function.name, arguments: safeJson(call.function.arguments) } })) } : {}),
+  }));
+  // Algunos templates Qwen3 antiguos fuerzan <think> aun con think:false.
+  if (/^qwen3(?::|$)/.test(conv.model) && !conv.model.includes("instruct")) messages.push({ role: "assistant", content: "<think>\n\n</think>\n\n" });
+  const response = await fetch(`${base}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: conv.model, messages, tools: TOOLS.map((tool) => ({ type: "function", function: tool })), stream: true, think: false, options: { num_ctx: 16384, num_predict: 2048, temperature: 0 } }) });
+  if (!response.ok || !response.body) throw new ChatError(`Ollama respondió ${response.status}. Comprueba el modelo seleccionado.`);
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = "", text = "", done = false;
+  const calls: ToolCall[] = [];
   const consume = (line: string) => {
-    if (!line.startsWith("data:")) return;
-    const payload = line.slice(5).trim();
-    if (!payload || payload === "[DONE]") return;
-    const choice = (JSON.parse(payload) as {
-      choices?: { delta?: { content?: string | null; tool_calls?: {
-        index: number; id?: string; function?: { name?: string; arguments?: string };
-      }[] } }[];
-    }).choices?.[0];
-    const delta = choice?.delta;
-    if (delta?.content) content += delta.content;
-    for (const call of delta?.tool_calls ?? []) {
-      const current = calls.get(call.index) ?? { id: "", type: "function" as const, function: { name: "", arguments: "" } };
-      if (call.id) current.id = call.id;
-      if (call.function?.name) current.function.name += call.function.name;
-      if (call.function?.arguments) current.function.arguments += call.function.arguments;
-      calls.set(call.index, current);
-    }
+    if (!line.trim()) return;
+    const part = JSON.parse(line);
+    if (part.error) throw new ChatError(part.error);
+    text += part.message?.content ?? "";
+    for (const call of part.message?.tool_calls ?? []) calls.push({ id: `call_${randomUUID()}`, name: call.function.name, input: typeof call.function.arguments === "string" ? safeJson(call.function.arguments) : call.function.arguments });
+    if (part.done) { if (part.done_reason === "length") throw new ChatError("El modelo local agotó el límite de respuesta. Prueba una petición más concreta."); done = true; }
   };
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? "";
-    for (const line of lines) consume(line);
-  }
-  buffer += decoder.decode();
-  if (buffer.trim()) consume(buffer);
-  return { role: "assistant", content, ...(calls.size ? { tool_calls: [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call) } : {}) };
+  try {
+    for (;;) { const { value, done: ended } = await reader.read(); if (ended) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop()!; lines.forEach(consume); }
+    buffer += decoder.decode(); consume(buffer);
+  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  if (!done || (!text.trim() && !calls.length)) throw new ChatError("Ollama no completó una respuesta. Prueba otro modelo o inicia una conversación nueva.");
+  conv.messages.push(...pending, { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls.map((call) => ({ id: call.id, type: "function" as const, function: { name: call.name, arguments: JSON.stringify(call.input) } })) } : {}) });
+  const visible = text.includes("</think>") ? text.slice(text.lastIndexOf("</think>") + "</think>".length) : text;
+  return { text: visible.replace(/<think>[\s\S]*?<\/think>/g, "").trim(), toolCalls: calls };
 }
 
 // --- Claude (SDK oficial de Anthropic) -------------------------------------------------------

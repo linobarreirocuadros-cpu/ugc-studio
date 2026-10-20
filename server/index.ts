@@ -13,6 +13,7 @@ import { registerChatRoutes } from "./llm";
 import { createLocalTasks } from "./localTasks";
 import { registerVision } from "./vision";
 import { registerAudioProcessing } from "./audioProcessing";
+import { registerTranscription } from "./transcription";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Los videos y exportaciones viven fuera de la carpeta del programa, para que al actualizarlo
@@ -224,6 +225,7 @@ registerChatRoutes(app, DATA_DIR);
 const enqueueLocal = createLocalTasks(app);
 registerVision(app, DATA_DIR, enqueueLocal);
 registerAudioProcessing(app, DATA_DIR, enqueueLocal);
+registerTranscription(app, DATA_DIR, enqueueLocal);
 
 // --- Exportación ---------------------------------------------------------------
 
@@ -270,6 +272,9 @@ app.post("/api/render", async (req, res) => {
       proResProfile: cfg.prores,
       outputLocation: path.join(OUT_DIR, fileName),
       browserExecutable,
+      // Limitar lectores simultáneos cuando el mismo archivo aparece en varios cortes.
+      concurrency: 2,
+      offthreadVideoCacheSizeInBytes: 1024 * 1024 * 1024,
       onProgress: ({ progress }) => (job.progress = progress),
     });
     job.status = "done";

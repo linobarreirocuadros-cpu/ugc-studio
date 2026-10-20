@@ -112,6 +112,8 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)
+- [x] Transcripción local más precisa con faster-whisper large-v3, idioma automático,
+      vocabulario de marcas, caché y retranscripción; corregir unión de subtokens del navegador
 - [x] Generar subtítulos automáticos (estilos: karaoke, palabra por palabra, bloque)
 - [x] Editar texto de cada bloque de subtítulos; estilo global (color, resaltado, mayúsculas, contorno)
 - [x] Cortar silencios automáticamente (jump cuts) usando la transcripción
@@ -126,8 +128,16 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 
 ## Fase 2 — Chat de IA integrado (base implementada, pendiente validación editorial UGC)
 - [x] Panel "Chat IA"; herramientas de proyecto y análisis (subtítulos, textos, Foley, visión y audio)
+- [x] Elegir motor y modelo dentro del chat; catálogo real de la cuenta y conversación nueva al cambiar
+- [x] Conectar plan ChatGPT elegible mediante Sign in with ChatGPT oficial (Windows, DPAPI),
+      Responses y herramientas; probar acceso, catálogo y edición reales con GPT-6.1-Sol
+- [x] Proponer/aplicar resumen por rangos conservando todas las pistas; validación de duración,
+      palabras y estado; Deshacer/Rehacer en un paso. Prueba real de 26.1 a 15 s y export MP4
+- [ ] Validar con Lino coherencia del resumen, transcripción local y calidad de los cortes
+- [ ] Probar expiración/renovación y revocación reales de ChatGPT; ampliar gestión de cuentas/plataformas
 - [x] Motores: Ollama (local, gratis, por defecto), Gemini / Groq / OpenRouter (gratis con límite),
-      Claude y OpenAI (de pago, opcionales). Claves guardadas en `UGC Studio/config.json`
+      Claude y OpenAI API (de pago, opcionales). Claves API guardadas en `UGC Studio/config.json`;
+      ChatGPT usa por separado el plan autorizado, sin clave API y sujeto a sus límites
 - [x] Comandos de voz (micrófono → Whisper en el navegador → chat)
 - [x] Probar el chat con Ollama real en el PC del usuario (qwen3:8b: texto, duración y deshacer)
 - [x] Probar el chat con qwen3:30b-a3b en el PC del usuario (texto, posición y duración)

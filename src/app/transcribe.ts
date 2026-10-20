@@ -10,6 +10,9 @@ import {
   type WhisperWebModel,
 } from "@remotion/whisper-web";
 import type { Project, VideoClip, Word } from "../project/types";
+import { runLocalTask } from "./localAssistant";
+import { wordsFromWhisperTokens } from "../project/transcript";
+export type TranscriptInfo = NonNullable<Project["transcriptInfo"]>[string];
 
 export type TranscribeStep = "modelo" | "audio" | "transcribiendo";
 
@@ -41,8 +44,10 @@ export const savePref = (key: string, value: string) => {
   }
 };
 export const whisperPrefs = () => ({
-  model: loadPref<WhisperWebModel>("whisper-model", "base"),
-  language: loadPref<WhisperWebLanguage>("whisper-lang", "en"),
+  model: loadPref<WhisperWebModel>("whisper-model", "small"),
+  language: loadPref<WhisperWebLanguage>("whisper-lang", "auto"),
+  engine: loadPref<"local" | "browser">("transcription-engine", "local"),
+  vocabulary: loadPref<string>("transcription-vocabulary", ""),
 });
 
 const STEP_LABEL: Record<TranscribeStep, string> = {
@@ -56,27 +61,39 @@ export const pendingTranscripts = (project: Project): [string, string][] => {
   const clips = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter(
     (c): c is VideoClip => c.kind === "video",
   );
-  return [...new Map(clips.map((c) => [c.src, c.name])).entries()].filter(([src]) => !project.transcripts?.[src]);
+  const preferences = whisperPrefs();
+  return [...new Map(clips.map((c) => [c.src, c.name])).entries()].filter(([src]) => {
+    const info = project.transcriptInfo?.[src];
+    return !project.transcripts?.[src] || !info || info.engine !== preferences.engine || info.model !== (preferences.engine === "local" ? "large-v3" : preferences.model) || info.language !== preferences.language || (info.vocabulary ?? "") !== preferences.vocabulary;
+  });
 };
 
 /** Transcribe todos los videos de V1 que falten. `onDone` recibe cada resultado para guardarlo. */
 export async function transcribeMissing(
   project: Project,
-  onDone: (src: string, words: Word[]) => void,
+  onDone: (src: string, words: Word[], info: TranscriptInfo) => void,
   onStatus: (text: string) => void,
+  force = false,
 ) {
-  const pending = pendingTranscripts(project);
-  const { model, language } = whisperPrefs();
+  const pending = force ? pendingTranscripts({ ...project, transcripts: {} }) : pendingTranscripts(project);
+  const { model, language, engine, vocabulary } = whisperPrefs();
   for (const [i, [src, name]] of pending.entries()) {
-    const words = await transcribeMedia({
+    const words = engine === "local" ? await transcribeLocal(src, project.fps, language, vocabulary, (text) => onStatus(`${name} · ${text}`), force) : await transcribeMedia({
       src,
       fps: project.fps,
       model,
       language,
       onProgress: (step, p) => onStatus(`${name} (${i + 1}/${pending.length}) · ${STEP_LABEL[step]} ${Math.round(p * 100)}%`),
     });
-    onDone(src, words);
+    onDone(src, words, { engine, model: engine === "local" ? "large-v3" : model, language, vocabulary });
   }
+}
+
+async function transcribeLocal(src: string, fps: number, language: string, vocabulary: string, onStatus: (text: string) => void, force: boolean): Promise<Word[]> {
+  const status = await fetch("/api/transcription/status").then((r) => r.json());
+  if (!status.ready) throw new Error(status.error || "Prepara la transcripción local antes de continuar.");
+  const result = await runLocalTask<{ words: { text: string; start: number; end: number; confidence: number }[] }>("/api/transcription", { src, language, vocabulary, force }, onStatus);
+  return result.words.map((word) => ({ ...word, start: Math.round(word.start * fps), end: Math.max(Math.round(word.start * fps) + 1, Math.round(word.end * fps)) }));
 }
 
 /** Transcribe una grabación de voz (comandos por micrófono). Devuelve el texto. */
@@ -115,8 +132,5 @@ export async function transcribeMedia(opts: {
   });
 
   const { captions } = toCaptions({ whisperWebOutput: result });
-  const msToFrame = (ms: number) => Math.round((ms / 1000) * opts.fps);
-  return captions
-    .map((c) => ({ text: c.text.trim(), start: msToFrame(c.startMs), end: msToFrame(c.endMs) }))
-    .filter((w) => w.text.length > 0 && !/^\[.*\]$/.test(w.text)); // quita marcas tipo [MUSIC]
+  return wordsFromWhisperTokens(captions, opts.fps);
 }

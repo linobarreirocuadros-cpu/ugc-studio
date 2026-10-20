@@ -2,6 +2,9 @@
 
 ## Estado actual
 Fase 2 (chat con IA) construida, con primera visión local y limpieza de audio integradas.
+ChatGPT conectado por Sign in with ChatGPT oficial y probado con GPT-6.1-Sol; selector de motor/modelo
+dentro del chat. Resumen por rangos probado de 26.1 a 15 s con Deshacer/Rehacer y exportación.
+Transcripción precisa local con faster-whisper large-v3 instalada y probada en este PC.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -269,9 +272,81 @@ tipografías, V2 para B-roll y ondas de audio. Falta: panel de transcripción y 
   de timeline, export completo con derivados, Whisper real y avisos de dependencias `multer`.
   No se verificó el instalador en un equipo limpio ni la ejecución en macOS/Linux.
 
+### 2026-10-20 — ChatGPT dentro del editor, resumen reversible y transcripción precisa (Codex)
+
+**Funciones implementadas y decisiones**
+- Selector Motor/Modelo dentro del chat, catálogo real y conversación nueva al cambiar de motor
+  o modelo. La selección queda fija durante cada petición. Ollama conserva la vía local gratuita;
+  OpenAI API se identifica como opción separada con cobro por uso.
+- Sign in with ChatGPT oficial: registro dinámico, retorno local, state/nonce/PKCE, verificación
+  de identidad con jose (MIT), renovación y revocación. Credenciales cifradas con DPAPI del usuario
+  Windows fuera del repo, nunca en frontend/config.json. Primera versión Windows, una cuenta por
+  registro. Se ofrece enlace visible si el navegador bloquea la ventana emergente.
+- El usuario completó el acceso oficial. Se comprobó el estado conectado y el permiso de uso del
+  plan. No hay que pedirle que vuelva a iniciar sesión. GPT-6.1-Sol quedó seleccionado.
+- Se revisó el DevKit SIWC: licencia no comercial, por lo que no se incorporó su código. El cliente
+  es propio, basado en la documentación pública. La licencia de publicación del proyecto sigue
+  pendiente de decisión de Lino. ChatGPT usa permisos/límites del plan elegible; no es una IA local
+  gratuita. El editor no hereda el historial ni el contexto personal de esta conversación.
+- Responses con historial explícito, namespace de herramientas, store:false y respuesta completa
+  antes de ejecutar. Hallazgo real: el evento final de SIWC podía traer output vacío; se recuperan
+  los items completos del flujo únicamente después de response.completed. Un flujo fallido o
+  interrumpido no entrega herramientas. La transcripción no usa la conexión SIWC.
+- Resumir: get_project_state/read_transcript → create_edit_plan → apply_edit_plan. Validación de
+  duración en frames, rangos ordenados, palabras enteras y proyecto sin cambios desde el plan.
+  keepTimelineRanges conserva/cierra los mismos rangos en todas las pistas y ajusta trims,
+  subtítulos, fades y referencias de audio derivado; un solo paso de Deshacer. También puede
+  mostrarse una propuesta antes de aplicarla. La coherencia sigue siendo una decisión editorial.
+- Transcripción local: faster-whisper large-v3 CPU int8, marcas por palabra, idioma automático,
+  vocabulario de marcas, caché y retranscripción. Código/pesos MIT; revisión fija del modelo
+  edaa852ec7e145841d8ffdb056a99866b5f0a478. Entorno propio fuera del repo y preparador Windows;
+  ya preparado en este PC. FFmpeg extrae PCM, leído con wave/NumPy para evitar incompatibilidad
+  de PyAV 19. Whisper del navegador sigue disponible y el micrófono conserva su motor anterior.
+- Se corrigió Whisper del navegador: se trataban subtokens como palabras, generando separaciones
+  incorrectas en nombres, contracciones y palabras. Las transcripciones guardan motor/modelo/idioma.
+  Los subtítulos antiguos no se sustituyen hasta Volver a transcribir → Generar subtítulos.
+- Ollama usa ahora su API nativa, contexto 16K y modo sin thinking/prefill para las plantillas
+  Qwen3 antiguas. Se mantienen validaciones aunque el modelo elija rangos incorrectos.
+- Exportar tres fragmentos del mismo archivo falló inicialmente con los recursos por defecto
+  del compositor. Limitar concurrencia a 2 y caché de video a 1 GiB permitió exportar el caso
+  completo; no se afirma haber demostrado una causa única para cualquier fallo de reproducción.
+
+**Pruebas realizadas**
+- Acceso real de la cuenta, permiso del plan y catálogo real; inferencia GPT-6.1-Sol con herramientas.
+  No se guardaron email, tokens, códigos OAuth ni material audiovisual del usuario en el repo.
+- Video UGC real de 26.1 s: large-v3 generó marcas y texto sin la fragmentación previa, con nombres
+  de producto y siglas correctos en los casos revisados. No se midió tasa de error general.
+- Resumen real GPT-6.1-Sol: tres rangos 0–7.2, 14.6–18.9667 y 22.6667–26.1 s; total 450 frames
+  a 30 fps. Conservó gancho, explicación, argumento sobre derechos y llamada a la acción.
+  Esto describe el resultado de la prueba; Lino aún debe aprobar su calidad editorial.
+- En la interfaz, sobre una copia aislada: solicitud por chat, lectura de transcripción, plan,
+  aplicación y tres clips en el timeline. Deshacer recuperó los 783 frames originales en un paso;
+  Rehacer recuperó los 450. Se conservó el proyecto de trabajo original del usuario.
+- Export MP4 completo: H.264, 30 fps, 450 frames/15.000 s de video; audio AAC 15.019 s por padding.
+  Tres muestras comparadas con sus tiempos de origen: diferencia visual media de ~2.1–3.7/255;
+  correlación del audio 1.0/1.0/0.995, desfase máximo ~0.31 ms en esas muestras.
+- Ollama qwen3:8b nativo consultó el proyecto y respondió su duración. El 30B no resolvió el caso
+  exacto de 15 s en esta prueba; validaciones evitaron aplicar rangos incorrectos. No se declara
+  igual capacidad editorial entre modelos.
+- Pruebas automatizadas cubren agrupación de subtokens, sincronía/rangos/subtítulos/audio, pureza,
+  planes obsoletos y palabras partidas, flujo Responses fallido/completo e historial, además de
+  OAuth sintético firmado, PKCE/state, restricción de origen y almacenamiento DPAPI sin exposición.
+- Comprobaciones finales: npm run typecheck, 15 pruebas npm test, npm run build y git diff --check
+  pasan. Build conserva el aviso de chunks grandes; no se hizo una actualización forzada de multer.
+
+**Pruebas pendientes y límites**
+- Revisión de Lino del texto, ritmo, continuidad y mezcla del resumen; no prometer perfección ni
+  equivalencia con la transcripción interna de ChatGPT. Probar español, ruido y voces superpuestas.
+- Renovación por expiración y revocación de una cuenta real; cambios de cuenta, errores de cuotas,
+  reinicios durante el acceso y plataformas distintas de Windows. OAuth sintético no sustituye esas pruebas.
+- Voz por micrófono, exportación con audio separado/limpiado y vínculo individual video/audio al
+  mover o cortar siguen pendientes. El resumen sí aplica rangos conjuntos a todas las pistas.
+- Continúan pendientes validación de reproducción sin bucles por Lino, miniaturas de timeline,
+  diseño de espacios con su criterio, instalador en equipo limpio y avisos previos de multer.
+
 ## Siguiente paso sugerido para Codex
 
-Recoger la comparación de oído de Lino y su validación de reproducción. Priorizar vinculación
-de video/audio derivado para conservar sincronía al mover y cortar, y probar exportación con
-ese audio. Revisar con Lino el prototipo de espacios antes de rediseñar; después ampliar visión
-a límites de plano/eventos y Foley sincronizado. Mantener toda edición en JSON/ops y reversible.
+Recoger la revisión editorial de Lino del resumen de 15 s y de la nueva transcripción. Ajustar
+con ejemplos concretos y verificar reproducción. Después priorizar vínculo individual de video/audio
+derivado y export con ese audio. Revisar con Lino el prototipo de espacios antes de rediseñar;
+ampliar visión a límites de plano/eventos y Foley sincronizado. Mantener JSON/ops y Deshacer.

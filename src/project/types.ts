@@ -48,7 +48,7 @@ export type TextStyle = {
 };
 
 /** Palabra transcrita. Tiempos en frames desde el inicio del archivo original. */
-export type Word = { text: string; start: number; end: number };
+export type Word = { text: string; start: number; end: number; confidence?: number };
 
 export type CaptionPreset = "karaoke" | "palabra" | "bloque";
 
@@ -86,6 +86,7 @@ export type Project = {
   height: number;
   tracks: Track[]; // el primer track se dibuja abajo, el último arriba
   transcripts?: Record<string, Word[]>; // por archivo (clave = src)
+  transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
 };
 
 export const DEFAULT_TEXT_STYLE: TextStyle = {
