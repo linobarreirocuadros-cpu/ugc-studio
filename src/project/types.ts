@@ -14,6 +14,7 @@ export type VideoClip = {
   volume: number; // 0..1
   linkedClipId?: string;
   audioMode?: "embedded" | "separate" | "none";
+  sequenceId?: string;
 };
 
 /** Música, voz en off o efecto de sonido (Foley). */
@@ -31,6 +32,7 @@ export type AudioClip = {
   fadeOut: number; // frames
   derivedFrom?: { clipId: string; src: string; originalVolume: number; mode: string };
   linkedClipId?: string;
+  sequenceId?: string;
 };
 
 export type TextClip = {
@@ -96,7 +98,12 @@ export type Project = {
   tracks: Track[]; // el primer track se dibuja abajo, el último arriba
   transcripts?: Record<string, Word[]>; // por archivo (clave = src)
   transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
+  markers?: TimelineMarker[];
+  sequences?: Record<string, SequenceProject>;
 };
+
+export type TimelineMarker = { id: string; frame: number; label: string; color: string };
+export type SequenceProject = Omit<Project, "sequences"> & { id: string; durationInFrames: number };
 
 /** La salida es la misma para Programa y exportación. Bloquear no cambia la reproducción. */
 export const trackOutputEnabled = (project: Project, track: Track): boolean => {
@@ -109,6 +116,15 @@ export const destinationTrack = (project: Project, kind: "video" | "audio"): str
   if (targeted) return targeted.locked ? undefined : targeted.id;
   const tracks = kind === "audio" ? [...project.tracks].reverse() : project.tracks;
   return tracks.find((t) => t.kind === kind && !t.locked)?.id;
+};
+
+export const clipAtPlayhead = (project: Project, frame: number): Clip | undefined => {
+  for (const kind of ["video", "audio"] as const) {
+    const id = destinationTrack(project, kind);
+    const clip = project.tracks.find((t) => t.id === id)?.clips.find((c) => c.from <= frame && frame < c.from + c.durationInFrames);
+    if (clip) return clip;
+  }
+  return undefined;
 };
 
 export const DEFAULT_TEXT_STYLE: TextStyle = {

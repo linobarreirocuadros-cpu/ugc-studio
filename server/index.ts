@@ -265,9 +265,21 @@ type Job = { status: "rendering" | "done" | "error"; progress: number; url?: str
 const jobs = new Map<string, Job>();
 
 let bundlePromise: Promise<string> | null = null;
+let bundleKey = "";
 const getBundle = () => {
-  // En desarrollo re-empaquetamos si cambia el código; por ahora lo cacheamos por proceso.
-  bundlePromise ??= bundle({ entryPoint: path.join(ROOT, "src/remotion/index.ts") });
+  // Reutilizar el paquete solo mientras no cambien las fuentes del renderizador.
+  const sourceStamp = (directory: string): string[] => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) return sourceStamp(file);
+    const stat = fs.statSync(file); return [`${file}:${stat.mtimeMs}:${stat.size}`];
+  });
+  const key = [...sourceStamp(path.join(ROOT, "src/remotion")), ...sourceStamp(path.join(ROOT, "src/project")), String(fs.statSync(path.join(ROOT, "package-lock.json")).mtimeMs)].join("|");
+  if (!bundlePromise || key !== bundleKey) {
+    bundleKey = key;
+    const pending = bundle({ entryPoint: path.join(ROOT, "src/remotion/index.ts") });
+    bundlePromise = pending;
+    void pending.catch(() => { if (bundlePromise === pending) bundlePromise = null; });
+  }
   return bundlePromise;
 };
 

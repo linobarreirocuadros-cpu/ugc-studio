@@ -6,6 +6,7 @@ import {
   getProjectDuration,
   normalizeProject,
   destinationTrack,
+  clipAtPlayhead,
   type AudioClip,
   type CaptionClip,
   type CaptionStyle,
@@ -28,6 +29,8 @@ import { TimelineTools, TIMELINE_TOOLS, type TimelineTool } from "./TimelineTool
 import { AudioMeter } from "./AudioMeter";
 import { useWorkspace } from "./workspace";
 import { useVoiceRecording } from "./useVoiceRecording";
+import { TimelineToolbar } from "./TimelineToolbar";
+import { normalizeTimelinePreferences, type TimelinePreferences } from "./timelinePreferences";
 
 type MediaItem = { src: string; name: string; durationInFrames: number; proxySrc?: string; kind?: "video" | "audio"; hasAudio?: boolean };
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
@@ -95,7 +98,18 @@ const PreviewPlayer = memo(function PreviewPlayer({
 export function App() {
   const workspace = useWorkspace();
   const saved = useMemo(loadSaved, []);
-  const history = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
+  const rootHistory = useHistory<Project>(() => normalizeProject(saved?.project ?? createEmptyProject()));
+  const [editingSequenceId, setEditingSequenceId] = useState<string | null>(null);
+  const projectView = useCallback((root: Project): Project => editingSequenceId && root.sequences?.[editingSequenceId] ? { ...root.sequences[editingSequenceId], sequences: root.sequences } : root, [editingSequenceId]);
+  const currentProject = useCallback(() => projectView(rootHistory.current()), [projectView, rootHistory.current]);
+  const applyToProject = useCallback((fn: (p: Project) => Project) => rootHistory.apply((root) => {
+    const view = projectView(root), next = fn(view);
+    if (next === view) return root;
+    if (!editingSequenceId || !root.sequences?.[editingSequenceId]) return next;
+    return ops.updateSequence(root, editingSequenceId, next);
+  }), [rootHistory.apply, projectView, editingSequenceId]);
+  const viewedProject = useMemo(() => projectView(rootHistory.value), [projectView, rootHistory.value]);
+  const history = { ...rootHistory, value: viewedProject, current: currentProject, apply: applyToProject };
   const project = history.value;
   const [media, setMedia] = useState<MediaItem[]>(saved?.media ?? []);
   const [waveforms, setWaveforms] = useState<Record<string, string>>({});
@@ -111,7 +125,11 @@ export function App() {
   const [frame, setFrame] = useState(0);
   const [pxPerFrame, setPxPerFrame] = useState(2);
   const [tool, setTool] = useState<TimelineTool>("select");
-  const [snapping, setSnapping] = useState(true);
+  const [timelinePreferences, setTimelinePreferences] = useState(() => { try { return normalizeTimelinePreferences(JSON.parse(localStorage.getItem("ugc-studio:timeline") ?? "null")); } catch { return normalizeTimelinePreferences(null); } });
+  const updateTimelinePreferences = (patch: Partial<TimelinePreferences>) => setTimelinePreferences((p) => normalizeTimelinePreferences({ ...p, ...patch }));
+  const { snapping, linkedSelection } = timelinePreferences;
+  const setSnapping = (fn: (value: boolean) => boolean) => setTimelinePreferences((p) => ({ ...p, snapping: fn(p.snapping) }));
+  useEffect(() => { try { localStorage.setItem("ugc-studio:timeline", JSON.stringify(timelinePreferences)); } catch { /* mantener ajustes de la sesión */ } }, [timelinePreferences]);
   const programRef = useRef<HTMLDivElement>(null);
   const [uploading, setUploading] = useState(false);
   const [binTab, setBinTab] = useState<"proyecto" | "foley">("proyecto");
@@ -139,7 +157,7 @@ export function App() {
   }, () => playerRef.current?.pause());
   useEffect(() => {
     let cancelled = false;
-    const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is VideoClip => c.kind === "video" && !c.linkedClipId && c.audioMode !== "none" && c.audioMode !== "separate" && !migratedAudio.current.has(c.id));
+    const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is VideoClip => c.kind === "video" && !c.sequenceId && !c.linkedClipId && c.audioMode !== "none" && c.audioMode !== "separate" && !migratedAudio.current.has(c.id));
     void Promise.all(candidates.map(async (clip) => {
       const known = media.find((m) => m.src === clip.src)?.hasAudio;
       if (known !== undefined) return known ? clip.id : null;
@@ -162,11 +180,11 @@ export function App() {
   // Autoguardado en el navegador
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ project, media }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ project: rootHistory.value, media }));
     } catch {
       /* sin almacenamiento disponible */
     }
-  }, [project, media]);
+  }, [rootHistory.value, media]);
   useEffect(() => { localStorage.setItem("ugc-studio:bin-view", binView); }, [binView]);
   useEffect(() => { localStorage.setItem("ugc-studio:monitor-layout", monitorLayout); }, [monitorLayout]);
 
@@ -225,23 +243,30 @@ export function App() {
     }
   }, [project]);
 
-  // Sincroniza el cabezal con el reproductor
+  const selectAtPlayhead = useCallback((f: number) => {
+    if (!timelinePreferences.selectionFollowsPlayhead) return;
+    const clip = clipAtPlayhead(history.current(), f);
+    setSelectedIds(clip ? [clip.id] : []); selectionPanel.current = "timeline";
+  }, [timelinePreferences.selectionFollowsPlayhead, history.current]);
+
+  // Sincroniza el cabezal con el reproductor; selección automática solo al buscar, no al reproducir.
   useEffect(() => {
     const p = playerRef.current;
     if (!p) return;
     const onFrame = (e: { detail: { frame: number } }) => setFrame(e.detail.frame);
+    const onSeek = (e: { detail: { frame: number } }) => { setFrame(e.detail.frame); selectAtPlayhead(e.detail.frame); };
     p.addEventListener("frameupdate", onFrame);
-    p.addEventListener("seeked", onFrame);
+    p.addEventListener("seeked", onSeek);
     return () => {
       p.removeEventListener("frameupdate", onFrame);
-      p.removeEventListener("seeked", onFrame);
+      p.removeEventListener("seeked", onSeek);
     };
-  }, []);
+  }, [selectAtPlayhead]);
 
   const seek = useCallback((f: number) => {
-    playerRef.current?.seekTo(f);
-    setFrame(f);
-  }, []);
+    const at = Math.max(0, Math.min(getProjectDuration(history.current()) - 1, Math.round(f)));
+    playerRef.current?.seekTo(at); setFrame(at); selectAtPlayhead(at);
+  }, [selectAtPlayhead, history.current]);
 
   const assistantContext = (): AssistantContext => ({
     getProject: history.current,
@@ -249,6 +274,8 @@ export function App() {
     selectedClipId: selectedId,
     selectedClipIds: selectedIds,
     currentFrame: frame,
+    currentSequenceId: editingSequenceId,
+    nestSequences: timelinePreferences.nestSequences,
     onSeek: seek,
     showVisualResult: setVisualResult,
     registerMedia: (items) => setMedia((list) => [...list, ...items.filter((item) => !list.some((m) => m.src === item.src))]),
@@ -297,6 +324,7 @@ export function App() {
     history.apply((p) => ops.addSourceRange(p, m, trackId, at, inFrame, outFrame, videoOnly));
   };
   const dropMedia = (dragged: MediaDrag, trackId: string, at: number) => {
+    if (dragged.sequenceId) { history.apply((p) => ops.placeSequence(p, dragged.sequenceId!, trackId, at, timelinePreferences.nestSequences, editingSequenceId ?? undefined)); return; }
     const items = dragged.items ?? [dragged];
     const track = project.tracks.find((t) => t.id === trackId);
     if (items.some((item) => missing.has(item.src) || !media.some((m) => m.src === item.src))) return;
@@ -329,10 +357,10 @@ export function App() {
     setRightTab("propiedades"); setTool("select"); seek(at);
   };
 
-  const split = () => history.apply((p) => ops.splitAt(p, frame));
+  const split = () => history.apply((p) => ops.editSelection(p, selectedIds, linkedSelection, (current) => selectedIds.length ? selectedIds.reduce((next, id) => ops.splitAt(next, frame, id), current) : ops.splitAt(current, frame)));
   const remove = (ripple: boolean) => {
     if (!selectedIds.length) return;
-    history.apply((p) => ops.deleteClips(p, selectedIds, ripple));
+    history.apply((p) => ops.editSelection(p, selectedIds, linkedSelection, (current) => ops.deleteClips(current, selectedIds, ripple)));
     setSelectedIds([]);
   };
 
@@ -340,7 +368,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).closest(".timeline-popover")) return;
       const mod = e.metaKey || e.ctrlKey;
       if (e.code === "Space") {
         e.preventDefault();
@@ -360,6 +388,15 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
         selectionPanel.current === "timeline" ? setSelectedIds(project.tracks.filter((t) => !t.locked).flatMap((t) => t.clips).map((c) => c.id)) : setSelectedMedia(media.map((m) => m.src));
+      } else if (!mod && e.shiftKey && e.key.toLowerCase() === "l") {
+        e.preventDefault(); updateTimelinePreferences({ linkedSelection: !linkedSelection });
+      } else if (e.key.toLowerCase() === "m" && !e.altKey) {
+        e.preventDefault();
+        const markers = project.markers ?? [];
+        if (e.shiftKey) {
+          const marker = mod ? [...markers].reverse().find((m) => m.frame < frame) : markers.find((m) => m.frame > frame);
+          if (marker) seek(marker.frame);
+        } else if (!mod && !markers.some((m) => m.frame === frame)) history.apply((p) => ops.setMarker(p, { id: ops.newId(), frame, label: `Marcador ${markers.length + 1}`, color: "#5ab0ff" }));
       } else if (e.key === "ArrowLeft") {
         seek(Math.max(0, frame - (e.shiftKey ? 5 : 1)));
       } else if (e.key === "ArrowRight") {
@@ -395,7 +432,7 @@ export function App() {
   };
 
   const saveProjectFile = () => {
-    const blob = new Blob([JSON.stringify({ project, media }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ project: rootHistory.current(), media }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${project.name}.ugcproj.json`;
@@ -407,7 +444,7 @@ export function App() {
     if (!file) return;
     recording.cancel();
     const data = JSON.parse(await file.text());
-    history.apply(() => normalizeProject(data.project));
+    setEditingSequenceId(null); rootHistory.apply(() => normalizeProject(data.project));
     setMedia(data.media ?? []);
     setSelectedIds([]); setSelectedMedia([]); setSourceSrc(null);
     migratedAudio.current.clear(); setRevealTrackId(null);
@@ -525,6 +562,11 @@ export function App() {
             </div>
           </div>
         ))}{binSelection.box && <div className="selection-marquee" aria-hidden style={{ left: binSelection.box.x, top: binSelection.box.y, width: binSelection.box.width, height: binSelection.box.height }} />}</div></>}
+        {binTab === "proyecto" && Object.values(project.sequences ?? {}).length > 0 && <section className="bin-sequences" aria-label="Secuencias del proyecto"><strong>Secuencias</strong>{Object.values(project.sequences ?? {}).map((sequence) => <div className="bin-sequence" key={sequence.id} draggable={sequence.id !== editingSequenceId} onDragStart={(e) => { e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify({ src: "", kind: "video", inFrame: 0, outFrame: sequence.durationInFrames, mode: "auto", sequenceId: sequence.id })); e.dataTransfer.effectAllowed = "copy"; }}>
+          <span>▤ {sequence.name} · {formatTimecode(sequence.durationInFrames, project.fps)}</span>
+          <button aria-label={`Abrir secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} onClick={() => { recording.cancel(); setEditingSequenceId(sequence.id); setSelectedIds([]); seek(0); }}>Abrir</button>
+          <button aria-label={`Colocar secuencia ${sequence.name}`} disabled={sequence.id === editingSequenceId} title={timelinePreferences.nestSequences ? "Colocar como bloque anidado" : "Colocar como clips individuales"} onClick={() => { const target = destinationTrack(project, "video"); if (target) history.apply((p) => ops.placeSequence(p, sequence.id, target, frame, timelinePreferences.nestSequences, editingSequenceId ?? undefined)); }}>Colocar</button>
+        </div>)}</section>}
         <AIPanel project={project} apply={history.apply} />
       </aside>
 
@@ -609,13 +651,15 @@ export function App() {
       </aside>
 
       <section className="timeline-area dock-panel" {...workspace.dropProps("timeline")} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
+        {editingSequenceId && <div className="sequence-navigation"><span>Editando secuencia: {project.name}</span><button onClick={() => { recording.cancel(); setEditingSequenceId(null); setSelectedIds([]); seek(0); }}>Volver al montaje</button></div>}
         <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
+        <TimelineToolbar project={project} frame={frame} preferences={timelinePreferences} onPreferences={updateTimelinePreferences} onSeek={seek} onMarker={(marker) => history.apply((p) => ops.setMarker(p, marker))} onDeleteMarker={(id) => history.apply((p) => ops.deleteMarker(p, id))} onLink={(linked) => history.apply((p) => ops.linkClips(p, linked ? selectedIds : ops.linkedIds(p, selectedIds), linked))} canLink={selectedIds.length === 2 && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "video") && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "audio")} canUnlink={selectedIds.some((id) => { const clip = ops.findClip(project, id)?.clip; return clip && (clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId; })} hasSelection={selectedIds.length > 0} onCreateSequence={(name) => history.apply((p) => ops.createSequence(p, selectedIds, name))}/>
         {(recording.state || recording.error) && <div className="recording-status" role="status">
           {recording.state ? <><span>{recording.state.phase === "permission" ? "Permite el micrófono en el navegador" : recording.state.phase === "saving" ? "Guardando voz localmente…" : `● Grabando ${recording.state.seconds} s`}</span>{recording.state.phase === "recording" && <button onClick={recording.stop}>Detener y añadir</button>}<button onClick={recording.cancel}>Cancelar</button></> : <span>{recording.error}</span>}
           {recording.recovery && <a href={recording.recovery} download="Grabacion-recuperada.webm">Descargar grabación</a>}
         </div>}
         <div className="timeline-workspace">
-        <TimelineTools tool={tool} onTool={setTool} snapping={snapping} onSnap={() => setSnapping((value) => !value)} onFit={() => { const viewport = workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll"); const width = viewport?.clientWidth ?? 800; if (viewport) viewport.scrollLeft = 0; setPxPerFrame(Math.max(0.02, Math.min(20, (width - 30) / duration))); }} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
+        <TimelineTools tool={tool} onTool={setTool} onFit={() => { const viewport = workspace.appRef.current?.querySelector<HTMLDivElement>(".timeline-scroll"); const width = viewport?.clientWidth ?? 800; if (viewport) viewport.scrollLeft = 0; setPxPerFrame(Math.max(0.02, Math.min(20, (width - 30) / duration))); }} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
         <div className="timeline-main">
         <Timeline
           project={project}
@@ -628,12 +672,13 @@ export function App() {
           pxPerFrame={pxPerFrame}
           tool={tool}
           snapping={snapping}
+          preferences={timelinePreferences}
           onSeek={seek}
           onSelect={setSelectedIds}
-          onMove={(ids, delta, offset) => history.apply((p) => ops.moveClips(p, ids, delta, offset))}
-          onTrim={(id, edge, delta, ripple) => history.apply((p) => (ripple ? ops.rippleTrimClip : ops.trimClip)(p, id, edge, delta))}
-          onSlip={(id, delta) => history.apply((p) => ops.slipClip(p, id, delta))}
-          onSplit={(id, at) => history.apply((p) => ops.splitAt(p, at, id))}
+          onMove={(ids, delta, offset) => history.apply((p) => ops.editSelection(p, ids, linkedSelection, (current) => ops.moveClips(current, ids, delta, offset)))}
+          onTrim={(id, edge, delta, ripple) => history.apply((p) => ops.editSelection(p, [id], linkedSelection, (current) => (ripple ? ops.rippleTrimClip : ops.trimClip)(current, id, edge, delta)))}
+          onSlip={(id, delta) => history.apply((p) => ops.editSelection(p, [id], linkedSelection, (current) => ops.slipClip(current, id, delta)))}
+          onSplit={(id, at) => history.apply((p) => ops.editSelection(p, id ? [id] : p.tracks.flatMap((t) => t.clips.map((c) => c.id)), linkedSelection, (current) => ops.splitAt(current, at, id)))}
           onAddText={addText}
           onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))}
           onDropMedia={dropMedia}

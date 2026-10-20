@@ -6,7 +6,7 @@ import { cssFont, ensureFont, fontWeightFor } from "./fonts";
 
 // Convierte rutas relativas (/media/x.mp4) en absolutas para el render en el servidor.
 // `preview` = true en el Player de la app: usa proxies livianos para reproducir fluido.
-export type CompositionProps = { project: Project; mediaBaseUrl?: string; preview?: boolean };
+export type CompositionProps = { project: Project; mediaBaseUrl?: string; preview?: boolean; output?: "both" | "video" | "audio"; gain?: number; sequences?: Project["sequences"]; stack?: string[]; durationOverride?: number };
 
 const resolveSrc = (src: string, base?: string) =>
   base && src.startsWith("/") ? base.replace(/\/$/, "") + src : src;
@@ -53,10 +53,10 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean }
   );
 };
 
-const AudioLayer: React.FC<{ clip: AudioClip; base?: string }> = ({ clip, base }) => {
+const AudioLayer: React.FC<{ clip: AudioClip; base?: string; compositionEnd?: number }> = ({ clip, base, compositionEnd }) => {
   // Si la canción dura más que el video, el fade out se hace donde termina el video
   const { durationInFrames: videoEnd } = useVideoConfig();
-  const d = Math.min(clip.durationInFrames, videoEnd - clip.from);
+  const d = Math.min(clip.durationInFrames, (compositionEnd ?? videoEnd) - clip.from);
   return (
   <Audio
     src={resolveSrc(clip.src, base)}
@@ -157,10 +157,10 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
   );
 };
 
-export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview }) => (
-  <AbsoluteFill style={{ backgroundColor: "black" }}>
+export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview, output = "both", gain = 1, sequences = project.sequences, stack = [], durationOverride }) => (
+  <AbsoluteFill style={{ backgroundColor: output === "audio" ? "transparent" : "black" }}>
     {project.tracks.filter((track) => trackOutputEnabled(project, track)).map((track) =>
-      track.clips.map((clip) => (
+      track.clips.filter((clip) => output === "both" || output === "video" && clip.kind !== "audio" || output === "audio" && (clip.kind === "audio" || clip.kind === "video" && clip.volume > 0)).map((clip) => (
         <Sequence
           key={clip.id}
           from={clip.from}
@@ -168,11 +168,15 @@ export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaB
           // Carga el video 1 s antes de que aparezca para que el corte no se trabe
           premountFor={clip.kind === "video" ? project.fps : undefined}
         >
-          {clip.kind === "video" ? (
+          {(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? (
+            <NestedSequence clip={clip} base={mediaBaseUrl} preview={preview} sequences={sequences} stack={stack} gain={gain} />
+          ) : clip.kind === "video" && output === "audio" ? (
+            <AudioLayer clip={{ ...clip, kind: "audio", volume: clip.volume * gain, fadeIn: 0, fadeOut: 0 }} base={mediaBaseUrl} compositionEnd={durationOverride}/>
+          ) : clip.kind === "video" ? (
             // key: al reconectar el archivo se reinicia el estado de error
-            <VideoLayer key={`${clip.src}|${clip.proxySrc}`} clip={clip} base={mediaBaseUrl} preview={preview} />
+            <VideoLayer key={`${clip.src}|${clip.proxySrc}`} clip={{ ...clip, volume: output === "video" ? 0 : clip.volume * gain }} base={mediaBaseUrl} preview={preview} />
           ) : clip.kind === "audio" ? (
-            <AudioLayer clip={clip} base={mediaBaseUrl} />
+            <AudioLayer clip={{ ...clip, volume: clip.volume * gain }} base={mediaBaseUrl} compositionEnd={durationOverride}/>
           ) : clip.kind === "text" ? (
             <TextLayer clip={clip} />
           ) : (
@@ -183,3 +187,14 @@ export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaB
     )}
   </AbsoluteFill>
 );
+
+const NestedSequence: React.FC<{ clip: VideoClip | AudioClip; base?: string; preview?: boolean; sequences?: Project["sequences"]; stack: string[]; gain: number }> = ({ clip, base, preview, sequences, stack, gain }) => {
+  const sequence = sequences?.[clip.sequenceId!];
+  if (!sequence) throw new Error(`No se encuentra la secuencia ${clip.name}.`);
+  if (stack.includes(sequence.id) || stack.length >= 8) throw new Error("Secuencia circular o más de 8 niveles de anidación.");
+  const frame = useCurrentFrame();
+  const fade = clip.kind === "audio" ? Math.min(clip.fadeIn ? Math.max(0, Math.min(1, frame / clip.fadeIn)) : 1, clip.fadeOut ? Math.max(0, Math.min(1, (clip.durationInFrames - frame) / clip.fadeOut)) : 1) : 1;
+  return <Sequence from={-clip.trimStart} durationInFrames={sequence.durationInFrames}>
+    <ProjectComposition project={sequence} mediaBaseUrl={base} preview={preview} output={clip.kind === "audio" ? "audio" : "video"} gain={clip.kind === "audio" ? gain * clip.volume * fade : gain} sequences={sequences} stack={[...stack, sequence.id]} durationOverride={sequence.durationInFrames}/>
+  </Sequence>;
+};

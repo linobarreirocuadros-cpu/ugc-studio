@@ -4,7 +4,8 @@ import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled } f
 import { TrackControls } from "./TrackControls";
 import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
 import type { TimelineTool } from "./TimelineTools";
-import { findClip as projectClip, rippleTrimClip, slipClip, trimClip, linkedIds, clipsEditable } from "../project/ops";
+import { findClip as projectClip, rippleTrimClip, slipClip, trimClip, linkedIds, clipsEditable, editSelection } from "../project/ops";
+import type { TimelinePreferences } from "./timelinePreferences";
 
 type Drag = {
   clipId: string;
@@ -25,6 +26,7 @@ export type MediaDrag = {
   inFrame: number;
   outFrame: number;
   mode: "auto" | "video" | "audio";
+  sequenceId?: string;
   items?: Omit<MediaDrag, "items">[];
 };
 export const MEDIA_DRAG_TYPE = "application/x-ugc-source";
@@ -37,6 +39,7 @@ type Props = {
   pxPerFrame: number;
   tool: TimelineTool;
   snapping: boolean;
+  preferences: TimelinePreferences;
   onSeek: (frame: number) => void;
   onSelect: (clipIds: string[]) => void;
   onMove: (clipIds: string[], deltaFrames: number, trackOffset: number) => void;
@@ -53,10 +56,12 @@ type Props = {
 };
 
 const HEADER_W = 194;
-const TRACK_H = 56;
 const SNAP_PX = 8;
 
-export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, onSeek, onSelect, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+  const TRACK_H = preferences.trackHeight;
+  const selectionIds = (ids: string[]) => preferences.linkedSelection ? linkedIds(project, ids) : ids;
+  const editable = (id: string) => preferences.linkedSelection ? clipsEditable(project, [id]) : !projectClip(project, id)?.track.locked;
   const [drag, setDragState] = useState<Drag | null>(null);
   const [dropTrackId, setDropTrackId] = useState<string | null>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -65,7 +70,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
     setDragState(d);
   };
   const scrollRef = useRef<HTMLDivElement>(null);
-  const displaySelected = linkedIds(project, selectedIds);
+  const displaySelected = selectionIds(selectedIds);
   const hasLinkedAudio = project.tracks.some((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
   useLayoutEffect(() => {
     const viewport = scrollRef.current?.parentElement;
@@ -73,7 +78,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
     const reversed = [...project.tracks].reverse();
     const index = revealTrackId ? reversed.findIndex((t) => t.id === revealTrackId) : reversed.findIndex((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
     if (index >= 0) viewport.scrollTop = Math.max(0, 24 + (index + 1) * TRACK_H - viewport.clientHeight);
-  }, [hasLinkedAudio, revealTrackId]);
+  }, [hasLinkedAudio, revealTrackId, TRACK_H]);
   const [cutFrame, setCutFrame] = useState<number | null>(null);
   const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
   const panCleanup = useRef<(() => void) | null>(null);
@@ -87,7 +92,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
 
   // Puntos de "imán": bordes de todos los clips y el cabezal de reproducción.
   const snapPoints = (excludeIds: string[]) => {
-    const pts = [0, frame];
+    const pts = [0, frame, ...(project.markers ?? []).map((m) => m.frame)];
     for (const t of project.tracks)
       for (const c of t.clips) if (!excludeIds.includes(c.id)) pts.push(c.from, c.from + c.durationInFrames);
     return pts;
@@ -153,11 +158,11 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
   const projectForDrag = (d: Drag | null) => {
     if (!d || d.mode === "move") return project;
     const clip = findClip(d.clipId); if (!clip) return project;
-    if (d.mode === "slip") return slipClip(project, clip.id, d.dx / pxPerFrame);
+    if (d.mode === "slip") return editSelection(project, [clip.id], preferences.linkedSelection, (p) => slipClip(p, clip.id, d.dx / pxPerFrame));
     const edge = d.mode === "trim-start" ? "start" : "end";
     const endpoint = edge === "start" ? clip.from : clip.from + clip.durationInFrames;
-    const delta = snap(endpoint + d.dx / pxPerFrame, linkedIds(project, [clip.id])) - endpoint;
-    return (d.ripple ? rippleTrimClip : trimClip)(project, clip.id, edge, delta);
+    const delta = snap(endpoint + d.dx / pxPerFrame, selectionIds([clip.id])) - endpoint;
+    return editSelection(project, [clip.id], preferences.linkedSelection, (p) => (d.ripple ? rippleTrimClip : trimClip)(p, clip.id, edge, delta));
   };
   const previewProject = projectForDrag(drag);
 
@@ -251,6 +256,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
                 </span>
               ) : null,
             )}
+            {preferences.showMarkers && (project.markers ?? []).map((marker) => <button key={marker.id} className="timeline-marker" style={{ left: marker.frame * pxPerFrame, color: marker.color }} title={`${marker.label} · ${formatTimecode(marker.frame, project.fps)}`} aria-label={`Ir al marcador ${marker.label}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => onSeek(marker.frame)}>◆</button>)}
           </div>
           {displayed.map((track, trackIndex) => (
             <div
@@ -290,7 +296,7 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
                 return (
                   <div
                     key={clip.id}
-                    className={`clip clip-${clip.kind} ${displaySelected.includes(clip.id) ? "selected" : ""}`}
+                    className={`clip clip-${clip.kind} ${(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "clip-sequence" : ""} ${displaySelected.includes(clip.id) ? "selected" : ""}`}
                     data-selection-id={clip.id}
                     data-selection-disabled={track.locked || undefined}
                     role="option"
@@ -306,16 +312,16 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
                       if (e.button !== 0) return;
                       e.stopPropagation();
                       e.preventDefault();
-                      if (!clipsEditable(project, [clip.id])) { onSelect([clip.id]); return; }
+                      if (!editable(clip.id)) { onSelect([clip.id]); return; }
                       if (tool === "track") {
                         const ids = displayed.flatMap((t) => e.shiftKey && t.id !== track.id ? [] : t.clips.filter((c) => c.from >= clip.from).map((c) => c.id));
-                        onSelect(ids); setDrag({ clipId: clip.id, clipIds: linkedIds(project, ids), explicitIds: ids, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return;
+                        onSelect(ids); setDrag({ clipId: clip.id, clipIds: selectionIds(ids), explicitIds: ids, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return;
                       }
                       if (e.shiftKey || e.ctrlKey || e.metaKey) { onSelect(toggleSelection(selectedIds, clip.id)); return; }
                       if (tool === "slip") { onSelect([clip.id]); setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "slip", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return; }
                       const ids = selectedIds.includes(clip.id) ? selectedIds : [clip.id];
                       onSelect(ids);
-                      setDrag({ clipId: clip.id, clipIds: linkedIds(project, ids), explicitIds: ids, collapseOnClick: ids.length > 1, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                      setDrag({ clipId: clip.id, clipIds: selectionIds(ids), explicitIds: ids, collapseOnClick: ids.length > 1, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                     }}
                     title={`${clipLabel(clip)}${(clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId ? " · Video/audio enlazados" : ""}`}
                   >
@@ -324,12 +330,12 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
                       onMouseDown={(e) => {
                         if (e.button !== 0) return;
                         e.stopPropagation();
-                        if (!clipsEditable(project, [clip.id])) return;
+                        if (!editable(clip.id)) return;
                         onSelect([clip.id]);
                         setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-start", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}
                     />
-                    {clip.kind === "audio" && waveforms[clip.src] && (
+                    {preferences.showWaveforms && clip.kind === "audio" && waveforms[clip.src] && (
                       <img
                         className="clip-waveform"
                         src={waveforms[clip.src]}
@@ -338,13 +344,14 @@ export function Timeline({ project, revealTrackId, frame, selectedIds, pxPerFram
                         style={{ width: clip.sourceDurationInFrames * pxPerFrame, left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame }}
                       />
                     )}
-                    <span className="clip-label">{clipLabel(clip)}{dragging && drag?.mode === "slip" && (preview.kind === "video" || preview.kind === "audio") ? ` · Origen ${(preview.trimStart / project.fps).toFixed(2)} s` : ""}</span>
+                    {preferences.showNames && <span className="clip-label">{(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "▤ " : ""}{clipLabel(clip)}{dragging && drag?.mode === "slip" && (preview.kind === "video" || preview.kind === "audio") ? ` · Origen ${(preview.trimStart / project.fps).toFixed(2)} s` : ""}</span>}
+                    {(() => { if ((clip.kind !== "video" && clip.kind !== "audio") || !clip.linkedClipId) return null; const mate = projectClip(project, clip.linkedClipId)?.clip; if (!mate || (mate.kind !== "video" && mate.kind !== "audio")) return null; const offset = clip.from - clip.trimStart - mate.from + mate.trimStart; return offset ? <span className="clip-sync-warning" title="Diferencia de sincronía con su pareja">{offset > 0 ? "+" : ""}{offset} f</span> : null; })()}
                     <div
                       className="trim-handle right"
                       onMouseDown={(e) => {
                         if (e.button !== 0) return;
                         e.stopPropagation();
-                        if (!clipsEditable(project, [clip.id])) return;
+                        if (!editable(clip.id)) return;
                         onSelect([clip.id]);
                         setDrag({ clipId: clip.id, clipIds: [clip.id], mode: "trim-end", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
                       }}

@@ -12,11 +12,10 @@ export const TIMELINE_TOOLS: { id: TimelineTool; label: string; key: string; ico
   { id: "text", label: "Texto", key: "T", icon: <path d="M4 5h16M12 5v15m-4 0h8M4 5v3m16-3v3"/> },
 ];
 
-export function TimelineTools({ tool, onTool, snapping, onSnap, onFit, onZoom }: { tool: TimelineTool; onTool: (tool: TimelineTool) => void; snapping: boolean; onSnap: () => void; onFit: () => void; onZoom: (factor: number) => void }) {
+export function TimelineTools({ tool, onTool, onFit, onZoom }: { tool: TimelineTool; onTool: (tool: TimelineTool) => void; onFit: () => void; onZoom: (factor: number) => void }) {
   return <nav className="timeline-tools" aria-label="Herramientas básicas">
     {TIMELINE_TOOLS.map((item) => <button key={item.id} aria-label={`${item.label} (${item.key})`} aria-pressed={tool === item.id} title={`${item.label} · ${item.key}`} className={tool === item.id ? "active" : ""} onClick={() => onTool(item.id)}><svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">{item.icon}</svg></button>)}
     <span className="tool-divider" />
-    <button aria-label="Imán (S)" aria-pressed={snapping} title="Imán · S" className={snapping ? "active" : ""} onClick={onSnap}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M5 4v10a7 7 0 0 0 14 0V4h-4v10a3 3 0 0 1-6 0V4zM5 8h4m6 0h4"/></svg></button>
     <button aria-label="Alejar timeline" title="Alejar · −" onClick={() => onZoom(0.8)}>−</button><button aria-label="Acercar timeline" title="Acercar · +" onClick={() => onZoom(1.25)}>+</button>
     <button aria-label="Ajustar timeline" title="Ver todo el montaje" onClick={onFit}>↔</button>
   </nav>;

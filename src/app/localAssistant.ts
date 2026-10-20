@@ -9,6 +9,8 @@ export type AssistantContext = {
   selectedClipId?: string | null;
   selectedClipIds?: string[];
   currentFrame?: number;
+  currentSequenceId?: string | null;
+  nestSequences?: boolean;
   onSeek?: (frame: number) => void;
   showVisualResult?: (result: VisualResult) => void;
   registerMedia?: (items: { src: string; name: string; durationInFrames: number; kind: "audio" }[]) => void;
@@ -21,9 +23,10 @@ export function sourceClip(ctx: AssistantContext, id?: string, videoOnly = false
   const project = ctx.getProject();
   const requested = id || ctx.selectedClipId;
   const selected = requested ? ops.findClip(project, requested)?.clip : null;
+  if (selected && (selected.kind === "video" || selected.kind === "audio") && selected.sequenceId) throw new Error("Abre la secuencia para analizar sus clips, o colócala como clips individuales.");
   if (selected && (selected.kind === "video" || (!videoOnly && selected.kind === "audio"))) return selected;
   if (requested) throw new Error(videoOnly ? "Selecciona un clip de video en la línea de tiempo." : "Selecciona un clip de video o audio en la línea de tiempo.");
-  const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is SourceClip => c.kind === "video" || (!videoOnly && c.kind === "audio" && !c.derivedFrom));
+  const candidates = project.tracks.flatMap((t) => t.clips).filter((c): c is SourceClip => (c.kind === "video" || (!videoOnly && c.kind === "audio" && !c.derivedFrom)) && !c.sequenceId);
   if (candidates.length !== 1) throw new Error("Selecciona el clip que quieres procesar en la línea de tiempo.");
   return candidates[0];
 }

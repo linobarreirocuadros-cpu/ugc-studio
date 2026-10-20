@@ -59,7 +59,7 @@ const STEP_LABEL: Record<TranscribeStep, string> = {
 /** Archivos de V1 que todavía no tienen transcripción: [src, nombre]. */
 export const pendingTranscripts = (project: Project): [string, string][] => {
   const clips = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter(
-    (c): c is VideoClip => c.kind === "video",
+    (c): c is VideoClip => c.kind === "video" && !c.sequenceId,
   );
   const preferences = whisperPrefs();
   return [...new Map(clips.map((c) => [c.src, c.name])).entries()].filter(([src]) => {

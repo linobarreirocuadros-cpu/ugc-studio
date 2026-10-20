@@ -3,6 +3,7 @@
 import * as ops from "../../project/ops";
 import {
   getProjectDuration,
+  destinationTrack,
   type CaptionStyle,
   type Clip,
   type Project,
@@ -82,7 +83,7 @@ const requireClip = (project: Project, id: unknown) => {
 
 const clipSummary = (c: Clip, fps: number) => {
   const base = { id: c.id, inicio_s: round(c.from / fps), fin_s: round((c.from + c.durationInFrames) / fps) };
-  if (c.kind === "video" || c.kind === "audio") return { ...base, tipo: c.kind, nombre: c.name, volumen: Math.round(c.volume * 100) };
+  if (c.kind === "video" || c.kind === "audio") return { ...base, tipo: c.kind, nombre: c.name, volumen: Math.round(c.volume * 100), ...(c.sequenceId ? { secuencia_id: c.sequenceId } : {}) };
   if (c.kind === "text") return { ...base, tipo: "texto", texto: c.text };
   return { ...base, tipo: "subtitulo", texto: c.words.map((w) => w.text).join(" ") };
 };
@@ -121,6 +122,24 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
     );
 
   switch (name) {
+    case "add_marker": {
+      const next = ops.setMarker(project, { id: ops.newId(), frame: f(input.time_s), label: str(input.label) ?? "Marcador", color: str(input.color) ?? "#5ab0ff" });
+      if (next === project) throw new Error("Tiempo o color de marcador inválido.");
+      commit(next); return "Marcador añadido.";
+    }
+    case "delete_marker": commit(ops.deleteMarker(project, str(input.marker_id) ?? "")); return "Marcador eliminado.";
+    case "create_sequence": {
+      const ids = Array.isArray(input.clip_ids) ? input.clip_ids.map(String) : ctx.selectedClipIds ?? [];
+      const next = ops.createSequence(project, ids, str(input.name) ?? "Secuencia");
+      if (next === project) throw new Error("Selecciona los clips que deben formar la secuencia.");
+      commit(next); return JSON.stringify(Object.values(next.sequences ?? {}).filter((s) => !project.sequences?.[s.id]).map((s) => ({ id: s.id, nombre: s.name })));
+    }
+    case "place_sequence": {
+      const track = str(input.track) ? ops.resolveTrackId(project, str(input.track)!) : destinationTrack(project, "video");
+      const next = track ? ops.placeSequence(project, str(input.sequence_id) ?? "", track, f(input.start_s), bool(input.nested) ?? ctx.nestSequences ?? true, ctx.currentSequenceId ?? undefined) : project;
+      if (next === project) throw new Error("No se pudo colocar la secuencia: revisa destino, candados y referencias circulares.");
+      commit(next); return "Secuencia colocada.";
+    }
     case "set_track_state": {
       const id = ops.resolveTrackId(project, str(input.track) ?? "");
       const patch: Parameters<typeof ops.setTrackState>[2] = {};
@@ -160,6 +179,9 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
         clip_seleccionado: ctx.selectedClipId ?? null,
         clips_seleccionados: ctx.selectedClipIds ?? (ctx.selectedClipId ? [ctx.selectedClipId] : []),
         cabezal_s: round((ctx.currentFrame ?? 0) / fps),
+        secuencia_abierta: ctx.currentSequenceId ?? null,
+        secuencias: Object.values(project.sequences ?? {}).map((s) => ({ id: s.id, nombre: s.name, duracion_s: round(s.durationInFrames / fps) })),
+        marcadores: (project.markers ?? []).map((m) => ({ id: m.id, tiempo_s: round(m.frame / fps), nombre: m.label, color: m.color })),
         pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, bloqueada: Boolean(t.locked), oculta: Boolean(t.hidden), silencio: Boolean(t.muted), solo: Boolean(t.solo), destino: Boolean(t.targeted), seguir_ripple: Boolean(t.syncLock), clips: t.clips.map((c) => ({ ...clipSummary(c, fps), ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),

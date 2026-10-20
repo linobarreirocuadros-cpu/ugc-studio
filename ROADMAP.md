@@ -117,6 +117,12 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [x] Comprobar integridad y reproducción local del video UGC original en un proyecto aislado
 - [ ] Validar con Lino el arrastre y la continuidad visual de la reproducción en sus videos
 - [x] Pistas genéricas B1, B2… y Audio 1, Audio 2…; botones para añadir más desde el timeline y chat
+- [x] Barra superior: anidar/individuales, imán, selección enlazada, selección bajo cabezal,
+      marcadores editables y ajustes de nombres/ondas/altura persistidos localmente
+- [x] Crear secuencia desde selección; colocar anidada o como clips, abrir/editar/volver al montaje,
+      autoguardar raíz y renderizar sus capas y sonido sin aplanar; guardas frente a ciclos
+- [x] Vincular/desvincular una pareja y editar independientemente con aviso de diferencia en frames
+- [ ] Ampliar agrupación de enlaces tras cortes independientes y validar secuencias grandes/anidación profunda
 - [x] Sobrescribir al colocar/mover/extender video o audio en una pista ocupada: conservar extremos,
       offsets y parejas enlazadas; una operación reversible, sin desplazar el resto
 - [x] Controles de pista: candado, destino, seguir ripple optativo, ojo, M y S;
@@ -125,8 +131,7 @@ El rumbo recomendado es una inferencia de producto, no una predicción demostrad
 - [ ] Validar captura del micrófono físico y permisos del navegador con Lino; comparar latencia de voz
 - [x] Audio original visible con ondas al insertar video completo y al migrar proyectos anteriores;
       parejas enlazadas al mover, recortar, cortar, deslizar contenido y borrar; sin duplicar sonido
-- [ ] Control para desvincular/revincular cada pareja y sincronía de stems procesados;
-      ampliar casos complejos de seguimiento ripple y controles de origen/destino
+- [ ] Sincronía de stems procesados; ampliar casos complejos de seguimiento ripple y controles de origen/destino
 
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)

@@ -16,6 +16,7 @@ import {
   type Track,
   type VideoClip,
   type Word,
+  type TimelineMarker,
 } from "./types";
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
@@ -47,6 +48,113 @@ export const linkedIds = (project: Project, ids: string[]): string[] => {
 
 export const clipsEditable = (project: Project, ids: string[]) =>
   linkedIds(project, ids).every((id) => !findClip(project, id)?.track.locked);
+
+/** Editar una parte sin arrastrar a su pareja. Restaurar el enlace de los IDs que sobreviven. */
+export const editSelection = (project: Project, ids: string[], followLinks: boolean, operation: (p: Project) => Project): Project => {
+  if (followLinks) return operation(project);
+  if (ids.some((id) => findClip(project, id)?.track.locked)) return project;
+  const detached = new Set(linkedIds(project, ids));
+  const links = new Map<string, string>();
+  const isolated = mapTracks(project, (t) => ({ ...t, clips: t.clips.map((c) => {
+    if ((c.kind !== "video" && c.kind !== "audio") || !detached.has(c.id) || !c.linkedClipId) return c;
+    links.set(c.id, c.linkedClipId); return { ...c, linkedClipId: undefined };
+  }) }));
+  const edited = operation(isolated);
+  if (edited === isolated) return project;
+  return mapTracks(edited, (t) => ({ ...t, clips: t.clips.map((c) => {
+    if ((c.kind !== "video" && c.kind !== "audio") || !links.has(c.id)) return c;
+    const mate = links.get(c.id)!;
+    return { ...c, linkedClipId: findClip(edited, mate) ? mate : undefined };
+  }) }));
+};
+
+export const setMarker = (project: Project, marker: TimelineMarker): Project => {
+  if (!Number.isInteger(marker.frame) || marker.frame < 0 || marker.frame >= getProjectDuration(project) || !/^#[0-9a-f]{6}$/i.test(marker.color)) return project;
+  const markers = [...(project.markers ?? []).filter((m) => m.id !== marker.id), { ...marker, label: marker.label.trim().slice(0, 160) || "Marcador" }].sort((a, b) => a.frame - b.frame);
+  return { ...project, markers };
+};
+
+export const deleteMarker = (project: Project, id: string): Project => ({ ...project, markers: (project.markers ?? []).filter((m) => m.id !== id) });
+
+/** Copia editable del montaje seleccionado. Los originales permanecen en la secuencia actual. */
+export const createSequence = (project: Project, ids: string[], name: string): Project => {
+  const selected = new Set(linkedIds(project, ids));
+  const clips = project.tracks.flatMap((t) => t.clips).filter((c) => selected.has(c.id));
+  if (!clips.length) return project;
+  const start = Math.min(...clips.map((c) => c.from)), end = Math.max(...clips.map((c) => c.from + c.durationInFrames));
+  const id = newId();
+  const { sequences: _, ...base } = project;
+  const sequence = { ...base, id, name: name.trim().slice(0, 100) || "Secuencia", durationInFrames: end - start,
+    tracks: project.tracks.map((t) => ({ ...t, locked: false, targeted: false, clips: t.clips.filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from - start })) })),
+    markers: (project.markers ?? []).filter((m) => m.frame >= start && m.frame < end).map((m) => ({ ...m, frame: m.frame - start })),
+  };
+  return { ...project, sequences: { ...project.sequences, [id]: sequence } };
+};
+
+export const updateSequence = (project: Project, id: string, contents: Project): Project => {
+  if (!project.sequences?.[id]) return project;
+  const { sequences, ...sequence } = contents;
+  const end = Math.max(1, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.from + c.durationInFrames)));
+  const refresh = (tracks: Track[]) => tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: end } : c) }));
+  const next = { ...sequences, [id]: { ...sequence, id, durationInFrames: end } };
+  return { ...project, tracks: refresh(project.tracks), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks) }])) };
+};
+
+const containsSequence = (project: Project, id: string, sought: string, visited = new Set<string>()): boolean => {
+  if (id === sought) return true;
+  if (visited.has(id)) return false; visited.add(id);
+  return project.sequences?.[id]?.tracks.some((t) => t.clips.some((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId && containsSequence(project, c.sequenceId, sought, visited))) ?? false;
+};
+
+/** Coloca una secuencia como bloque anidado o como todos sus clips y pistas originales. */
+export const placeSequence = (project: Project, sequenceId: string, trackId: string, at: number, nested: boolean, hostId?: string): Project => {
+  if (hostId && containsSequence(project, sequenceId, hostId)) return project;
+  const sequence = project.sequences?.[sequenceId], target = project.tracks.find((t) => t.id === trackId);
+  if (!sequence || !target || target.kind !== "video" || target.locked || sequence.fps !== project.fps || !Number.isFinite(at)) return project;
+  const from = Math.max(0, Math.round(at));
+  if (nested) {
+    const videoId = newId(), audioId = newId(), audioTrack = destinationTrack(project, "audio");
+    const hasSound = sequence.tracks.some((t) => t.clips.some((c) => c.kind === "audio" || c.kind === "video" && c.volume > 0));
+    if (hasSound && !audioTrack) return project;
+    const common = { src: "", sequenceId, name: sequence.name, from, durationInFrames: sequence.durationInFrames, sourceDurationInFrames: sequence.durationInFrames, trimStart: 0 };
+    const video: VideoClip = { ...common, id: videoId, kind: "video", volume: 0, audioMode: hasSound ? "separate" : "none", linkedClipId: hasSound ? audioId : undefined };
+    const audio: AudioClip = { ...common, id: audioId, kind: "audio", volume: 1, fadeIn: 0, fadeOut: 0, linkedClipId: videoId };
+    const placed = mapTracks(project, (t) => ({ ...t, clips: [...t.clips, ...(t.id === trackId ? [video] : []), ...(hasSound && t.id === audioTrack ? [audio] : [])] }));
+    return overwritePlaced(project, placed, hasSound ? [videoId, audioId] : [videoId]);
+  }
+  let next = project;
+  const destinations = new Map<string, string>();
+  for (const kind of ["video", "audio", "text", "caption"] as const) {
+    const sources = sequence.tracks.filter((t) => t.kind === kind && t.clips.length);
+    const list = () => { const tracks = next.tracks.filter((t) => t.kind === kind); return kind === "audio" ? tracks.reverse() : tracks; };
+    let targets = list();
+    const anchor = kind === "video" ? trackId : kind === "audio" ? destinationTrack(next, "audio") : targets[0]?.id;
+    const offset = Math.max(0, targets.findIndex((t) => t.id === anchor));
+    while (targets.length < offset + sources.length && (kind === "video" || kind === "audio")) { next = addTrack(next, kind); targets = list(); }
+    for (const [i, source] of sources.entries()) {
+      const destination = targets[offset + i];
+      if (!destination || destination.locked) return project;
+      destinations.set(source.id, destination.id);
+    }
+  }
+  const identities = new Map(sequence.tracks.flatMap((t) => t.clips.map((c) => [c.id, newId()])));
+  const placed = mapTracks(next, (t) => ({ ...t, clips: [...t.clips, ...sequence.tracks.filter((s) => destinations.get(s.id) === t.id).flatMap((s) => s.clips.map((c): Clip => {
+    const clip = { ...c, id: identities.get(c.id)!, from: from + c.from };
+    if (clip.kind === "video" || clip.kind === "audio") clip.linkedClipId = clip.linkedClipId ? identities.get(clip.linkedClipId) : undefined;
+    if (clip.kind === "audio" && clip.derivedFrom) clip.derivedFrom = { ...clip.derivedFrom, clipId: identities.get(clip.derivedFrom.clipId) ?? clip.derivedFrom.clipId };
+    return clip;
+  }))] }));
+  return overwritePlaced(project, placed, [...identities.values()]);
+};
+
+export const linkClips = (project: Project, ids: string[], linked: boolean): Project => {
+  if (!clipsEditable(project, ids)) return project;
+  const selected = ids.map((id) => findClip(project, id)?.clip).filter((c) => c?.kind === "video" || c?.kind === "audio");
+  if (linked && (selected.length !== 2 || !selected.some((c) => c?.kind === "video") || !selected.some((c) => c?.kind === "audio"))) return project;
+  const affected = new Set(linkedIds(project, ids));
+  const clean = mapTracks(project, (t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && affected.has(c.id) ? { ...c, linkedClipId: undefined } : c) }));
+  return !linked ? clean : mapTracks(clean, (t) => ({ ...t, clips: t.clips.map((c) => selected.some((s) => s?.id === c.id) && (c.kind === "video" || c.kind === "audio") ? { ...c, linkedClipId: selected.find((s) => s?.id !== c.id)!.id } : c) }));
+};
 
 export const setTrackState = (project: Project, id: string, patch: Partial<Pick<Track, "locked" | "hidden" | "muted" | "solo" | "targeted" | "syncLock">>): Project => {
   const track = project.tracks.find((t) => t.id === id);
@@ -148,7 +256,8 @@ const alignLinkedChanges = (before: Project, after: Project): Project => {
     const mate = findClip(after, clip.linkedClipId)?.clip, old = findClip(before, clip.id)?.clip;
     if (!mate || (mate.kind !== "video" && mate.kind !== "audio") || !old || (old.kind !== "video" && old.kind !== "audio")) continue;
     if (clip.from !== old.from || clip.durationInFrames !== old.durationInFrames || clip.trimStart !== old.trimStart) {
-      updates.set(mate.id, { from: clip.from, durationInFrames: clip.durationInFrames, trimStart: clip.trimStart });
+      const oldMate = findClip(before, mate.id)?.clip;
+      if (oldMate && (oldMate.kind === "audio" || oldMate.kind === "video") && mate.from === oldMate.from && mate.durationInFrames === oldMate.durationInFrames && mate.trimStart === oldMate.trimStart) updates.set(mate.id, { from: mate.from + clip.from - old.from, durationInFrames: mate.durationInFrames + clip.durationInFrames - old.durationInFrames, trimStart: mate.trimStart + clip.trimStart - old.trimStart });
       seen.add(clip.id); seen.add(mate.id);
     }
   }
@@ -181,7 +290,7 @@ export const exposeEmbeddedAudio = (project: Project, ids: string[], preferredTr
   let next = project;
   for (const id of ids) {
     const video = findClip(next, id)?.clip;
-    if (!video || video.kind !== "video" || video.linkedClipId || video.audioMode === "none" || video.audioMode === "separate" || !clipsEditable(next, [id])) continue;
+    if (!video || video.kind !== "video" || video.sequenceId || video.linkedClipId || video.audioMode === "none" || video.audioMode === "separate" || !clipsEditable(next, [id])) continue;
     let target = preferredTrackId ? next.tracks.find((t) => t.id === preferredTrackId && t.kind === "audio" && !t.locked) : [...next.tracks].reverse().find((t) => t.kind === "audio" && !t.locked && !t.clips.some((c) => c.from < video.from + video.durationInFrames && c.from + c.durationInFrames > video.from));
     if (preferredTrackId && !target) continue;
     if (!target) { next = addTrack(next, "audio"); target = next.tracks[0]; }
@@ -550,7 +659,9 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
       identities.set(`${index}:${clip.id}`, seen.has(clip.id) ? newId() : clip.id); seen.add(clip.id);
     }
   }
-  return { ...project, tracks: project.tracks.map((track) => {
+  let markerCursor = 0;
+  const markers = ranges.flatMap((range) => { const mapped = (project.markers ?? []).filter((m) => m.frame >= range.start && m.frame < range.end).map((m) => ({ ...m, frame: markerCursor + m.frame - range.start })); markerCursor += range.end - range.start; return mapped; });
+  return { ...project, markers, tracks: project.tracks.map((track) => {
     let cursor = 0;
     const clips: Clip[] = [];
     ranges.forEach((range, index) => {

@@ -11,6 +11,7 @@ Pistas B1, B2… y Audio 1, Audio 2… ampliables; audio original del video visi
 enlazado con su imagen durante las operaciones principales de edición.
 Colocación por sobrescritura, controles de pista (candado/destino/ripple/ojo/M/S) y grabación
 local de voz desde el timeline implementados; captura con micrófono físico pendiente de confirmar.
+Barra superior con seis controles, marcadores persistentes y secuencias editables/anidadas o como clips.
 Equipo verificado: Windows 11, Ryzen 7 7700X, 32 GB RAM y RTX 5070 de 12 GB.
 Chat probado con Ollama `qwen3:30b-a3b` y `qwen3:8b`; el 30B usa también RAM y puede tardar.
 Visión: `qwen3-vl:4b-instruct` + `qwen3:8b`. Audio: Resemble Denoiser ONNX en CPU y FFmpeg.
@@ -19,6 +20,61 @@ Fase 0 completa. Fase 1 casi completa: subtítulos, quitar silencios, pistas de 
 tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcripción y miniaturas.
 
 ## Registro
+
+### 2026-10-20 — Barra del timeline, marcadores y secuencias editables (Codex)
+
+**Decisiones e implementación**
+- Lino identificó expresamente el primer icono como «Insert and overwrite sequences as nests
+  or individual clips» y el cuarto como «Selection Follows Playhead». Se implementaron los seis
+  controles: secuencias, imán, selección enlazada, selección bajo cabezal, marcadores y ajustes.
+- Imán integrado con bordes/cabezal/marcadores; se trasladó de la columna a la barra superior.
+  Código de tiempo editable HH:MM:SS:FF. Preferencias normalizadas y persistidas localmente:
+  ondas, nombres, marcadores, altura de 36–120 px y estados de los cuatro conmutadores.
+- Selección enlazada desactivada permite edición manual independiente mediante `editSelection`;
+  restaura enlaces de IDs supervivientes y muestra diferencia de sincronía en frames. La llave
+  permite desvincular o vincular un video y un audio. Los fragmentos nuevos de cortes independientes
+  pueden quedar sin pareja; falta agrupación de enlaces más amplia como en Premiere.
+- Selección bajo cabezal actúa al buscar desde regla, código de tiempo, teclado o Programa,
+  con destino B y alternativa Audio; respeta límites/candados. No selecciona durante playback.
+- Marcadores JSON con nombre/color/tiempo, crear/editar/borrar/ir, M y navegación Shift+M /
+  Ctrl/Cmd+Shift+M. Resumen por rangos los remapea; otros movimientos/ripple los dejan absolutos.
+- Secuencias JSON: crear copia desde selección, tarjetas en Proyecto, colocar por botón o arrastre
+  como bloque anidado o clips individuales. IDs/enlaces se remapean al expandir. Se pueden abrir,
+  editar con las mismas ops y volver al montaje. Autoguardado/Guardar mantienen la raíz completa;
+  Deshacer es compartido. Los cambios internos actualizan las referencias anidadas.
+- Render recursivo de capas e imagen/audio separados para evitar duplicación; fuentes originales
+  conservadas, sin video intermedio. Ciclos impedidos al colocar y máximo ocho niveles al renderizar.
+  Las tareas de análisis piden abrir la secuencia para acceder a sus medios originales.
+- Nuevas herramientas de chat para marcadores y crear/colocar secuencias; estado incluye referencias,
+  marcadores y secuencia abierta. No se requiere ningún servicio o dependencia nuevos.
+- Se corrigió caché de bundle de export: un proceso abierto conservaba el renderizador anterior.
+  Ahora detecta cambios en fuentes/paquetes y reconstruye; reintenta si un empaquetado falla.
+
+**Pruebas realizadas**
+- `npm run typecheck`, `npm test` (**43/43**), `npm run build` y `git diff --check` correctos;
+  permanece el aviso previo de tamaño de paquetes. Pruebas nuevas: edición independiente, enlaces,
+  candados, marcadores/rangos, creación/anidación/expansión/actualización, IDs, ciclos directos,
+  preferencias inválidas y selección de clips de video o solo audio bajo el cabezal.
+- UI aislada: crear marcador «Gancho», mover solo video 15 frames y ver audio inmóvil con aviso
+  +15/-15; Deshacer recupera sincronía. Código de tiempo y selección bajo cabezal funcionan.
+  Apagar ondas las retira; cambiar altura 56→60 px cambia las pistas; restaurados después.
+- Crear secuencia desde selección y colocar Gancho anidado; abrir sus capas, editar texto,
+  volver y ver el cambio. Colocar Plano guardado con primer botón apagado produce clips ordinarios;
+  Deshacer recupera el anidado. Recargar conserva preferencias, marcadores y secuencias.
+- Comprobado autoguardado **sin salir** de edición interna: tras cambiar texto y recargar reaparece
+  el montaje principal completo y el cambio interno persiste; no se sustituye la raíz por la subsecuencia.
+- Primera exportación anidada falló por bundle viejo; después de corregirlo, render anidado e
+  individual de 2 s completados. Comparación: **60/60 fotogramas decodificados idénticos** y audio
+  PCM idéntico (**96240 muestras estéreo**). Incluye texto y audio original; no acredita todos los
+  formatos, efectos o niveles de anidación. Medios de prueba fuera del repo.
+
+**Pendientes y siguiente paso**
+- Validar con Lino comodidad de la barra y uso en un montaje real. Profundizar pruebas de
+  anidación multinivel, secuencias largas, cambios de duración y formatos distintos antes de ampliarlos.
+- Mejorar grupos de enlaces tras cortes independientes y generar onda del audio compuesto anidado
+  (actualmente es bloque sin onda propia; al abrir se ven las ondas originales).
+- Siguen pendientes la sincronía de stems procesados y la confirmación del micrófono físico.
+- Continuar desde la validación de Lino; mantener las seis funciones y el proyecto como JSON editable.
 
 ### 2026-10-20 — Sobrescritura, controles de pista y grabación de voz (Codex)
 

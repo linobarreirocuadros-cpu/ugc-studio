@@ -25,7 +25,7 @@ export function AIPanel({ project, apply }: Props) {
   const [busy, setBusy] = useState(false);
 
   const videoClips = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter(
-    (c): c is VideoClip => c.kind === "video",
+    (c): c is VideoClip => c.kind === "video" && !c.sequenceId,
   );
   const sources = [...new Map(videoClips.map((c) => [c.src, c.name])).entries()];
   const done = sources.length - pendingTranscripts(project).length;

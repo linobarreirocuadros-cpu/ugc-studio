@@ -50,6 +50,39 @@ límite) o Claude/OpenAI API (de pago, opcionales) pegando su clave en **Configu
 
 ## Herramientas, medidor de audio y paneles
 
+### Barra superior del timeline
+
+Los seis controles siguen el orden de la referencia de Lino. Azul significa activado:
+
+| Control | Uso |
+| --- | --- |
+| Secuencias anidadas / individuales | Al colocar una secuencia de Proyecto, activado crea un bloque de imagen y sonido; apagado coloca sus clips en pistas separadas. No convierte clips ya colocados. |
+| Imán · S | Ajusta el arrastre a bordes, cabezal y marcadores. |
+| Selección enlazada · Shift+L | Activado edita imagen y sonido juntos. Apagado permite mover, recortar o cortar solo la parte elegida; una diferencia de sincronía aparece en rojo, en frames. |
+| Seleccionar bajo el cabezal | Al buscar un tiempo selecciona el clip de la pista B destino, o el audio destino si allí no hay imagen. No cambia la selección durante la reproducción. |
+| Marcador · M | Añade una referencia con nombre y color; la flecha abre la lista para ir, editar o borrar. Shift+M va al siguiente y Ctrl/Cmd+Shift+M al anterior. |
+| Llave · Ajustes | Mostrar nombres, ondas y marcadores, cambiar altura de pistas, vincular/desvincular una pareja y crear una secuencia. |
+
+El código de tiempo azul acepta **HH:MM:SS:FF** y Enter para ir a un fotograma. Preferencias de
+visualización guardadas en este navegador; marcadores y secuencias guardados en el archivo de proyecto.
+Los marcadores se remapean al aplicar un resumen por rangos; otros movimientos/ripple no los arrastran.
+Después de cortar una sola parte con selección enlazada apagada, los fragmentos nuevos pueden necesitar
+vincularse manualmente: selecciona un video y un audio y utiliza la llave.
+
+**Crear y reutilizar una secuencia:**
+
+1. Selecciona los clips del timeline que quieres reutilizar.
+2. Abre la llave, escribe un nombre y pulsa **Crear secuencia de la selección**. Conserva los originales.
+3. En **Proyecto → Secuencias**, arrastra la secuencia a una pista B o pulsa **Colocar** en el cabezal.
+   El primer botón determina si entra anidada o como clips individuales.
+4. Pulsa **Abrir** en su tarjeta para editar sus capas originales. **Volver al montaje** regresa al principal.
+   Los cambios internos actualizan las instancias anidadas y comparten Deshacer. Guardar/autoguardar
+   conserva el proyecto completo, incluso al trabajar dentro de una secuencia.
+
+La anidación es local y editable; no crea un video intermedio. Se impiden referencias circulares y
+el render admite hasta ocho niveles. Las secuencias colocadas como clips son copias independientes.
+Para transcribir o limpiar sus medios, abre la secuencia y selecciona el clip original.
+
 ### Controles de cada pista
 
 - **Candado**: protege los clips de la pista frente a movimientos, cortes, borrados y cambios del
