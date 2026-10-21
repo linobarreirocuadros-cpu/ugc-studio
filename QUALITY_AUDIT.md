@@ -1,5 +1,31 @@
 # Control de calidad — actualizado 2026-10-21
 
+## Motores editables — 2026-10-21
+
+**Alcance:** primera integración oficial local HyperFrames 0.8.185 para texto, captions,
+sólidos/rectángulos, junto al compositor principal Remotion. No es otra fiscalización completa.
+
+- 145 pruebas: escenas/serialización, candados, motores incompatibles, validación, corte y
+  recorte/rango con reloj conservado, palabra/tiempos, chat en una transacción y guardas de sesión.
+  Typecheck/build/diff --check aprobados. Dependencia exacta; npm audit sin avisos conocidos.
+- Script reproducible `scripts/verify-motion-render.ts`: 16 PNG reales, ambos motores a 30 fps,
+  palabra a 24 fps, entrada/salida, resaltado, claves, transparencia sobre sólido azul, corte y
+  anidación. Geometría observada equivalente (hasta ~1 px de antialiasing en muestras), sin
+  prometer igualdad de píxel en todo contenido. Se verificó material renderizado, no solo mocks.
+- `/api/render` completó MP4 H.264 de 640×360, 30 fps, 90 frames/3 s con HyperFrames en la pila
+  Remotion. Archivos QA en visualizaciones/motion-render y Exportaciones.
+- Navegador aislado :5175: cambiar motores, editar texto/Poppins/tiempo de palabra, añadir y
+  editar clave, crear escena y deshacer en un paso. Guardado real confirma texto, estilo,
+  renderEngine y motion/keys. Preview pausada sin falsa alarma tras cancelar el timer de ACK.
+  Transparencia corregida en el tema oscuro, sin alterar colores/escala de la UI.
+
+**Límites:** no se han medido sesiones largas ni muchas escenas simultáneas, ni móvil/multimonitor
+con este motor. Herramientas del chat se probaron directamente sin contratar/consumir un LLM;
+queda la revisión editorial de animación y alineación de voz en anuncios reales. Sin transcripción,
+los tiempos de palabras son una distribución inicial explícita, no sincronía verificada.
+No se aceptan composiciones HTML/JS arbitrarias ni se convierten videos a capas recuperables.
+Las claves actuales no automatizan volumen/color/plugins. Ver MOTORES.md para uso y contrato.
+
 ## Acabado de vidrio — 2026-10-21
 
 Cambio de presentación, sin operaciones nuevas del montaje. Typecheck/build, 135 tests y
@@ -80,7 +106,7 @@ el vacío en otra pestaña. No se usaron las descargas antiguas (45 clips) para 
 
 ### Límites vigentes
 
-- No son plugins Adobe ni Lumetri completo: faltan curvas/LUT avanzadas, keyframes, shake,
+- No son plugins Adobe ni Lumetri completo: faltan curvas/LUT avanzadas, claves de color/audio/efectos, shake,
   rampas, guardado de presets personales, inserts/sends/submezclas y automatización. Frame.io
   se omite por pedido. Clasificación de Sonido esencial es metadata; limpieza local conserva
   sus acciones explícitas, no un análisis automático por elegir «Diálogo».

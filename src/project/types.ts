@@ -1,8 +1,9 @@
+import type {ClipMotion,RenderEngine} from "./motion";
 import type {ClipEffects,VideoTransition,AudioTransition} from "./effects";
 // El proyecto completo es un JSON serializable. La línea de tiempo, el chat (Fase 2)
 // y el render de Remotion leen y escriben esta misma estructura.
 
-export type ClipMetadata = { labelColor?: string; groupId?: string; projectItemId?: string;effects?:ClipEffects;transitionIn?:VideoTransition;transitionOut?:VideoTransition;pan?:number;audioRole?:"dialogue"|"music"|"sfx"|"ambience";mix?:{gain:number;matrix:[number,number,number,number]} };
+export type ClipMetadata = { renderEngine?:RenderEngine;motion?:ClipMotion; labelColor?: string; groupId?: string; projectItemId?: string;effects?:ClipEffects;transitionIn?:VideoTransition;transitionOut?:VideoTransition;pan?:number;audioRole?:"dialogue"|"music"|"sfx"|"ambience";mix?:{gain:number;matrix:[number,number,number,number]} };
 export type MediaTiming = { playbackRate?: number };
 
 export type VideoClip = ClipMetadata & MediaTiming & {

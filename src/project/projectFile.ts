@@ -1,3 +1,4 @@
+import {validMotion,motionSupported,hyperframesSupported} from "./motion";
 import {validEffects} from "./effects";
 import { normalizeProject, type Project, type LibraryMedia } from "./types";
 
@@ -23,6 +24,8 @@ export function assertProject(value:unknown):asserts value is Project {
       if(t.pan!==undefined)requireValue(t.kind==="audio"&&number(t.pan)&&Math.abs(t.pan)<=1,"panorama de pista inválido");
       for(const c of t.clips){
         requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&["video","audio","text","caption","graphic"].includes(String(c.kind))&&(c.kind==="audio")===(t.kind==="audio")&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
+        if(c.renderEngine!==undefined)requireValue(["remotion","hyperframes"].includes(String(c.renderEngine))&&(c.renderEngine!=="hyperframes"||hyperframesSupported(c as unknown as import("./types").Clip)),"motor de clip inválido");
+        if(c.motion!==undefined)requireValue(motionSupported(c as unknown as import("./types").Clip)&&validMotion(c.motion),"animación inválida");
         if(c.effects!==undefined)requireValue(c.kind!=="audio"&&validEffects(c.effects),"efectos inválidos");
         for(const key of ["transitionIn","transitionOut"]){const v=c[key];if(v!==undefined)requireValue(c.kind!=="audio"&&object(v)&&["dissolve","dipBlack","dipWhite","wipe"].includes(String(v.type))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de video inválida");}
         if(c.crossfadeIn!==undefined){const v=c.crossfadeIn;requireValue(c.kind==="audio"&&object(v)&&["linear","equalPower"].includes(String(v.curve))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de audio inválida");}
@@ -46,7 +49,7 @@ export function assertProject(value:unknown):asserts value is Project {
           const s=c.style;
           requireValue(object(s)&&typeof s.fontFamily==="string"&&number(s.fontSize)&&s.fontSize>0&&typeof s.color==="string"&&(s.background===null||typeof s.background==="string")&&number(s.y),"estilo de texto incorrecto");
           if(c.kind==="text")requireValue(typeof c.text==="string","texto incorrecto");
-          else requireValue(Array.isArray(c.words)&&c.words.every(w=>object(w)&&typeof w.text==="string"&&integer(w.start)&&integer(w.end)&&w.end>=w.start),"palabras de subtítulo incorrectas");
+          else {requireValue(["karaoke","palabra","bloque"].includes(String(s.preset))&&typeof s.highlightColor==="string"&&typeof s.uppercase==="boolean"&&typeof s.stroke==="boolean","estilo de subtítulo incorrecto");requireValue(Array.isArray(c.words)&&c.words.every(w=>object(w)&&typeof w.text==="string"&&integer(w.start)&&integer(w.end)&&w.end>=w.start),"palabras de subtítulo incorrectas");}
         }
       }
     }

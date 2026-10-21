@@ -82,3 +82,9 @@ export const fontWeightFor = (fontFamily: string, desired: number) => {
   if (weights.length === 0) return desired;
   return weights.reduce((best, w) => (Math.abs(w - desired) < Math.abs(best - desired) ? w : best));
 };
+
+/** Archivos locales compartidos con el documento aislado de HyperFrames. */
+export function fontSources(fontFamily:string,desired:number){
+  const family=primaryFamily(fontFamily),weight=fontWeightFor(family,desired),src=FONTS[family]?.[weight];
+  return src?[{family,weight,src}]:[];
+}

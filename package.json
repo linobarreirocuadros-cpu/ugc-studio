@@ -25,6 +25,7 @@
     "@fontsource/poppins": "5.3.0",
     "@fontsource/raleway": "5.3.0",
     "@fontsource/roboto": "5.3.0",
+    "@hyperframes/core": "0.8.185",
     "@remotion/bundler": "4.0.536",
     "@remotion/captions": "4.0.536",
     "@remotion/fonts": "4.0.536",

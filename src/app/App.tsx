@@ -1,3 +1,4 @@
+import {MotionControls} from "./MotionControls";
 import {EffectControls} from "./EffectControls";
 import {EffectsPanel} from "./EffectsPanel";
 import {AudioTrackMixer} from "./AudioTrackMixer";
@@ -309,6 +310,7 @@ export function App() {
     currentSequenceId: editingSequenceId,
     nestSequences: timelinePreferences.nestSequences,
     onSeek: seek,
+    onSelectClips:ids=>{setSelectedIds(ids);setIsolatedSelection(true);},
     showPanel:panel=>workspace.showPanel(panel),
     showVisualResult: setVisualResult,
     registerMedia: (items) => setMedia((list) => [...list, ...items.filter((item) => !list.some((m) => m.src === item.src))]),
@@ -562,7 +564,8 @@ export function App() {
   const captureSession=useRef<()=>void>(()=>{});captureSession.current=()=>{captureView();if(!autosaveBlocked)try{localStorage.setItem(DOCUMENTS_KEY,rootHistory.bank.serialize());}catch{}};
   useEffect(()=>{const save=()=>captureSession.current();window.addEventListener("pagehide",save);return()=>window.removeEventListener("pagehide",save);},[]);
   const applyPreset=(id:string,clipId?:string,edge:"start"|"end"="start",seconds=.5)=>{try{const before=history.current(),next=ops.applyEffectPreset(before,clipId?[clipId]:selectedIds,id,Math.max(1,Math.round(seconds*before.fps)),edge);if(next===before)return;history.apply(()=>next);const changed=next.tracks.flatMap(t=>t.clips).filter(c=>c!==ops.findClip(before,c.id)?.clip).map(c=>c.id);setSelectedIds(changed);setIsolatedSelection(true);workspace.showPanel(presetById(id)?.audio?"essentialSound":changed.some(id=>{const c=ops.findClip(next,id)?.clip;return c?.kind==="graphic"&&c.shape==="adjustment";})?"properties":"effectControls");setFeedback(`Aplicado: ${presetById(id)?.name}`);}catch(error){setFeedback(error instanceof Error?error.message:String(error));}};
-  const visualControls=<EffectControls key={`${documentEpoch.current}:${selectedId}`} project={project} clip={selected} locked={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)} onPreview={patch=>setEffectDraft(patch&&selectedId?{ids:[selectedId],patch}:null)} onChange={patch=>{if(selectedId)history.apply(p=>ops.setClipEffects(p,[selectedId],patch));}} onReset={()=>{if(selectedId)history.apply(p=>ops.resetClipEffects(p,[selectedId]));}} onTransition={(edge,value)=>{if(selectedId)history.apply(p=>ops.updateClip(p,selectedId,edge==="start"?{transitionIn:value??undefined}:{transitionOut:value??undefined}));}}/>;
+  const animationControls=selected?<MotionControls key={`${documentEpoch.current}:${selectedId}:motion`} project={project} clip={selected} frame={frame} onSeek={seek} locked={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)} onChange={(patch,engine,all)=>history.apply(p=>ops.setClipMotion(p,all?p.tracks.filter(t=>!t.locked).flatMap(t=>t.clips.filter(c=>c.kind==="caption").map(c=>c.id)):[selected.id],patch,engine))} onReset={all=>history.apply(p=>ops.resetClipMotion(p,all?p.tracks.filter(t=>!t.locked).flatMap(t=>t.clips.filter(c=>c.kind==="caption").map(c=>c.id)):[selected.id]))}/>:null;
+  const visualControls=<EffectControls animationControls={animationControls} key={`${documentEpoch.current}:${selectedId}`} project={project} clip={selected} locked={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)} onPreview={patch=>setEffectDraft(patch&&selectedId?{ids:[selectedId],patch}:null)} onChange={patch=>{if(selectedId)history.apply(p=>ops.setClipEffects(p,[selectedId],patch));}} onReset={()=>{if(selectedId)history.apply(p=>ops.resetClipEffects(p,[selectedId]));}} onTransition={(edge,value)=>{if(selectedId)history.apply(p=>ops.updateClip(p,selectedId,edge==="start"?{transitionIn:value??undefined}:{transitionOut:value??undefined}));}}/>;
   const utility=(id:Panel,scope:CommandScope,children:React.ReactNode)=>workspace.renderPanel(id,<section className={`dock-panel utility-panel utility-${id}`} {...workspace.panelProps(id)} data-shortcut-scope={scope} tabIndex={-1}><header className="workspace-panel-title"><strong>{PANEL_LABEL[id]}</strong>{workspace.handle(id)}</header><div className="utility-body">{children}</div></section>);
   const selectResult=(id:string,at:number)=>{seek(at);setSelectedIds([id]);setIsolatedSelection(true);setRevealTrackId(ops.findClip(project,id)?.track.id??null);};
   const propertiesContent=<fieldset className="utility-fields" disabled={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)}>
@@ -573,7 +576,8 @@ export function App() {
           <CaptionInspector
             clip={selected}
             onText={(text) => history.apply((p) => ops.setCaptionText(p, selected.id, text))}
-            onStyle={(patch) => history.apply((p) => ops.styleAllCaptions(p, patch))}
+            onWord={(index,patch)=>{const before=history.current(),next=ops.setCaptionWord(before,selected.id,index,patch);if(next===before)setFeedback("Revisa la palabra y sus tiempos: deben quedar dentro del bloque y ordenados.");else history.apply(()=>next);}}
+            onStyle={(patch,all) => history.apply((p) => all?ops.styleAllCaptions(p,patch):ops.updateClip(p,selected.id,{style:{...selected.style,...patch}}))}
           />
         )}
         {selected?.kind === "audio" && <AudioInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
@@ -826,12 +830,16 @@ function CaptionInspector({
   clip,
   onText,
   onStyle,
+  onWord,
 }: {
   clip: CaptionClip;
   onText: (text: string) => void;
-  onStyle: (patch: Partial<CaptionStyle>) => void;
+  onStyle: (patch: Partial<CaptionStyle>,all:boolean) => void;
+  onWord:(index:number,patch:Partial<CaptionClip["words"][number]>)=>void;
 }) {
   const s = clip.style;
+  const [all,setAll]=useState(false);
+  const style=(patch:Partial<CaptionStyle>)=>onStyle(patch,all);
   return (
     <div className="fields">
       <label>
@@ -842,22 +850,23 @@ function CaptionInspector({
           onBlur={(e) => onText(e.target.value)}
         />
       </label>
-      <div className="hint">El estilo se aplica a todos los subtítulos:</div>
+      <label className="inline-toggle"><input type="checkbox" checked={all} onChange={e=>setAll(e.target.checked)}/>Estilo para todos los subtítulos desbloqueados</label>
       <label>
         Estilo
-        <select value={s.preset} onChange={(e) => onStyle({ preset: e.target.value as CaptionStyle["preset"] })}>
+        <select value={s.preset} onChange={(e) => style({ preset: e.target.value as CaptionStyle["preset"] })}>
           {CAPTION_PRESETS.map((p) => (
             <option key={p.id} value={p.id}>{p.label}</option>
           ))}
         </select>
       </label>
-      <label>Tamaño<input type="number" value={s.fontSize} onChange={(e) => onStyle({ fontSize: Number(e.target.value) })} /></label>
-      <label>Color<input type="color" value={s.color} onChange={(e) => onStyle({ color: e.target.value })} /></label>
-      <label>Color resaltado<input type="color" value={s.highlightColor} onChange={(e) => onStyle({ highlightColor: e.target.value })} /></label>
-      <label className="row"><input type="checkbox" checked={s.uppercase} onChange={(e) => onStyle({ uppercase: e.target.checked })} /> MAYÚSCULAS</label>
-      <label className="row"><input type="checkbox" checked={s.stroke} onChange={(e) => onStyle({ stroke: e.target.checked })} /> Contorno negro</label>
-      <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={s.y} onChange={(e) => onStyle({ y: Number(e.target.value) })} /></label>
-      <FontSelect value={s.fontFamily} onChange={(fontFamily) => onStyle({ fontFamily })} />
+      <label>Tamaño<input type="number" value={s.fontSize} onChange={(e) => style({ fontSize: Number(e.target.value) })} /></label>
+      <label>Color<input type="color" value={s.color} onChange={(e) => style({ color: e.target.value })} /></label>
+      <label>Color resaltado<input type="color" value={s.highlightColor} onChange={(e) => style({ highlightColor: e.target.value })} /></label>
+      <label className="row"><input type="checkbox" checked={s.uppercase} onChange={(e) => style({ uppercase: e.target.checked })} /> MAYÚSCULAS</label>
+      <label className="row"><input type="checkbox" checked={s.stroke} onChange={(e) => style({ stroke: e.target.checked })} /> Contorno negro</label>
+      <label>Posición vertical<input type="range" min={0.05} max={0.95} step={0.01} value={s.y} onChange={(e) => style({ y: Number(e.target.value) })} /></label>
+      <details><summary>Palabras y tiempos · frames relativos al bloque</summary>{clip.words.map((w,i)=><div className="caption-word-controls" key={`${clip.id}:${i}`}><input aria-label={`Palabra ${i+1}`} defaultValue={w.text} key={w.text} onBlur={e=>onWord(i,{text:e.target.value})}/><CommittedNumber integer label={`Inicio palabra ${i+1}`} value={w.start} min={i?clip.words[i-1].start:0} max={w.end-1} onCommit={start=>onWord(i,{start})}/><CommittedNumber integer label={`Fin palabra ${i+1}`} value={w.end} min={w.start+1} max={clip.durationInFrames} onCommit={end=>onWord(i,{end})}/></div>)}</details>
+      <FontSelect value={s.fontFamily} onChange={(fontFamily) => style({ fontFamily })} />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import {assertProject} from "./projectFile";
+import {DEFAULT_MOTION,validMotion,sliceMotion,motionSupported,hyperframesSupported,type ClipMotion,type RenderEngine} from "./motion";
 import {bakeTrackMix} from "./audioMix";
 import {validEffects,presetById,adjacentPrevious,adjacentNext,sliceClipEdges,type ClipEffects,type VideoTransition} from "./effects";
 // Operaciones puras sobre el proyecto. Cada una recibe un Project y devuelve uno nuevo.
@@ -366,7 +368,7 @@ const mergeRanges = (ranges: Range[]): Range[] => {
 /** Conserva un fragmento sin perder offset de origen, palabras ni fades de los extremos. */
 const clipSlice = (clip: Clip, start: number, end: number, id: string): Clip => {
   const offset = start - clip.from, durationInFrames = end - start;
-  const base = { ...sliceClipEdges(clip,offset,durationInFrames), id, from: start, durationInFrames };
+  const base = { ...sliceClipEdges(clip,offset,durationInFrames), ...(clip.motion?{motion:sliceMotion(clip,offset)}:{}), id, from: start, durationInFrames };
   if (base.kind === "video" || base.kind === "audio") base.trimStart = sourceFrame(base, offset);
   if (base.kind === "audio") {
     base.fadeIn = offset ? 0 : Math.min(base.fadeIn, durationInFrames);
@@ -810,8 +812,8 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       if (targets && !targets.has(c.id)) return [c];
       const offset = frame - c.from;
       if (offset <= 0 || offset >= c.durationInFrames) return [c];
-      const left = { ...sliceClipEdges(c,0,offset), durationInFrames: offset };
-      const right = { ...sliceClipEdges(c,offset,c.durationInFrames-offset), id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
+      const left = { ...sliceClipEdges(c,0,offset), ...(c.motion?{motion:sliceMotion(c,0)}:{}), durationInFrames: offset };
+      const right = { ...sliceClipEdges(c,offset,c.durationInFrames-offset), ...(c.motion?{motion:sliceMotion(c,offset)}:{}), id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
       if ((right.kind === "video" || right.kind === "audio") && right.linkedClipId) right.linkedClipId = rightIds.get(right.linkedClipId);
       if (right.kind === "audio" && right.derivedFrom && rightIds.has(right.derivedFrom.clipId)) right.derivedFrom = { ...right.derivedFrom, clipId: rightIds.get(right.derivedFrom.clipId)! };
       if (right.kind === "video" || right.kind === "audio") right.trimStart = sourceFrame(c as VideoClip | AudioClip, offset);
@@ -840,14 +842,15 @@ const trimSingle = (
   if (edge === "end") {
     let duration = Math.max(1, c.durationInFrames + d);
     if (c.kind === "video" || c.kind === "audio") duration = Math.min(duration, availableFrames(c));
-    return updateClip(project, clipId, { durationInFrames: duration });
+    return updateClip(project, clipId, { durationInFrames: duration,...(c.kind==="caption"?{words:c.words.filter(w=>w.start<duration).map(w=>({...w,end:Math.min(duration,w.end)}))}:{}) });
   }
   // start: positivo recorta, negativo extiende hacia atrás
   let delta = Math.min(d, c.durationInFrames - 1);
   delta = Math.max(delta, -c.from);
   if (c.kind === "video" || c.kind === "audio") delta = Math.max(delta, -Math.floor(c.trimStart / (c.playbackRate ?? 1)));
-  const patch: Partial<Clip> = { from: c.from + delta, durationInFrames: c.durationInFrames - delta };
+  const patch: Partial<Clip> = { from: c.from + delta, durationInFrames: c.durationInFrames - delta, ...(c.motion?{motion:sliceMotion(c,delta)}:{}) };
   if (c.kind === "video" || c.kind === "audio") (patch as Partial<VideoClip>).trimStart = sourceFrame(c, delta);
+  if(c.kind==="caption")(patch as Partial<CaptionClip>).words=c.words.filter(w=>w.end>delta).map(w=>({...w,start:Math.max(0,w.start-delta),end:w.end-delta}));
   return updateClip(project, clipId, patch);
 };
 
@@ -1173,3 +1176,55 @@ export const applyEffectPreset=(p:Project,ids:string[],presetId:string,frames=Ma
 
 export const importSubtitleBlocks=(p:Project,blocks:{start:number;end:number;text:string}[]):Project=>{if(!blocks.length||blocks.some(b=>!Number.isSafeInteger(b.start)||b.start<0||!Number.isSafeInteger(b.end)||b.end<=b.start||!b.text.trim()))throw new Error("Subtítulos inválidos");const clips:CaptionClip[]=blocks.map(b=>{const tokens=b.text.trim().split(/\s+/),duration=b.end-b.start;return{id:newId(),kind:"caption",from:b.start,durationInFrames:duration,style:{...DEFAULT_CAPTION_STYLE},words:tokens.map((text,i)=>({text,start:Math.floor(i*duration/tokens.length),end:Math.floor((i+1)*duration/tokens.length)}))};});return nameTracks({...p,tracks:[...p.tracks,{id:`S-${newId()}`,kind:"caption",name:"",clips}]});};
 export const setTranscriptWord=(p:Project,src:string,index:number,text:string):Project=>{const words=p.transcripts?.[src];if(!words||!Number.isInteger(index)||!words[index]||!text.trim()||words[index].text===text.trim())return p;return setTranscript(p,src,words.map((w,i)=>i===index?{...w,text:text.trim()}:w),p.transcriptInfo?.[src]);};
+
+/** Cambios de motor/animación son ediciones del documento, atómicas y protegidas. */
+export const setClipMotion=(p:Project,ids:string[],patch:Partial<ClipMotion>,engine?:RenderEngine):Project=>{
+  if(!ids.length||!clipsEditable(p,ids)||Object.keys(patch).some(k=>!Object.keys(DEFAULT_MOTION).includes(k)))return p;
+  const targets=ids.map(id=>findClip(p,id)?.clip);
+  if(targets.some(c=>!c||!motionSupported(c)||engine!==undefined&&engine!=="remotion"&&engine!=="hyperframes"||engine==="hyperframes"&&!hyperframesSupported(c!)))return p;
+  if(targets.some(c=>!validMotion({...DEFAULT_MOTION,...c!.motion,...patch})))return p;
+  return mapTracks(p,t=>({...t,clips:t.clips.map(c=>ids.includes(c.id)?{...c,...(c.motion||Object.keys(patch).length?{motion:structuredClone({...DEFAULT_MOTION,...c.motion,...patch})}:{}),...(engine?{renderEngine:engine}:{})}:c)}));
+};
+export const resetClipMotion=(p:Project,ids:string[]):Project=>!clipsEditable(p,ids)?p:mapTracks(p,t=>({...t,clips:t.clips.map(c=>ids.includes(c.id)?{...c,motion:undefined,renderEngine:undefined}:c)}));
+
+/** Coloca una escena estructurada, no código, en una sola transacción reversible. */
+export function addEditableScene(p:Project,items:{trackId:string;clip:Clip}[]):Project{
+ if(!items.length||items.length>100)return p;
+ const groupId=items.length>1?newId():undefined;
+ const rows=items.map(item=>({...item,clip:{...structuredClone(item.clip),id:newId(),groupId}}));
+ if(rows.some(({trackId,clip})=>!hyperframesSupported(clip)||!p.tracks.some(t=>t.id===trackId&&!t.locked&&t.kind!=="audio")))return p;
+ const next=mapTracks(p,t=>({...t,clips:[...t.clips,...rows.filter(row=>row.trackId===t.id).map(row=>row.clip)]}));
+ assertProject(next);
+ return overwritePlaced(p,next,rows.map(row=>row.clip.id),true);
+}
+export function setCaptionWord(p:Project,id:string,index:number,patch:Partial<Word>):Project{
+ const clip=findClip(p,id)?.clip;if(clip?.kind!=="caption"||!Number.isInteger(index)||!clip.words[index]||Object.keys(patch).some(k=>!["text","start","end"].includes(k)))return p;
+ const words=clip.words.map((w,i)=>i===index?{...w,...patch}:w);
+ if(words.some((w,i)=>typeof w.text!=="string"||!w.text.trim()||!Number.isSafeInteger(w.start)||!Number.isSafeInteger(w.end)||w.start<0||w.end<=w.start||w.end>clip.durationInFrames||i>0&&w.start<words[i-1].start))return p;
+ return updateClip(p,id,{words} as Partial<CaptionClip>);
+}
+
+export type MotionSceneElement={kind:"text"|"caption"|"rectangle"|"solid";text?:string;from:number;durationInFrames:number;layer?:number;trackId?:string;style?:Partial<CaptionStyle>;words?:Word[];motion?:Partial<ClipMotion>;color?:string;x?:number;y?:number;width?:number;height?:number;opacity?:number};
+/** Generación declarativa local. Cada elemento y palabra se conserva en JSON. */
+export function addMotionScene(p:Project,elements:MotionSceneElement[],engine:RenderEngine="remotion"):Project{
+ if(!elements.length||elements.length>100||!["remotion","hyperframes"].includes(engine))throw new Error("Escena o motor inválido");
+ let base=p;const layers=new Map<number,string>();
+ for(const layer of [...new Set(elements.filter(e=>!e.trackId).map(e=>e.layer??0))].sort((a,b)=>a-b)){
+   if(!Number.isInteger(layer)||layer<0||layer>19)throw new Error("La capa de la escena debe estar entre 0 y 19");
+   const previous=base;base=addTrack(base,"video");layers.set(layer,base.tracks.find(t=>!previous.tracks.some(old=>old.id===t.id))!.id);
+ }
+ const items=elements.map(e=>{
+  const common={id:newId(),from:e.from,durationInFrames:e.durationInFrames,renderEngine:engine,motion:{...DEFAULT_MOTION,entrance:"pop" as const,exit:"fade" as const,...e.motion}};
+  let clip:Clip;
+  if(e.kind==="text")clip={...common,kind:"text",text:e.text??"",style:{...DEFAULT_TEXT_STYLE,...e.style}};
+  else if(e.kind==="caption"){
+   const tokens=(e.text??"").trim().split(/\s+/).filter(Boolean);
+   const words=e.words??tokens.map((text,i)=>({text,start:Math.round(i*e.durationInFrames/tokens.length),end:Math.round((i+1)*e.durationInFrames/tokens.length)}));
+   if(!words.length||words.some((w,i)=>!w.text.trim()||w.end<=w.start||w.end>e.durationInFrames||i>0&&w.start<words[i-1].start))throw new Error("Revisa las palabras o aumenta la duración del subtítulo");
+   clip={...common,kind:"caption",words,style:{...DEFAULT_CAPTION_STYLE,...e.style}};
+  }else if(e.kind==="solid"||e.kind==="rectangle")clip={...common,kind:"graphic",shape:e.kind,name:e.kind==="solid"?"Sólido animado":"Rectángulo animado",color:e.color??"#8350c4",x:e.x??.5,y:e.y??.5,width:e.width??.5,height:e.height??.3,opacity:e.opacity??1,brightness:1,contrast:1,saturation:1};
+  else throw new Error("Tipo de escena no admitido");
+  return {trackId:e.trackId??layers.get(e.layer??0)!,clip};
+ });
+ const next=addEditableScene(base,items);return next===base?p:next;
+}

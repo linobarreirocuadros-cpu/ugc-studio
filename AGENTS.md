@@ -226,6 +226,21 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 llamará como tools. Nunca hagas que la IA genere código Remotion para editar un video: la IA
 modifica el JSON y `src/remotion/ProjectComposition.tsx` lo dibuja.
 
+## Motores y animación editable (2026-10-21)
+- Remotion conserva el reloj, composición, audio y exportación. `@hyperframes/core@0.8.185`
+  aporta el runtime oficial local para texto/captions/gráficos; no sustituye todo el compositor.
+- `renderEngine` y `motion` viven en ClipMetadata; operaciones y validación en project/.
+  HyperFrames recibe una plantilla HTML confiable, generada desde datos, y se busca cada frame
+  con `__player.renderSeek`. No aceptar HTML/JS/GSAP de la IA ni aplanar estas escenas a MP4.
+- `motion.ts`: entrada/salida, duración en frames, desplazamiento en píxeles, escala activa,
+  easing y claves de posición/escala/rotación/opacidad. Cortes/rangos conservan reloj con
+  offset/sourceDuration. Las claves no son automatización arbitraria de color/audio/efectos.
+- `MotionControls` comparte datos entre Propiedades y Controles; Texto permite crear escenas.
+  Las palabras y sus tiempos relativos al bloque son editables. Estilo por bloque por defecto;
+  aplicar a todos los captions desbloqueados requiere la opción explícita.
+- Nuevas herramientas del chat son declarativas y usan el mismo historial/guardas de sesión.
+  Ver `MOTORES.md`, `QUALITY_AUDIT.md` y `scripts/verify-motion-render.ts` para alcance y QA.
+
 ## Sobre el usuario
 Lino: motion graphics designer, video editor specialist y artista visual (storytelling visual),
 editor UGC en Growth Assistant. Domina Premiere y After Effects; **no programa**. Explicar lo

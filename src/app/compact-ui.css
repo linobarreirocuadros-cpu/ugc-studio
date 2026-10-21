@@ -174,3 +174,10 @@ body { line-height: 1.4; }
 @container inspector (max-height: 240px) { .chat { min-height: 100px; } .app .chat-input textarea { height: 22px; min-height: 22px; } }
 @media(max-width:950px) { .topbar .project-name { width: 112px; } .export select { max-width: 130px; } }
 @media(max-width:760px) { .shortcut-dialog { padding: 8px; } .visual-keyboard button { height: 22px; } }
+
+/* Controles declarativos compartidos por los dos motores. */
+.motion-controls .utility-fields,.new-motion-scene{display:grid;gap:6px;min-width:0}
+.new-motion-scene{padding:9px;border:1px solid var(--glass-border-soft,rgba(190,215,255,.09));border-radius:10px}
+.new-motion-scene label{display:grid;gap:3px}.motion-key-list{display:flex;gap:5px;flex-wrap:wrap}
+.motion-key-list>span{display:inline-flex;align-items:center;gap:4px}.motion-key-list button{min-width:18px;padding:1px 3px}
+.caption-word-controls{padding:5px 0}.caption-word-controls>input{width:100%}

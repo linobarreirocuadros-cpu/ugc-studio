@@ -13,6 +13,7 @@ export type AssistantContext = {
   currentSequenceId?: string | null;
   nestSequences?: boolean;
   onSeek?: (frame: number) => void;
+  onSelectClips?:(ids:string[])=>void;
   showVisualResult?: (result: VisualResult) => void;
   registerMedia?: (items: { src: string; name: string; durationInFrames: number; kind: "audio" }[]) => void;
 };

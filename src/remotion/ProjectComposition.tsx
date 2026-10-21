@@ -1,3 +1,4 @@
+import {HyperframesLayer} from "./HyperframesLayer";
 import { useState, type ReactNode } from "react";
 import { AbsoluteFill, Audio, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { AudioClip, CaptionClip, GraphicClip, Project, TextClip, VideoClip } from "../project/types";
@@ -105,7 +106,7 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
   ensureFont(s.fontFamily);
   const activeIndex = clip.words.findIndex((w) => frame >= w.start && frame < w.end);
   // Pequeño "pop" al aparecer el bloque
-  const pop = interpolate(frame, [0, 4], [0.85, 1], { extrapolateRight: "clamp" });
+  const pop = clip.motion?1:interpolate(frame, [0, 4], [0.85, 1], { extrapolateRight: "clamp" });
   const words =
     s.preset === "palabra"
       ? clip.words.filter((w, i) => i === activeIndex || (activeIndex === -1 && frame >= w.start)).slice(-1)
@@ -141,7 +142,7 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
                 display: "inline-block",
                 margin: "0 0.18em",
                 color: active ? s.highlightColor : undefined,
-                transform: active ? "scale(1.08)" : undefined,
+                transform: active ? `scale(${clip.motion?.wordScale??1.08})` : undefined,
               }}
             >
               {w.text}
@@ -170,7 +171,7 @@ export const ProjectComposition: React.FC<CompositionProps> = ({project,mediaBas
    if(clip.kind==="graphic"&&clip.shape==="adjustment"){
      if(frame>=clip.from&&frame<clip.from+clip.durationInFrames)visuals=<AbsoluteFill key={clip.id} style={{filter:`brightness(${1+(clip.brightness-1)*clip.opacity}) contrast(${1+(clip.contrast-1)*clip.opacity}) saturate(${1+(clip.saturation-1)*clip.opacity})`}}>{visuals}</AbsoluteFill>;continue;
    }
-   const layer=clip.kind==="video"?<ExtendedVideo clip={clip} pre={timing.pre} duration={timing.duration} render={c=>c.sequenceId?nested(c,busGain,parentPan,trackId):<VideoLayer key={c.src} clip={c} base={mediaBaseUrl} preview={preview} previewSources={previewSources}/>}/>:clip.kind==="text"?<TextLayer clip={clip}/>:clip.kind==="caption"?<CaptionLayer clip={{...clip,words:clip.words.map(w=>({...w,start:w.start+timing.pre,end:w.end+timing.pre}))}}/>:<GraphicLayer clip={clip}/>;
+   const layer=clip.renderEngine==="hyperframes"&&(clip.kind==="text"||clip.kind==="caption"||clip.kind==="graphic"&&clip.shape!=="adjustment")?<HyperframesLayer clip={{...clip,durationInFrames:timing.duration,...(clip.motion?{motion:{...clip.motion,offset:(clip.motion.offset??0)-timing.pre,sourceDuration:clip.motion.sourceDuration??clip.durationInFrames}}:{}),...(clip.kind==="caption"?{words:clip.words.map(w=>({...w,start:w.start+timing.pre,end:w.end+timing.pre}))}:{})}} preview={preview??false}/>:clip.kind==="video"?<ExtendedVideo clip={clip} pre={timing.pre} duration={timing.duration} render={c=>c.sequenceId?nested(c,busGain,parentPan,trackId):<VideoLayer key={c.src} clip={c} base={mediaBaseUrl} preview={preview} previewSources={previewSources}/>}/>:clip.kind==="text"?<TextLayer clip={clip}/>:clip.kind==="caption"?<CaptionLayer clip={{...clip,words:clip.words.map(w=>({...w,start:w.start+timing.pre,end:w.end+timing.pre}))}}/>:<GraphicLayer clip={clip}/>;
    visuals=<>{visuals}<Sequence key={clip.id} from={timing.from} durationInFrames={timing.duration} premountFor={clip.kind==="video"?project.fps:undefined}><EffectFrame clip={clip} track={track} project={project}>{layer}</EffectFrame></Sequence></>;
  }
  return <AbsoluteFill style={{backgroundColor:output!=="both"||stack.length>0?"transparent":"black"}}>{visuals}{audio}</AbsoluteFill>;

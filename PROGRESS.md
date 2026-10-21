@@ -1,5 +1,41 @@
 # Progreso
 
+## 2026-10-21 — Remotion principal e integración editable de HyperFrames
+
+Lino autorizó usar ambos motores conservando las capas y todos los parámetros generados.
+Se fijó `@hyperframes/core@0.8.185` (Apache-2.0, licencia conservada) y se integra su runtime
+oficial local, sin HeyGen Cloud/CDN/GSAP externo. Remotion mantiene reloj, pila visual, audio
+ y exportación; HyperFrames puede dibujar textos, captions, sólidos y rectángulos individuales.
+
+Modelo: `renderEngine`/`motion` opcionales en ClipMetadata; entrada/salida, frames, distancia,
+escala activa, easing y claves de posición/escala/rotación/opacidad. Ops puras y validación,
+con candados y una sola transacción para escenas completas. Cortes, overwrite y rangos
+conservan el reloj con offset/sourceDuration. Corregido recorte de palabras al ajustar el
+inicio/final de captions. Elegir motor en un caption antiguo no cambia su aparición original.
+
+Render: HTML de plantilla confiable desde datos escapados, fuentes locales compartidas,
+WAAPI descubierta por el runtime y `__player.renderSeek` por frame con ACK antes de captura.
+Errores visibles/rechazo de exportación; handshake para documentos cargados antes del listener.
+QA detectó y corrigió el temporizador que seguía activo tras ACK, y el fondo blanco en preview
+por diferencia de color-scheme con el tema oscuro. El texto por palabra conserva flujo natural.
+
+UI: Motor y animación en Propiedades/Controles; edición de palabras y frames relativos,
+estilo por bloque con opción explícita de aplicar a todos; marcas HF/◇ en timeline.
+Texto → Subtítulos/Gráficos → + Escena animada crea elementos y permite elegir motor.
+Chat: list_animation_presets/create_motion_scene/set_motion_parameters/set_caption_word,
+contexto/guardas existentes y selección del elemento generado. System prompt actualizado.
+
+Verificación: 145 tests, typecheck/build/diff --check; 16 PNG reales de ambos motores a
+24/30 fps, recorte y anidación; MP4 de 3 s. En QA :5175 se editó texto/fuente/tiempos, se
+creó/modificó una clave y una escena completa y se verificó Deshacer; JSON descargado conserva
+Poppins, palabras/tiempos, motor y claves. Proyecto de :5173/:5174 sin reemplazar.
+Documentación en MOTORES.md y QUALITY_AUDIT.md; servidor recargado para nuevas tools.
+
+Pendiente: medición sostenida con muchas escenas simultáneas, revisión editorial por Lino,
+plantillas reutilizables, SVG/Lottie y animación de color/audio/efectos. No se importa cualquier
+HTML/GSAP como capas editables; el contrato declarativo debe ampliarse primero. La integración
+no resuelve el pendiente de licencia Remotion para uso comercial de agencia.
+
 ## 2026-10-21 — Glow más vivo y contornos más delicados
 
 Ajuste solicitado por Lino sobre el acabado de vidrio: croma de clips/muestras +18 % en

@@ -43,7 +43,8 @@ de rediseñar la interfaz. En esta entrega se añadieron paneles Visión/Audio a
       con refinamiento temporal para eventos y validación por Lino
 - [ ] Plan de edición validado antes de aplicar; transacciones reversibles, versiones y comparación A/B
 - [x] Efectos constantes/transiciones locales editables en JSON/ops y compartidos con el chat
-- [ ] Keyframes, rampas y motion avanzado. Un video generado externamente es un clip renderizado, no capas recuperables
+- [x] Primera animación editable de posición/escala/rotación/opacidad, entradas/salidas y captions con ambos motores
+- [ ] Rampas y motion avanzado; importar un video externo sigue sin recuperar sus capas
 - [x] Ajustar el criterio editorial del asistente al brief y al estilo de Lino: ritmo, pausas
       expresivas, continuidad y Foley motivado por la acción; revisar los presets UGC del prompt
 - [ ] Proveedores por capacidad, con requisitos de memoria/licencia y ejecución serial de trabajos
@@ -52,7 +53,7 @@ de rediseñar la interfaz. En esta entrega se añadieron paneles Visión/Audio a
 - [ ] Revisar licencia propia del repositorio (no hay `LICENSE` en la raíz) y dependencias antes
       de prometer una distribución enteramente libre; elección de licencia pendiente de Lino
 - [ ] Revisar el alcance comercial de Remotion y evaluar independencia del motor de render;
-      HyperFrames Apache-2.0 es candidato para motion, no está integrado ni se decidió migrar
+      HyperFrames Apache-2.0 está integrado de forma inicial para escenas editables; Remotion sigue principal
 - [ ] Probar candidatos de generación: Chatterbox Multilingual (voz), ACE-Step 1.5 (música),
       ComfyUI local con un modelo de video que quepa en el equipo; comparar calidad y latencia
 - [ ] Seleccionar generador de Foley con pesos aptos para anuncios comerciales. MMAudio tiene
@@ -256,7 +257,7 @@ a estar validado para entregas de agencia.
 - [x] Abrir/aplicar efectos y ajustar mezcla desde herramientas del chat, con historial y guardas
 - [x] Varios proyectos/secuencias en pestañas, vistas por secuencia e historial por proyecto
 - [x] Recuperar proyectos cerrados y sesión completa validada tras recarga
-- [ ] Automatización de mezcla, inserts/sends, LUT/curvas de color y keyframes
+- [ ] Automatización de mezcla, inserts/sends, LUT/curvas de color y claves de efectos/audio
 - [ ] Lumetri completo y Frame.io: no incluidos en esta entrega
 - [ ] Validar arrastre + rueda físicos, dos monitores y un flujo largo con Lino
 
@@ -302,11 +303,18 @@ a estar validado para entregas de agencia.
 - [ ] Guardar y reutilizar efectos y presets
 
 ## Fase 4 — Motion graphics
-- [ ] HyperFrames (HeyGen, open source Apache-2.0): la IA escribe escenas HTML + GSAP, se
-      renderizan a video y entran como clip en V2. Remotion sigue siendo la base del editor.
-- [ ] Plantillas de textos animados parametrizables
+- [x] HyperFrames oficial local 0.8.185 junto a Remotion, que conserva reloj/composición/exportación.
+      Escenas declarativas en Project JSON, no HTML escrito por IA ni MP4 aplanado en V2.
+- [x] Textos/captions/sólidos/rectángulos animados parametrizables; elección de motor por elemento,
+      entradas/salidas, easing, escala activa y claves de posición/escala/rotación/opacidad.
+- [x] Edición de palabras/tiempos/fuente por bloque y controles compartidos con Deshacer;
+      herramientas de chat para crear escenas y ajustar parámetros desde la misma fuente.
+- [x] Verificar runtime real en preview/export: 145 tests, 16 PNG a 24/30 fps, recorte y anidación,
+      edición/Deshacer en navegador aislado y MP4 real de 3 s.
+- [ ] Biblioteca de plantillas reutilizables y presets de animación del usuario
+- [ ] Rendimiento sostenido con múltiples escenas HyperFrames y anuncios reales aprobados por Lino
 - [ ] Animaciones vectoriales (SVG/Lottie) generadas por prompt
-- [ ] Shake y animación de efectos por keyframes; básicos constantes/transiciones ya disponibles
+- [ ] Shake, animación de color/efectos y curvas avanzadas; claves de transformación/opacidad ya disponibles
 
 ## Fase 5 — Integraciones
 - [x] Extracción local de voz con Resemble Denoiser ONNX (pesos MIT) y residuo de fondo;
