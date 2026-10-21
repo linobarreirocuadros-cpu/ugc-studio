@@ -11,6 +11,74 @@ La prioridad recomendada es estabilizar un flujo completo y repetirlo con trabaj
 antes de ampliar efectos, generación o interfaces. El MVP es terminar un anuncio, revisarlo,
 reabrirlo y corregirlo con seguridad, con edición manual y por chat coherentes entre sí.
 
+## Entrega de paneles, efectos y proyectos — 2026-10-21
+
+Alcance comprobado de esta entrega, sin afirmar equivalencia completa con Premiere:
+
+| Área | Resultado y evidencia |
+|---|---|
+| Gates | 128 pruebas de operaciones, sesión, tools y FFmpeg; typecheck y build. Bundle aún grande: Vite avisa chunks >500 kB |
+| Paneles | 12 IDs, siete paneles añadidos; migración 2/3→4 conserva layout antiguo. UI agrupa Controles de efectos junto a Proyecto, lo flota internamente y lo devuelve al grupo |
+| Varios documentos | UI: A conserva 8 clips y mezcla, B tiene montaje propio; Undo en A no borra texto de B. Abrir añade pestaña. Cierre/reapertura y recarga recuperan proyectos y vistas |
+| Secuencias | UI abre Secuencia QA en pestaña, añade texto (1 clip); raíz mantiene 5. Volver conserva contenido; Undo en secuencia vuelve a 0, compartiendo historial con su raíz |
+| Selección/contexto | Nueva key de Timeline al cambiar ámbito; guardas también en Undo del chat. Restauración comprueba epoch/serial y conserva selección/I-O. Localizar uso ahora sincroniza Programa/Propiedades |
+| Regla y zoom | Área base 27 000 frames a 30 fps (15 min), sin cambiar duración. UI zoom mínimo: scrollWidth=clientWidth=511; etiquetas 0:00, 2:00…14:00. Se virtualizan fuera de pantalla |
+| Gesto de inserción | Captura wheel durante puntero sostenido interno; mismo resolvedor de combinaciones, anclaje y huella. Cancelar no escribe JSON. El gesto físico combinado está pendiente de Lino |
+| Parámetros | UI sombra 55→70 y un Undo devuelve 55. Entrada por teclado de Master «-6» funciona; Undo recupera -6.021 mostrado (.5 lineal). Campos admiten signos/decimales parciales al escribir |
+| Texto | Diálogo sintético QA de un AudioClip se localiza en tiempo/selección. Corregir palabra conserva tiempos. Importar SRT añade sexto clip; un Undo devuelve cinco. Caption bloqueado no permite edición; campo vacío no finge guardar |
+| Efectos | 15 implementaciones locales; estilos constantes y transiciones en JSON/ops/validación/preview/render. Drop por puntero resalta clip; parámetros y duración editables. Ajuste solo admite sus controles básicos existentes |
+| Mezcla | Volumen constante de pista/Master, pan, M/S, grabación reutilizada. Medidor UI: Audio 1 R -16.709 / Master R -22.730 dBFS durante transición, diferencia 6.0206 dB con Master .5. L permanece silencioso al panear a R |
+| Audio local | FFmpeg real en pruebas: estéreo, mono, cache concurrente, headroom sin clipping previo, rutas rechazadas y video legado sin stream de audio (silencio en vez de bloquear export). PCM float fallaba en binario incluido; corregido a PCM24 normalizado + recuperación del factor en renderer |
+| Chat | Integración comprobable con DocumentBank: listar/abrir Efectos, preset, parámetros, mezcla, Undo, entradas inválidas y epoch vencido. Sin petición real al proveedor ni gasto de inferencia en QA |
+
+### Exportaciones comprobadas
+
+1. **QA efectos y mezcla**, 180 frames a 30 fps, H264 640×360 + AAC estéreo 48 kHz.
+   Contenedor 6.016 s; imagen 6 s. Esquinas a 1/3/5 s: RGB (254,0,0), (127,0,129),
+   (0,0,254): disolución real. Sombra sobre texto claro deja 23 642 píxeles de rojo oscurecido
+   en prueba sin stroke. Audio pan R: RMS L=0, R≈.02999 antes/después; volumen pista=2,
+   Master=.5 y headroom de pan recuperado una vez. Ajuste espectral del crossfade recupera
+   coeficientes saliente≈.708/entrante≈.718 (suma de cuadrados≈1.017, con AAC), distinto de
+   fundido lineal. No afirmar sample accuracy a partir de esta prueba.
+2. **QA video sin handles**, dos MP4 reales de 60 frames sin material extra, corte al frame 60,
+   transición de 30 frames. Exporta 120 frames / 4 s; RGB a 1/2/3 s (254,0,0), (126,0,126),
+   (0,0,254). Extiende secuencias de render y repite bordes sin modificar clips ni añadir negro.
+   Ambas exportaciones se decodificaron completas con rawvideo/PCM explícitos, sin errores.
+3. Mono: prueba FFmpeg comprueba que iniciar pan no introduce -3 dB y que salida estéreo
+   central usa el nivel del monitor. MP4 UI de 30 frames / 1 s, H264/AAC: RMS L/R
+   ≈.0212 para fuente mono de pico .03, pista 2 y Master .5; coincide con el monitor.
+
+Evidencias locales: `C:/Users/USUARIO/.codex/visualizations/2026/10/20/01a156a1-e17c-7d80-bb46-7854e62306d8/`.
+`qa-efectos-{1,3,5}s.png`, `qa-video-bordes-{1,2,3}s.png`, `qa-mixer-export.wav` y captura
+`studio-paneles-mixer.png`. Los medios sintéticos/proyectos QA están fuera del repositorio;
+la prueba de interfaz usa :5174 y no edita el montaje del usuario en :5173.
+Al comprobar :5173 se encontró vacío activo con «Prueba Chat Ollama» en cerrados. Se reabrió
+esa copia de 26 clips y se guardó `Downloads/Prueba Chat Ollama.ugcproj (3).json`, manteniendo
+el vacío en otra pestaña. No se usaron las descargas antiguas (45 clips) para sustituirla.
+
+### Límites vigentes
+
+- No son plugins Adobe ni Lumetri completo: faltan curvas/LUT avanzadas, keyframes, shake,
+  rampas, guardado de presets personales, inserts/sends/submezclas y automatización. Frame.io
+  se omite por pedido. Clasificación de Sonido esencial es metadata; limpieza local conserva
+  sus acciones explícitas, no un análisis automático por elegir «Diálogo».
+- Pan se prepara al soltar, con caché de archivo completo. Falta medir latencia/espacio en
+  medios largos. Mono mantiene duplicación L/R del monitor; no se anuncia pan law Adobe exacta.
+- El gesto Alt+rueda sostenido y arrastre entre dos ventanas/monitores necesitan prueba física.
+  La herramienta UI solo ofrece arrastre atómico, no rueda intercalada con botón mantenido.
+  El fallback HTML5 entre ventanas puede limitar rueda. No se comprobó desconectar hardware.
+- Persisten JSON/vistas de documentos abiertos/cerrados; no Undo después de recargar ni
+  conversación del proveedor. Límite de almacenamiento del navegador visible si falla autosave.
+- No se pulsaron los 144 comandos implementados uno por uno. Siguen 89 reservas y 629
+  asignaciones de referencia. No se ejecutó Whisper largo ni un anuncio UGC completo con brief.
+- Sigue pendiente demostrar fluidez, recuperación y calidad editorial en un trabajo real,
+  y resolver licencia comercial de Remotion antes de sustituir Premiere en la agencia.
+
+Referencias de flujo: [mezclador de Adobe](https://helpx.adobe.com/uk/premiere/desktop/add-audio-effects/advanced-audio-techniques/about-audio-track-mixer.html),
+[transiciones](https://helpx.adobe.com/lt/premiere-pro/how-to/apply-transitions-premiere-cc.html),
+[handles](https://helpx-origin-ew1.aws116.adobeitc.com/uk/premiere/desktop/add-video-effects/apply-video-transitions/clip-handles-settings.html)
+y [crossfades](https://helpx-origin-ew1.aws116.adobeitc.com/uk/premiere/desktop/add-audio-effects/apply-audio-transitions/audio-crossfade-transitions.html).
+
 ## Alcance de la revisión inicial (2026-10-20)
 
 - Base revisada: `fd13cc0`, AGENTS/ROADMAP/PROGRESS del repositorio, no las capturas antiguas.

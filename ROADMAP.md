@@ -42,8 +42,8 @@ de rediseñar la interfaz. En esta entrega se añadieron paneles Visión/Audio a
 - [ ] Analizar sonido no hablado; candidato CLAP para búsqueda/clasificación por ventanas,
       con refinamiento temporal para eventos y validación por Lino
 - [ ] Plan de edición validado antes de aplicar; transacciones reversibles, versiones y comparación A/B
-- [ ] Ampliar efectos y keyframes (JSON/ops ya admite ajustes básicos de brillo/contraste/saturación); conservar parámetros editables
-      de motion. Un video generado externamente es un clip renderizado, no capas recuperables
+- [x] Efectos constantes/transiciones locales editables en JSON/ops y compartidos con el chat
+- [ ] Keyframes, rampas y motion avanzado. Un video generado externamente es un clip renderizado, no capas recuperables
 - [x] Ajustar el criterio editorial del asistente al brief y al estilo de Lino: ritmo, pausas
       expresivas, continuidad y Foley motivado por la acción; revisar los presets UGC del prompt
 - [ ] Proveedores por capacidad, con requisitos de memoria/licencia y ejecución serial de trabajos
@@ -164,7 +164,7 @@ a estar validado para entregas de agencia.
 - [x] Menús Archivo/Edición/Clip/Secuencia/Marcadores/Gráficos/Ventana/Ayuda; teclado visual
       editable con búsqueda, ámbitos, conflictos, varias combinaciones, persistencia y presets JSON
 - [x] Auditar preset Windows de Premiere 2026: 629 asignaciones consultables; mapa adaptado con
-      137 comandos disponibles y 92 pendientes identificados; rueda del timeline configurable
+      144 comandos disponibles y 89 pendientes identificados; rueda del timeline configurable
 - [x] Conectar atajos de Origen, inserción por ripple, portapapeles interno, recortes Q/W,
       navegación, transporte y marcadores con historial y respeto de enlaces/candados
 - [ ] Validar mouse físico, puntuación del teclado, arrastre de comandos y traslado de presets con Lino
@@ -236,6 +236,20 @@ a estar validado para entregas de agencia.
       parejas enlazadas al mover, recortar, cortar, deslizar contenido y borrar; sin duplicar sonido
 - [ ] Sincronía de stems procesados; ampliar casos complejos de seguimiento ripple y controles de origen/destino
 
+## Entrega de paneles/efectos — 2026-10-21
+
+- [x] Zoom del timeline durante arrastre interno, área inicial de 15 min ampliable y regla adaptativa
+- [x] Propiedades, Controles de efectos, Sonido esencial, Buscar y Texto como pestañas acoplables
+- [x] Transcripción/corrección, subtítulos/SRT y gráficos dentro de Texto
+- [x] Mezclador constante por pista y Master: volumen, panorama local, M/S, micrófono y picos L/R
+- [x] Catálogo de 15 presets locales; sombra, color básico y transiciones reales en preview/export
+- [x] Abrir/aplicar efectos y ajustar mezcla desde herramientas del chat, con historial y guardas
+- [x] Varios proyectos/secuencias en pestañas, vistas por secuencia e historial por proyecto
+- [x] Recuperar proyectos cerrados y sesión completa validada tras recarga
+- [ ] Automatización de mezcla, inserts/sends, LUT/curvas de color y keyframes
+- [ ] Lumetri completo y Frame.io: no incluidos en esta entrega
+- [ ] Validar arrastre + rueda físicos, dos monitores y un flujo largo con Lino
+
 ## Fase 1 — Transcripción y subtítulos (en curso)
 - [x] Transcripción con timestamps por palabra (Whisper en el navegador, gratis)
 - [x] Transcripción local más precisa con faster-whisper large-v3, idioma automático,
@@ -282,7 +296,7 @@ a estar validado para entregas de agencia.
       renderizan a video y entran como clip en V2. Remotion sigue siendo la base del editor.
 - [ ] Plantillas de textos animados parametrizables
 - [ ] Animaciones vectoriales (SVG/Lottie) generadas por prompt
-- [ ] Transiciones y efectos (zoom, shake, blur, color)
+- [ ] Shake y animación de efectos por keyframes; básicos constantes/transiciones ya disponibles
 
 ## Fase 5 — Integraciones
 - [x] Extracción local de voz con Resemble Denoiser ONNX (pesos MIT) y residuo de fondo;

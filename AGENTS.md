@@ -67,7 +67,7 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   arriba lo reduce; la guía muestra la geometría final y el conjunto. El menú Posición ofrece
   los mismos destinos por nombre. `dockPanel` acepta `{group:splitId}` calculado tras retirar
   el origen y conserva las ramas externas. Permite timeline bajo Proyecto+Monitores, con chat
-  lateral independiente. Son preferencias versión 3; no cambia el montaje ni su historial.
+  lateral independiente. Son preferencias versión 4; no cambia el montaje ni su historial.
   Panel activo: glow azul sutil por clic/foco, fuera del JSON, sin pulso ni cambio por hover.
   Regla del timeline fuera del scroll vertical; sincronizar X con pistas e Y con cabeceras,
   compensando barras. El cabezal se puede agarrar a toda su altura y debe ganar al recuadro.
@@ -75,7 +75,7 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
   US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.
   Preset de Premiere 2026 auditado: 629 asignaciones de Edición/Color, consultables como referencia;
-  solo 137 comandos adaptados están disponibles y 92 están reservados por funciones pendientes.
+  solo 144 comandos adaptados están disponibles y 89 están reservados por funciones pendientes.
   Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
   Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
   Con Selección: Alt+clic aísla imagen/audio temporalmente, conservando su enlace; el movimiento
@@ -160,6 +160,52 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - Inserción explícita de una señal conserva la otra: destinationOnly corta solo destinos y
   desenlaza víctimas afectadas. La colocación normal A/V conserva la sobrescritura de parejas.
   Origen usa el seek pendiente para I/O aun antes de metadata; ignorar seeked atrasados.
+
+## Paneles, efectos y documentos (2026-10-21)
+- `PANELS` contiene 12 paneles. Proyecto/Efectos/Mezclador comparten grupo inicial;
+  Inspector/Propiedades/Controles de efectos/Sonido esencial/Buscar/Texto forman otro;
+  Monitores a su derecha. Timeline y dBFS abajo. Preferencias de workspace versión 4;
+  migrar versiones 2/3 agregando pestañas a sus grupos sin reemplazar el árbol del usuario.
+- Texto reúne transcripción por pista, corrección de palabras, subtítulos/SRT y gráficos;
+  `AIPanel` está dentro de Texto. Buscar consulta biblioteca, clips y diálogo del montaje.
+- `timelineViewport.ts` separa área inicial de 15 minutos de duración de contenido/exportación.
+  Crece con clips y huellas entrantes; regla con etiquetas adaptativas y virtualizadas.
+  Zoom bajo puntero durante arrastre interno: captura wheel → `wheelHandler` de Timeline;
+  mantiene la captura del gesto y recalcula la huella con escala/scroll actuales. Entre ventanas
+  sigue el fallback HTML5; no declarar verificado Alt+rueda en ese caso.
+- `effects.ts`: efectos constantes y 15 presets locales. Transformación/recorte/opacidad,
+  color básico, sombra y blur en `clip.effects`; entradas/salidas visuales y crossfade de audio
+  son metadatos de borde. Sin keyframes, Lumetri completo ni plugins Adobe. Ajuste conserva
+  sus controles existentes de brillo/contraste/saturación; rechazar otros efectos sobre ajuste.
+- Disolución/barrido extienden SOLO las secuencias de render alrededor del corte, sin alterar
+  `from`/duración del montaje; video sin handles repite fotogramas de borde. No extender audio
+  embebido por una transición visual (`audioTransitionTiming`). Crossfade exige audio contiguo
+  con handles reales; no sustituir silenciosamente por otro efecto. Cortes/rangos limpian los
+  metadatos de extremos que ya no existen. Duración y parámetros usan frames dentro del JSON.
+- `AudioTrackMixer`: volumen constante por pista/Master, panorama, M/S, grabación y picos L/R.
+  Medidores de pista posfader y antes del Master; salida Master después. Sin automatización,
+  inserts, sends/submezclas ni medición LUFS. `CommittedNumber` confirma una transacción.
+- Panorama usa matrices estéreo compuestas y WAV completo local en `server/audioMix.ts`.
+  El FFmpeg incluido NO codifica PCM float: usar PCM24 normalizado por `panHeadroom(matrix)`
+  y recuperar ese factor exactamente una vez en preview/render/medición. Caché `pan3-pcm24`;
+  nunca recortar la suma a PCM antes de aplicar ganancias. Mono se duplica sin atenuación
+  implícita en pan; export prepara también mono central para coincidir con el monitor. Error breve y Reintentar visibles. En `audioSources`, cadena vacía marca video legado
+  sin stream de audio: silenciar esa rama, no impedir export. AudioClip explícito sin
+  stream sí debe fallar con mensaje. Distinguir esa marca de una fuente aún pendiente.
+  Gain/Master/canales no se aplican doble a parejas o secuencias. `mix` conserva mezcla heredada
+  al colocar individualmente una secuencia; el inspector permite restablecerla. Programa copia
+  clips sin volver a incorporar su bus actual. Anidar no duplica el Master del proyecto padre.
+- `DocumentBank`/`useDocuments` reemplazan historial único en App: cada proyecto conserva
+  pasado/presente/futuro; sus secuencias comparten ese historial. Abrir/nuevo añade documento;
+  cerrar archiva de forma recuperable. Sesión local `ugc-studio:documents:v1` guarda documentos
+  abiertos/cerrados y vistas validadas; recargar recupera JSON/vistas, no la pila de Undo.
+  Mantener conversación/borrador de cada documento abierto. La biblioteca sigue siendo global
+  dentro de cada Project, nunca una biblioteca compartida entre proyectos distintos.
+- Cambiar documento/secuencia invalida epoch, gestos y tareas; Timeline/monitores llevan key
+  de contexto. Guardar selección aislada, I/O, cabezal, zoom y scroll por vista. Restauración
+  pendiente comprueba versión/epoch y no activa Selection Follows Playhead sobre esa selección.
+  Aplicar guardas también a `undo` del chat. `executeEditingTool.ts` prueba las nuevas tools
+  sin fuentes/browser/proveedores: abrir/listar/aplicar efectos, parámetros y mezcla por ops.
 
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en

@@ -1,3 +1,11 @@
+import {EffectControls} from "./EffectControls";
+import {EffectsPanel} from "./EffectsPanel";
+import {AudioTrackMixer} from "./AudioTrackMixer";
+import {TextPanel} from "./TextPanel";
+import {SearchPanel} from "./SearchPanel";
+import {CommittedNumber} from "./CommittedNumber";
+import {presetById,type ClipEffects} from "../project/effects";
+import {PANEL_LABEL} from "./workspaceLayout";
 import {editAvailable} from "./editAvailability";
 import { type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
@@ -25,7 +33,8 @@ import { FONT_FAMILIES, primaryFamily } from "../remotion/fonts";
 import { ProgramMonitor } from "./ProgramMonitor";
 import { SourceMonitor, type SourceHandle } from "./SourceMonitor";
 import { MEDIA_DRAG_TYPE, Timeline, formatTimecode, type MediaDrag } from "./Timeline";
-import { useHistory } from "./useHistory";
+import {useDocuments} from "./useDocuments";
+import {DocumentBank,type TimelineView} from "./documentBank";
 import { LocalAssistantPanel } from "./LocalAssistantPanel";
 import type { AssistantContext, VisualResult } from "./localAssistant";
 import { ProjectPanel, type ProjectPanelHandle } from "./ProjectPanel";
@@ -48,21 +57,25 @@ import { updateMonitorRange, sourceRange, type MonitorDragMode } from "./monitor
 import { assertProject, parseProjectFile, type ProjectMedia } from "../project/projectFile";
 import { exportProject } from "./exportJob";
 import { guardAssistantSession } from "./assistantSession";
-import {placeMedia,previewMedia,placedMediaIds} from "./mediaPlacement";
+import {timelineExtent,timelineScale} from "./timelineViewport";
+import {placeMedia,previewMedia,placedMediaIds,dropDuration} from "./mediaPlacement";
 import { useMonitorDrag } from "./useMonitorDrag";
 
 type MediaItem = ProjectMedia;
 type Preset = "h264-high" | "h264-draft" | "prores-hq";
 
 const STORAGE_KEY = "ugc-studio:autosave";
+const DOCUMENTS_KEY="ugc-studio:documents:v1";
 
 const loadSaved = () => {
   let raw:string|null=null;
   try {
+    raw=localStorage.getItem(DOCUMENTS_KEY);
+    if(raw){const session=DocumentBank.parse(raw);return {session,data:{project:session.current.present,media:session.current.present.library?.media??[]},raw,error:""};}
     raw = localStorage.getItem(STORAGE_KEY);
-    return {data:raw?parseProjectFile(raw):null,raw,error:""};
+    return {session:null,data:raw?parseProjectFile(raw):null,raw,error:""};
   } catch(error) {
-    return {data:null,raw,error:`No se pudo recuperar el autoguardado. ${error instanceof Error?error.message:String(error)}`};
+    return {session:null,data:null,raw,error:`No se pudo recuperar el autoguardado. ${error instanceof Error?error.message:String(error)}`};
   }
 };
 const downloadText=(text:string,name:string)=>{
@@ -101,9 +114,9 @@ export function App() {
   useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(""),4500);return()=>clearTimeout(timer);},[feedback]);
   const saved = useMemo(loadSaved, []);
   const [storageIssue,setStorageIssue]=useState(saved.error),[autosaveBlocked,setAutosaveBlocked]=useState(Boolean(saved.error));
-  const rootHistory = useHistory<Project>(() => ops.ensureProjectLibrary(saved.data?.project ?? createEmptyProject(),saved.data?.media??[]));
+  const rootHistory = useDocuments(() => saved.session??new DocumentBank(ops.ensureProjectLibrary(saved.data?.project ?? createEmptyProject(),saved.data?.media??[])));
   const [editingSequenceId, setEditingSequenceId] = useState<string | null>(null);
-  const documentEpoch=useRef(0);
+  const documentEpoch=useRef(0),restoreSerial=useRef(0),navigationSelection=useRef<{epoch:number;frame:number;ids:string[]}|null>(null);
   const projectView = useCallback((root: Project): Project => editingSequenceId && root.sequences?.[editingSequenceId] ? { ...root.sequences[editingSequenceId], sequences: root.sequences, library: root.library } : root, [editingSequenceId]);
   const currentProject = useCallback(() => projectView(rootHistory.current()), [projectView, rootHistory.current]);
   const applyToProject = useCallback((fn: (p: Project) => Project) => rootHistory.apply((root) => {
@@ -115,6 +128,8 @@ export function App() {
   const viewedProject = useMemo(() => projectView(rootHistory.value), [projectView, rootHistory.value]);
   const history = { ...rootHistory, value: viewedProject, current: currentProject, apply: applyToProject };
   const project = history.value;
+  const [effectDraft,setEffectDraft]=useState<{ids:string[];patch:ClipEffects}|null>(null),[mixDraft,setMixDraft]=useState<{id:string|null;volume:number}|null>(null),[effectTarget,setEffectTarget]=useState<string|null>(null);
+  const renderProject=useMemo(()=>{let p=project;if(effectDraft)p=ops.setClipEffects(p,effectDraft.ids,effectDraft.patch);if(mixDraft)p=mixDraft.id?ops.setTrackMix(p,mixDraft.id,{volume:mixDraft.volume}):ops.setMasterVolume(p,mixDraft.volume);return p;},[project,effectDraft,mixDraft]);
   const gainSelection=useRef<{ids:string[];epoch:number}>({ids:[],epoch:0});
   const [contextMenu,setContextMenu]=useState<{x:number;y:number;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
   const [editingDialog,setEditingDialog]=useState<{kind:EditDialogKind;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
@@ -192,12 +207,13 @@ export function App() {
   useEffect(() => {
     if(autosaveBlocked)return;
     try {
+      localStorage.setItem(DOCUMENTS_KEY,rootHistory.bank.serialize());
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ project: rootHistory.value, media }));
       setStorageIssue("");
     } catch {
       setStorageIssue("No se pudo autoguardar en el navegador. Descarga una copia con Guardar para conservar tu trabajo.");
     }
-  }, [rootHistory.value, media, autosaveBlocked]);
+  }, [rootHistory.revision, autosaveBlocked]);
   useEffect(() => { localStorage.setItem("ugc-studio:bin-view", binView); }, [binView]);
   useEffect(() => { localStorage.setItem("ugc-studio:monitor-layout", monitorLayout); }, [monitorLayout]);
 
@@ -260,23 +276,24 @@ export function App() {
     if (!timelinePreferences.selectionFollowsPlayhead) return;
     const clip = clipAtPlayhead(history.current(), f);
     setSelectedIds(clip ? [clip.id] : []); selectionPanel.current = "timeline";
-  }, [timelinePreferences.selectionFollowsPlayhead]);
+  }, [timelinePreferences.selectionFollowsPlayhead,currentProject]);
 
   // Sincroniza el cabezal con el reproductor; selección automática solo al buscar, no al reproducir.
   useEffect(() => {
     const p = playerRef.current;
     if (!p) return;
     const onFrame = (e: { detail: { frame: number } }) => setFrame(e.detail.frame);
-    const onSeek = (e: { detail: { frame: number } }) => { setFrame(e.detail.frame); selectAtPlayhead(e.detail.frame); };
+    const onSeek = (e: { detail: { frame: number } }) => { setFrame(e.detail.frame);const nav=navigationSelection.current;if(nav&&nav.epoch===documentEpoch.current&&nav.frame===e.detail.frame){setSelectedIds(nav.ids);navigationSelection.current=null;}else selectAtPlayhead(e.detail.frame); };
     p.addEventListener("frameupdate", onFrame);
     p.addEventListener("seeked", onSeek);
     return () => {
       p.removeEventListener("frameupdate", onFrame);
       p.removeEventListener("seeked", onSeek);
     };
-  }, [selectAtPlayhead]);
+  }, [selectAtPlayhead,rootHistory.bank.active,editingSequenceId]);
 
   const seek = useCallback((f: number) => {
+    restoreSerial.current++;navigationSelection.current=null;
     const at = Math.max(0, Math.min(getProjectDuration(history.current()) - 1, Math.round(f)));
     playerRef.current?.seekTo(at); setFrame(at); selectAtPlayhead(at);
   }, [selectAtPlayhead, history.current]);
@@ -292,6 +309,7 @@ export function App() {
     currentSequenceId: editingSequenceId,
     nestSequences: timelinePreferences.nestSequences,
     onSeek: seek,
+    showPanel:panel=>workspace.showPanel(panel),
     showVisualResult: setVisualResult,
     registerMedia: (items) => setMedia((list) => [...list, ...items.filter((item) => !list.some((m) => m.src === item.src))]),
     },()=>documentEpoch.current===epoch);
@@ -424,13 +442,7 @@ export function App() {
     if (!file) return;
     try{
     const data = parseProjectFile(await file.text());
-    documentEpoch.current++;
-    recording.cancel();transport("stop");sourceRef.current?.command("stop");
-    setEditingSequenceId(null); rootHistory.reset(ops.ensureProjectLibrary(data.project,data.media));
-    setSelectedIds([]);  setSourceSrc(null);
-    migratedAudio.current.clear(); setRevealTrackId(null);
-    setTool("select"); seek(0);
-    setMarkRange({start:null,end:null});
+    openDocument(ops.ensureProjectLibrary(data.project,data.media));
     setAutosaveBlocked(false);setStorageIssue("");
     }catch(error){setFeedback(`No se abrió el archivo. ${error instanceof Error?error.message:String(error)} Se conserva el montaje actual.`);}
     finally{if(openInput.current)openInput.current.value="";}
@@ -439,8 +451,17 @@ export function App() {
   const transport=useShuttle({current:()=>playerRef.current?.getCurrentFrame()??frame,seek,play:()=>playerRef.current?.play(),pause:()=>playerRef.current?.pause(),toggle:()=>playerRef.current?.toggle(),rate:setPlaybackRate,fps:project.fps,end:duration});
   const focusPanel=(scope:CommandScope, panel:Panel)=>{workspace.showPanel(panel);activeScope.current=scope;selectionPanel.current=scope==="bin"?"bin":"timeline";requestAnimationFrame(()=>workspace.find(`[data-shortcut-scope="${scope}"]`)?.focus());};
   const timelineViewport=()=>workspace.find(".timeline-scroll");
-  const fitTimeline=()=>{const viewport=timelineViewport();if(previousZoom.current){setPxPerFrame(previousZoom.current.scale);const left=previousZoom.current.left;requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=left;});previousZoom.current=null;}else{previousZoom.current={scale:pxPerFrame,left:viewport?.scrollLeft??0};if(viewport)viewport.scrollLeft=0;setPxPerFrame(Math.max(.02,Math.min(20,((viewport?.clientWidth??800)-30)/duration)));}};
-  const canRun=(id:string)=>activeScope.current==="source"&&["marker","nextMarker","prevMarker","deleteMarker","deleteMarkers"].includes(id)?false:["bin","source"].includes(activeScope.current)&&["copy","cut","paste","duplicate","subsequence","gain","link","group","ungroup","speed","channels","nest","hold","holdTail","holdInsert"].includes(id)?false:activeScope.current==="bin"&&["delete","rippleDelete"].includes(id)?Boolean(projectPanelRef.current?.can("binDelete")):COMMANDS.find(c=>c.id===id)?.scope==="bin"?(projectPanelRef.current?.can(id)??false):id==="undo"?history.canUndo:id==="redo"?history.canRedo:["copy","cut","delete","rippleDelete","duplicate","subsequence","gain","link","group","ungroup","speed","channels","nest","hold","holdTail","holdInsert"].includes(id)?editAvailable(project,selectedIds,id):id==="paste"?Boolean(clipboard.current):["overwrite","insert"].includes(id)?Boolean(sourceMedia):id==="export"?!render||Boolean(render.url||render.error):true;
+  useEffect(()=>{workspace.find(".timeline-document-tabs button[aria-selected=true]")?.scrollIntoView({block:"nearest",inline:"nearest"});},[rootHistory.bank.active,editingSequenceId]);
+  const changeZoom=(factor:number)=>{previousZoom.current=null;const extent=timelineExtent(project.fps,duration,rangeDrag.hover?rangeDrag.hover.at+dropDuration(rangeDrag.hover.payload):duration);setPxPerFrame(z=>timelineScale(z,factor,timelineViewport()?.clientWidth??800,extent));};
+  const fitTimeline=()=>{const viewport=timelineViewport();if(previousZoom.current){setPxPerFrame(previousZoom.current.scale);const left=previousZoom.current.left;requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=left;});previousZoom.current=null;}else{previousZoom.current={scale:pxPerFrame,left:viewport?.scrollLeft??0};if(viewport)viewport.scrollLeft=0;setPxPerFrame(timelineScale(1,((viewport?.clientWidth??800)-30)/duration,viewport?.clientWidth??800,timelineExtent(project.fps,duration)));}};
+  const canRun=(id:string)=>id==="reopenProject"?rootHistory.bank.closed.length>0:activeScope.current==="source"&&["marker","nextMarker","prevMarker","deleteMarker","deleteMarkers"].includes(id)?false:["bin","source"].includes(activeScope.current)&&["copy","cut","paste","duplicate","subsequence","gain","link","group","ungroup","speed","channels","nest","hold","holdTail","holdInsert"].includes(id)?false:activeScope.current==="bin"&&["delete","rippleDelete"].includes(id)?Boolean(projectPanelRef.current?.can("binDelete")):COMMANDS.find(c=>c.id===id)?.scope==="bin"?(projectPanelRef.current?.can(id)??false):id==="undo"?history.canUndo:id==="redo"?history.canRedo:["copy","cut","delete","rippleDelete","duplicate","subsequence","gain","link","group","ungroup","speed","channels","nest","hold","holdTail","holdInsert"].includes(id)?editAvailable(project,selectedIds,id):id==="paste"?Boolean(clipboard.current):["overwrite","insert"].includes(id)?Boolean(sourceMedia):id==="export"?!render||Boolean(render.url||render.error):true;
+  const captureView=()=>{const v=rootHistory.bank.current.view,scroll=timelineViewport();v.active=editingSequenceId;v.timelines[editingSequenceId??"$root"]={sequenceId:editingSequenceId,frame,scale:pxPerFrame,left:scroll?.scrollLeft??0,top:scroll?.scrollTop??0,selection:[...selectedIds],marks:{...markRange},source:sourceSrc,isolated:isolatedSelection};};
+  const stopDocument=()=>{documentEpoch.current++;recording.cancel();transport("stop");sourceRef.current?.command("stop");setContextMenu(null);setEditingDialog(null);setActionDialog(null);setEffectDraft(null);setMixDraft(null);setEffectTarget(null);setChatActivity("idle");migratedAudio.current.clear();proxyRequested.current.clear();previousZoom.current=null;};
+  const restoreView=()=>{const request=++restoreSerial.current,epoch=documentEpoch.current;const d=rootHistory.bank.current;const id=d.view.active&&d.present.sequences?.[d.view.active]?d.view.active:null;const v=d.view.timelines[id??"$root"];const f=Math.min(v?.frame??0,getProjectDuration(id?d.present.sequences![id]:d.present)-1);setEditingSequenceId(id);setFrame(Math.max(0,f));setPxPerFrame(v?.scale??2);setSelectedIds(v?.selection??[]);setIsolatedSelection(v?.isolated===true);setSourceSrc(v?.source??null);setMarkRange(v?.marks??{start:null,end:null});setRevealTrackId(null);setVisualResult(null);setTool("select");requestAnimationFrame(()=>{if(request!==restoreSerial.current||epoch!==documentEpoch.current)return;navigationSelection.current={epoch,frame:Math.max(0,f),ids:v?.selection??[]};const el=timelineViewport();if(el){el.scrollLeft=v?.left??0;el.scrollTop=v?.top??0;}playerRef.current?.seekTo(Math.max(0,f));});};
+  const switchTimeline=(documentId:string,sequenceId:string|null,locate?:{clipId:string;trackId:string})=>{if(documentId===rootHistory.bank.active&&sequenceId===editingSequenceId&&!locate)return;captureView();stopDocument();rootHistory.activate(documentId);const d=rootHistory.bank.current;d.view.active=sequenceId;if(!d.view.tabs.includes(sequenceId))d.view.tabs.push(sequenceId);if(locate){const p=sequenceId?d.present.sequences![sequenceId]:d.present,c=ops.findClip(p,locate.clipId)?.clip;if(c){const key=sequenceId??"$root",old=d.view.timelines[key],scale=old?.scale??2,el=timelineViewport(),index=[...p.tracks].reverse().findIndex(t=>t.id===locate.trackId);d.view.timelines[key]={sequenceId,frame:c.from,scale,left:Math.max(0,c.from*scale-(el?.clientWidth??800)*.2),top:Math.max(0,(index+1)*timelinePreferences.trackHeight-(el?.clientHeight??200)),selection:[c.id],isolated:true,marks:old?.marks??{start:null,end:null},source:old?.source??null};}}restoreView();};
+  const openDocument=(p:Project)=>{captureView();stopDocument();rootHistory.open(p);restoreView();};
+  const closeDocument=(id:string)=>{captureView();stopDocument();if(rootHistory.bank.entries.length===1)rootHistory.open(ops.ensureProjectLibrary(createEmptyProject()));rootHistory.close(id);restoreView();};
+  const closeTimeline=(documentId:string,id:string|null)=>{if(id===null){closeDocument(documentId);return;}const d=rootHistory.bank.entries.find(e=>e.id===documentId);if(!d)return;if(documentId===rootHistory.bank.active&&id===editingSequenceId)switchTimeline(documentId,null);d.view.tabs=d.view.tabs.filter(t=>t!==id);rootHistory.refresh();};
   const focusAssistant=()=>requestAnimationFrame(()=>{const input=workspace.find(".chat-input textarea");if(input?.offsetParent)input.focus();else workspace.find(".assistant-header button")?.focus();});
   const openAssistant=()=>{setRightTab("chat");workspace.showPanel("inspector");focusAssistant();};
   const runCommand=(id:string,scope:CommandScope=activeScope.current)=>{
@@ -453,7 +474,9 @@ export function App() {
     if(transport(id)){sourceRef.current?.command("stop");return;}
     if(id==="shortcuts"||id==="find"){setShortcutsOpen(true);return;}
     if(id==="help"){setActionDialog("help");return;}
-    if(id==="newProject"){if(window.confirm("¿Crear un proyecto nuevo? Guarda primero una copia si quieres conservar este montaje. Puedes cancelar aquí.")){documentEpoch.current++;recording.cancel();transport("stop");setEditingSequenceId(null);rootHistory.reset(ops.ensureProjectLibrary(createEmptyProject()));setAutosaveBlocked(false);setStorageIssue("");setSelectedIds([]);setSourceSrc(null);setMarkRange({start:null,end:null});setFrame(0);playerRef.current?.seekTo(0);}return;}
+    if(id==="newProject"){openDocument(ops.ensureProjectLibrary(createEmptyProject()));return;}
+    if(id==="closeProject"){closeDocument(rootHistory.bank.active);return;}
+    if(id==="reopenProject"){captureView();stopDocument();if(rootHistory.reopen())restoreView();return;}
     if(id==="open"){openInput.current?.click();return;}if(id==="import"){importFolder.current=projectPanelRef.current?.folder();fileInput.current?.click();return;}
     if(["save","saveAs","saveCopy"].includes(id)){saveProjectFile();return;}
     if(id==="export"){setActionDialog("export");return;}
@@ -463,7 +486,7 @@ export function App() {
     if(id==="source"||id==="program"){setMonitorTab(id);focusPanel(id,"monitor");return;}
     if(id==="timeline"){focusPanel("timeline","timeline");return;}
     if(id==="chat"){openAssistant();return;}
-    if(["properties","audioPanel"].includes(id)){setRightTab(id==="properties"?"propiedades":"audio");workspace.showPanel("inspector");requestAnimationFrame(()=>workspace.find(".inspector")?.focus());return;}
+    if(["properties","propertiesPanel","audioPanel","textPanel","effectsPanel","trackMixer","searchPanel"].includes(id)){const panel:Panel=id==="properties"?"effectControls":id==="propertiesPanel"?"properties":id==="audioPanel"?"essentialSound":id==="textPanel"?"text":id==="effectsPanel"?"effects":id==="trackMixer"?"mixer":"search";focusPanel(panel==="mixer"?"mixer":panel==="effects"?"effects":"effectControls",panel);return;}
     if(id==="meter"){workspace.showPanel("meter");requestAnimationFrame(()=>workspace.find(".meter-panel")?.focus());return;}
     if(id.startsWith("tool.")){setTool(id.slice(5) as TimelineTool);focusPanel("timeline","timeline");return;}
     if(id==="selectAll"){setSelectedIds(project.tracks.filter(t=>!t.locked).flatMap(t=>t.clips.map(c=>c.id)));return;}
@@ -493,7 +516,7 @@ export function App() {
     if(id==="snap"){setSnapping(v=>!v);return;}if(id==="linkedSelection"){setIsolatedSelection(false);updateTimelinePreferences({linkedSelection:!timelinePreferences.linkedSelection});return;}if(id==="followPlayhead"){updateTimelinePreferences({selectionFollowsPlayhead:!timelinePreferences.selectionFollowsPlayhead});return;}
     if(id==="selectAtPlayhead"){const clip=clipAtPlayhead(project,frame);setSelectedIds(clip?(linkedSelection?ops.linkedIds(project,[clip.id]):[clip.id]):[]);return;}
     if(id==="expandTracks"||id==="minimizeTracks"){updateTimelinePreferences({trackHeight:id==="expandTracks"?120:36});return;}
-    if(id==="zoomIn"||id==="zoomOut"){previousZoom.current=null;setPxPerFrame(z=>Math.max(.02,Math.min(20,z*(id==="zoomIn"?1.25:.8))));return;}if(id==="fit"){fitTimeline();return;}
+    if(id==="zoomIn"||id==="zoomOut"){changeZoom(id==="zoomIn"?1.25:.8);return;}if(id==="fit"){fitTimeline();return;}
     if(id==="pageNext"||id==="pagePrev"){const viewport=timelineViewport();if(viewport)viewport.scrollLeft+=(id==="pageNext"?1:-1)*viewport.clientWidth*.9;return;}
     if(/^(nudge|slip)(Left|Right)[15]$/.test(id)){const delta=(id.includes("Left")?-1:1)*Number(id.at(-1));history.apply(p=>ops.editSelection(p,selectedIds,linkedSelection,current=>{if(id.startsWith("nudge"))return ops.moveClips(current,selectedIds,delta);const done=new Set<string>();return selectedIds.reduce((next,clipId)=>{if(done.has(clipId))return next;ops.linkedIds(current,[clipId]).forEach(key=>done.add(key));return ops.slipClip(next,clipId,delta);},current);}));return;}
     if(/^step(Left|Right)[15]$/.test(id)){transport("stop");seek(frame+(id.includes("Left")?-1:1)*Number(id.at(-1)));return;}
@@ -535,6 +558,31 @@ export function App() {
     (target as Element).closest<HTMLElement>('[data-shortcut-scope]')?.focus({preventScroll:true});
   };
 
+  useEffect(()=>{restoreView();},[]);
+  const captureSession=useRef<()=>void>(()=>{});captureSession.current=()=>{captureView();if(!autosaveBlocked)try{localStorage.setItem(DOCUMENTS_KEY,rootHistory.bank.serialize());}catch{}};
+  useEffect(()=>{const save=()=>captureSession.current();window.addEventListener("pagehide",save);return()=>window.removeEventListener("pagehide",save);},[]);
+  const applyPreset=(id:string,clipId?:string,edge:"start"|"end"="start",seconds=.5)=>{try{const before=history.current(),next=ops.applyEffectPreset(before,clipId?[clipId]:selectedIds,id,Math.max(1,Math.round(seconds*before.fps)),edge);if(next===before)return;history.apply(()=>next);const changed=next.tracks.flatMap(t=>t.clips).filter(c=>c!==ops.findClip(before,c.id)?.clip).map(c=>c.id);setSelectedIds(changed);setIsolatedSelection(true);workspace.showPanel(presetById(id)?.audio?"essentialSound":changed.some(id=>{const c=ops.findClip(next,id)?.clip;return c?.kind==="graphic"&&c.shape==="adjustment";})?"properties":"effectControls");setFeedback(`Aplicado: ${presetById(id)?.name}`);}catch(error){setFeedback(error instanceof Error?error.message:String(error));}};
+  const visualControls=<EffectControls key={`${documentEpoch.current}:${selectedId}`} project={project} clip={selected} locked={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)} onPreview={patch=>setEffectDraft(patch&&selectedId?{ids:[selectedId],patch}:null)} onChange={patch=>{if(selectedId)history.apply(p=>ops.setClipEffects(p,[selectedId],patch));}} onReset={()=>{if(selectedId)history.apply(p=>ops.resetClipEffects(p,[selectedId]));}} onTransition={(edge,value)=>{if(selectedId)history.apply(p=>ops.updateClip(p,selectedId,edge==="start"?{transitionIn:value??undefined}:{transitionOut:value??undefined}));}}/>;
+  const utility=(id:Panel,scope:CommandScope,children:React.ReactNode)=>workspace.renderPanel(id,<section className={`dock-panel utility-panel utility-${id}`} {...workspace.panelProps(id)} data-shortcut-scope={scope} tabIndex={-1}><header className="workspace-panel-title"><strong>{PANEL_LABEL[id]}</strong>{workspace.handle(id)}</header><div className="utility-body">{children}</div></section>);
+  const selectResult=(id:string,at:number)=>{seek(at);setSelectedIds([id]);setIsolatedSelection(true);setRevealTrackId(ops.findClip(project,id)?.track.id??null);};
+  const propertiesContent=<fieldset className="utility-fields" disabled={Boolean(selectedId&&ops.findClip(project,selectedId)?.track.locked)}>
+        {!selected && <p className="hint">{selectedIds.length > 1 ? `${selectedIds.length} clips seleccionados. Arrastra para moverlos juntos; ${shortcuts.hint("delete")} los borra. ${shortcuts.hint("undo")} deshace la operación.` : "Selecciona un clip en la línea de tiempo."}</p>}
+        {selected?.kind === "graphic" && <GraphicInspector clip={selected} onChange={patch=>history.apply(p=>ops.updateClip(p,selected.id,patch))}/>}
+        {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
+        {selected?.kind === "caption" && (
+          <CaptionInspector
+            clip={selected}
+            onText={(text) => history.apply((p) => ops.setCaptionText(p, selected.id, text))}
+            onStyle={(patch) => history.apply((p) => ops.styleAllCaptions(p, patch))}
+          />
+        )}
+        {selected?.kind === "audio" && <AudioInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
+        {selected?.kind === "video" && <VideoInspector clip={{ ...selected, volume: ops.effectiveVolume(project, selected) }} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
+        <div className="shortcuts">
+          <button onClick={()=>setShortcutsOpen(true)}>Ver y editar atajos</button>
+        </div>
+        {visualControls}</fieldset>;
+  const selectedAudio=selected?.kind==="audio"?selected:selected?.kind==="video"&&selected.linkedClipId?ops.findClip(project,selected.linkedClipId)?.clip:null;
   return (
     <UiDocument.Provider value={workspace.activeDocument}><div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style} onDragEndCapture={()=>rangeDrag.cancel()} onPointerDownCapture={e=>focusClickedPanel(e.target)} onFocusCapture={e=>captureScope(e.target)} onPointerOver={e=>{const panel=(e.target as HTMLElement).closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel)hoveredPanel.current=panel;}}>
       <div className="app-chrome">
@@ -584,7 +632,7 @@ export function App() {
       {actionDialog&&<ActionDialog title={actionDialog==="export"?"Exportar medios":actionDialog==="gain"?"Ganancia de audio":"Atajos y compatibilidad"} onClose={()=>setActionDialog(null)}>
         {actionDialog==="export"?<><p>{project.name} · {formatTimecode(duration,project.fps)} · {project.width}×{project.height}</p><label>Formato<select aria-label="Formato de exportación" value={preset} onChange={e=>setPreset(e.target.value as Preset)}><option value="h264-high">MP4 H.264 · Alta calidad</option><option value="h264-draft">MP4 H.264 · Borrador rápido</option><option value="prores-hq">MOV ProRes 422 HQ</option></select></label><p>Se guarda localmente en UGC Studio/Exportaciones.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button className="primary" onClick={()=>{setActionDialog(null);void startRender();}}>Iniciar exportación</button></footer></>:
         actionDialog==="gain"?<><label>Ajustar ganancia (dB)<input aria-label="Ajustar ganancia en decibelios" type="number" min={-60} max={12} step={1} value={gain} onChange={e=>setGain(Number(e.target.value))}/></label><p>Se aplica a la selección y a su audio enlazado. El máximo es +12 dB (400 %). El medidor puede indicar saturación.</p><footer><button onClick={()=>setActionDialog(null)}>Cancelar</button><button onClick={()=>{if(!Number.isFinite(gain))return;if(gainSelection.current.epoch!==documentEpoch.current){setFeedback("El documento cambió; no se aplicó la ganancia.");setActionDialog(null);return;}history.apply(p=>ops.setClipVolume(p,gainSelection.current.ids,10**(Math.max(-60,Math.min(12,gain))/20),true));setActionDialog(null);}}>Aplicar</button></footer></>:
-        <><p>Base de atajos Windows/QWERTY contrastada con la <a href="https://helpx.adobe.com/premiere/desktop/get-started/keyboard-shortcuts/default-keyboard-shortcuts.html" target="_blank" rel="noreferrer">documentación de Adobe</a>. La tabla oficial no enumera todos los comandos internos de Premiere.</p><p>Azul indica comandos disponibles; ámbar, funciones pendientes. No se simulan efectos, keyframes o herramientas que todavía no existen. Shift+5 abre las propiedades actuales, no un panel completo de efectos.</p><p>El navegador puede reservar Ctrl+W, Ctrl+N, Ctrl+T y otras combinaciones. Puedes usar los menús o cambiarlas. Los rótulos US/ES cambian la vista; las asignaciones guardan posiciones físicas.</p><p>J revisa hacia atrás por fotogramas sin audio; K detiene y L reproduce adelante. I/O de Programa son marcas de sesión, no un rango de exportación. Los presets JSON de UGC Studio no son archivos .kys de Premiere.</p><footer><button onClick={()=>{setActionDialog(null);setShortcutsOpen(true);}}>Editar atajos</button><button onClick={()=>setActionDialog(null)}>Cerrar</button></footer></>}
+        <><p>Base de atajos Windows/QWERTY contrastada con la <a href="https://helpx.adobe.com/premiere/desktop/get-started/keyboard-shortcuts/default-keyboard-shortcuts.html" target="_blank" rel="noreferrer">documentación de Adobe</a>. La tabla oficial no enumera todos los comandos internos de Premiere.</p><p>Azul indica comandos disponibles; ámbar, funciones pendientes. No se simulan efectos, keyframes o herramientas que todavía no existen. Shift+5 abre los Controles de efectos disponibles. Los controles actuales son constantes; no hay automatización por keyframes.</p><p>El navegador puede reservar Ctrl+W, Ctrl+N, Ctrl+T y otras combinaciones. Puedes usar los menús o cambiarlas. Los rótulos US/ES cambian la vista; las asignaciones guardan posiciones físicas.</p><p>J revisa hacia atrás por fotogramas sin audio; K detiene y L reproduce adelante. I/O de Programa son marcas de sesión, no un rango de exportación. Los presets JSON de UGC Studio no son archivos .kys de Premiere.</p><footer><button onClick={()=>{setActionDialog(null);setShortcutsOpen(true);}}>Editar atajos</button><button onClick={()=>setActionDialog(null)}>Cerrar</button></footer></>}
       </ActionDialog>}
 
       {render && (
@@ -614,16 +662,17 @@ export function App() {
           {workspace.handle("bin")}
           <input ref={fileInput} type="file" accept="video/*,audio/*" multiple hidden onChange={(e) => {void importFiles(e.currentTarget.files);e.currentTarget.value="";}} />
         </div>
+        <div className="document-tabs" role="tablist" aria-label="Proyectos abiertos">{rootHistory.bank.entries.map(d=><button role="tab" aria-selected={d.id===rootHistory.bank.active} key={d.id} onClick={()=>switchTimeline(d.id,d.view.active)}>{d.present.name}</button>)}</div>
         {binTab === "foley" && <FoleyPanel onAdd={addFoley} />}
         {binTab === "proyecto" && <ProjectPanel onPointerMediaDrag={(e,payload,outside,onMoved,onClick)=>{if(workspace.find(".timeline-scroll")?.ownerDocument!==e.currentTarget.ownerDocument)return false;transport("stop");sourceRef.current?.command("stop");rangeDrag.start(e,payload,onClick,outside,onMoved);return true;}} onMediaDrag={payload=>{transport("stop");rangeDrag.beginNative(payload);}} ref={projectPanelRef} project={rootHistory.value} epoch={documentEpoch.current} editingSequenceId={editingSequenceId} missing={missing} view={binView} onView={setBinView} uploading={uploading} hint={shortcuts.hint}
           onApply={fn=>{const epoch=documentEpoch.current;rootHistory.apply(p=>{if(epoch!==documentEpoch.current)throw new Error("El documento cambió. Repite la operación.");return fn(p);});}}
           onImport={folder=>{importFolder.current=folder;fileInput.current?.click();}} onImportFiles={(files,folder)=>{importFolder.current=folder;void importFiles(files);}}
           onOpenMedia={(src,focus)=>{setSourceSrc(src);if(focus){setMonitorTab("source");focusPanel("source","monitor");}}}
           onPlaceItems={keys=>history.apply(p=>{const next=ops.placeProjectItems(p,keys,frame,editingSequenceId??undefined,timelinePreferences.nestSequences);if(next===p)setFeedback("No se pudo colocar la selección. Revisa destinos, candados y secuencias compatibles.");return next;})}
-          onOpenSequence={id=>{documentEpoch.current++;recording.cancel();transport("stop");setEditingSequenceId(id);setSelectedIds([]);seek(0);}}
-          onLocate={use=>{documentEpoch.current++;recording.cancel();transport("stop");setEditingSequenceId(use.sequenceId??null);setSelectedIds([use.clipId]);setRevealTrackId(use.trackId);setRightTab("propiedades");setFrame((use.sequenceId?rootHistory.value.sequences?.[use.sequenceId]:rootHistory.value)?.tracks.flatMap(t=>t.clips).find(c=>c.id===use.clipId)?.from??0);focusPanel("timeline","timeline");}}
+          onOpenSequence={id=>switchTimeline(rootHistory.bank.active,id)}
+          onLocate={use=>{switchTimeline(rootHistory.bank.active,use.sequenceId??null,{clipId:use.clipId,trackId:use.trackId});workspace.showPanel("properties");focusPanel("timeline","timeline");}}
         />}
-        <details className="project-ai-tools"><summary>Transcripción y subtítulos</summary><AIPanel project={project} apply={applyForSession()} /></details>
+
       </aside>)}
 
       {workspace.renderPanel("monitor",<main className="monitor dock-panel" {...workspace.panelProps("monitor")}>
@@ -643,7 +692,7 @@ export function App() {
               ref={sourceRef}
               hint={shortcuts.hint}
               onActivate={()=>transport("stop")}
-              key={sourceMedia?.src ?? "empty"}
+              key={`${rootHistory.bank.active}:${sourceMedia?.src??"empty"}`}
               media={sourceMedia}
               fps={project.fps}
               onInsert={(trackId, inFrame, outFrame, videoOnly) => { const target = destinationTrack(project, trackId === "A0" ? "audio" : "video"); if (sourceMedia && target) addSource(sourceMedia, target, frame, inFrame, outFrame, videoOnly); }}
@@ -653,62 +702,41 @@ export function App() {
           </div>
           <div className="program-pane" data-shortcut-scope="program" tabIndex={-1} style={{ display: monitorLayout === "tabs" && monitorTab !== "program" ? "none" : undefined }}>
             <div className="monitor-label" title={project.name}>Programa · {project.name}</div>
-            <ProgramMonitor project={project} duration={duration} frame={frame} playerRef={playerRef} programRef={programRef} playbackRate={playbackRate} onSeek={seek} onCommand={id=>runCommand(id,"program")} hint={shortcuts.hint} marks={markRange} onRangeDrag={startProgramRangeDrag} onRangePlace={placeProgramRange} onRangePointerDown={(e,mode,click)=>startRangePointer(e,programRangeDrag(mode),click)}/>
+            <ProgramMonitor key={`${rootHistory.bank.active}:${editingSequenceId??"root"}`} project={renderProject} duration={duration} frame={frame} playerRef={playerRef} programRef={programRef} playbackRate={playbackRate} onSeek={seek} onCommand={id=>runCommand(id,"program")} hint={shortcuts.hint} marks={markRange} onRangeDrag={startProgramRangeDrag} onRangePlace={placeProgramRange} onRangePointerDown={(e,mode,click)=>startRangePointer(e,programRangeDrag(mode),click)}/>
           </div>
         </div>
       </main>)}
 
-      {workspace.renderPanel("inspector",<aside className="panel inspector dock-panel" {...workspace.panelProps("inspector")} data-shortcut-scope={rightTab==="propiedades"?"effectControls":"app"} tabIndex={-1}>
+      {workspace.renderPanel("inspector",<aside className="panel inspector dock-panel" {...workspace.panelProps("inspector")} data-shortcut-scope="app" tabIndex={-1}>
         <div className="panel-title">
           <div className="tabs">
             <button className={rightTab === "chat" ? "active" : ""} onClick={() => setRightTab("chat")}>Chat IA</button>
-            <button className={rightTab === "propiedades" ? "active" : ""} onClick={() => setRightTab("propiedades")}>Propiedades</button>
             <button className={rightTab === "vision" ? "active" : ""} onClick={() => setRightTab("vision")}>Visión</button>
-            <button className={rightTab === "audio" ? "active" : ""} onClick={() => setRightTab("audio")}>Audio</button>
           </div>
           {workspace.handle("inspector")}
         </div>
         {/* El chat queda montado al cambiar de pestaña para no perder la conversación */}
         <div id="ugc-assistant" className="assistant-chat-host" style={{ display: rightTab === "chat" ? "flex" : "none" }}>
-          <ChatPanel
-            onActivity={setChatActivity}
-            ctx={() => ({
+          {rootHistory.bank.entries.map(d=><div key={d.id} className="document-chat" style={{display:d.id===rootHistory.bank.active?"flex":"none"}}>          <ChatPanel key={d.id}
+            onActivity={activity=>{if(rootHistory.bank.active===d.id)setChatActivity(activity);}}
+            ctx={() => {const epoch=documentEpoch.current;return guardAssistantSession({
               ...assistantContext(),
               undo: history.undo,
               media,
               fetchFoley: () => fetch("/api/library").then((r) => r.json()).then((d) => d.folders ?? []),
-              readDuration: (src) => readDurationInFrames(src, project.fps),
-            })}
-          />
+              readDuration: (src:string) => readDurationInFrames(src, project.fps),
+            },()=>documentEpoch.current===epoch);}}
+          /></div>)}
         </div>
         <div style={{ display: rightTab === "vision" ? "contents" : "none" }}>
           <LocalAssistantPanel mode="vision" ctx={assistantContext} project={project} result={visualResult} />
         </div>
-        <div style={{ display: rightTab === "audio" ? "contents" : "none" }}>
-          <LocalAssistantPanel mode="audio" ctx={assistantContext} project={project} result={visualResult} />
-        </div>
-        {rightTab === "propiedades" && <>
-        {!selected && <p className="hint">{selectedIds.length > 1 ? `${selectedIds.length} clips seleccionados. Arrastra para moverlos juntos; Supr los borra. Ctrl/Cmd+Z deshace la operación.` : "Selecciona un clip en la línea de tiempo."}</p>}
-        {selected?.kind === "graphic" && <GraphicInspector clip={selected} onChange={patch=>history.apply(p=>ops.updateClip(p,selected.id,patch))}/>}
-        {selected?.kind === "text" && <TextInspector clip={selected} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
-        {selected?.kind === "caption" && (
-          <CaptionInspector
-            clip={selected}
-            onText={(text) => history.apply((p) => ops.setCaptionText(p, selected.id, text))}
-            onStyle={(patch) => history.apply((p) => ops.styleAllCaptions(p, patch))}
-          />
-        )}
-        {selected?.kind === "audio" && <AudioInspector clip={selected} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
-        {selected?.kind === "video" && <VideoInspector clip={{ ...selected, volume: ops.effectiveVolume(project, selected) }} fps={project.fps} onChange={(patch) => history.apply((p) => ops.updateClip(p, selected.id, patch))} />}
-        <div className="shortcuts">
-          <button onClick={()=>setShortcutsOpen(true)}>Ver y editar atajos</button>
-        </div>
-        </>}
-        <AssistantLauncher open={rightTab==="chat"} activity={chatActivity} onToggle={()=>{if(rightTab==="chat")setRightTab("propiedades");else openAssistant();}}/>
+        {rightTab==="propiedades"&&<div className="utility-body"><p className="hint">El asistente está oculto.</p><button onClick={()=>workspace.showPanel("properties")}>Abrir Propiedades</button></div>}
+        <AssistantLauncher open={rightTab==="chat"} activity={chatActivity} onToggle={()=>{if(rightTab==="chat"){setRightTab("propiedades");workspace.showPanel("properties");}else openAssistant();}}/>
       </aside>)}
 
       {workspace.renderPanel("timeline",<section className="timeline-area dock-panel" {...workspace.panelProps("timeline")} data-shortcut-scope="timeline" tabIndex={-1} onMouseDownCapture={() => { selectionPanel.current = "timeline"; }}>
-        {editingSequenceId && <div className="sequence-navigation"><span>Editando secuencia: {project.name}</span><button onClick={() => { documentEpoch.current++; recording.cancel(); setEditingSequenceId(null); setSelectedIds([]); seek(0); }}>Volver al montaje</button></div>}
+        <div className="document-tabs timeline-document-tabs" role="tablist" aria-label="Proyectos y secuencias abiertos" data-command-ui>{rootHistory.bank.entries.flatMap(d=>d.view.tabs.filter(id=>id===null||d.present.sequences?.[id]).map(id=><span key={`${d.id}:${id??"root"}`} className="document-tab"><button role="tab" aria-selected={d.id===rootHistory.bank.active&&id===editingSequenceId} title={`${d.present.name}${id?" / "+d.present.sequences![id].name:""}`} onClick={()=>switchTimeline(d.id,id)}>{id?"▤ "+d.present.sequences![id].name:d.present.name}</button><button aria-label={`Cerrar ${id?d.present.sequences![id].name:d.present.name}`} onClick={()=>closeTimeline(d.id,id)}>×</button></span>))}<button aria-label="Nuevo proyecto en pestaña" onClick={()=>openDocument(ops.ensureProjectLibrary(createEmptyProject()))}>+</button></div>
         <div className="timeline-panel-header"><strong>Timeline</strong>{workspace.handle("timeline")}<div className="track-add-controls"><button aria-label="Añadir pista de video" title="Añadir otra pista B" onClick={() => addTrack("video")}>+ B</button><button aria-label="Añadir pista de audio" title="Añadir otra pista Audio" onClick={() => addTrack("audio")}>+ Audio</button></div><span className="timeline-selection-status" role="status">{TIMELINE_TOOLS.find((item) => item.id === tool)?.label} · {selectedIds.length ? `${selectedIds.length} clip${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}` : "Sin selección"}</span></div>
         <TimelineToolbar hint={shortcuts.hint} project={project} frame={frame} preferences={timelinePreferences} onPreferences={updateTimelinePreferences} onSeek={seek} onMarker={(marker) => history.apply((p) => ops.setMarker(p, marker))} onDeleteMarker={(id) => history.apply((p) => ops.deleteMarker(p, id))} onLink={(linked) => history.apply((p) => ops.linkClips(p, linked ? selectedIds : ops.linkedIds(p, selectedIds), linked))} canLink={selectedIds.length === 2 && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "video") && selectedIds.some((id) => ops.findClip(project, id)?.clip.kind === "audio")} canUnlink={selectedIds.some((id) => { const clip = ops.findClip(project, id)?.clip; return clip && (clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId; })} hasSelection={selectedIds.length > 0} onCreateSequence={(name) => history.apply((p) => ops.createSequence(p, selectedIds, name))}/>
         {(recording.state || recording.error) && <div className="recording-status" role="status">
@@ -716,11 +744,13 @@ export function App() {
           {recording.recovery && <a href={recording.recovery} download="Grabacion-recuperada.webm">Descargar grabación</a>}
         </div>}
         <div className="timeline-workspace">
-        <TimelineTools hint={shortcuts.hint} tool={tool} onTool={setTool} onFit={fitTimeline} onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))} />
+        <TimelineTools hint={shortcuts.hint} tool={tool} onTool={setTool} onFit={fitTimeline} onZoom={changeZoom} />
         <div className="timeline-main">
-        <Timeline
+        <Timeline key={`${rootHistory.bank.active}:${editingSequenceId??"root"}`}
+          effectTarget={effectTarget}
+          dragWheel={rangeDrag.wheelHandler}
           onContextMenu={(x,y,ids,at,trackId,isolated=false)=>{rawSetSelectedIds(ids);setIsolatedSelection(isolated);activeScope.current="timeline";setContextMenu({x,y,ids,at,trackId,epoch:documentEpoch.current});}}
-          onOpenSequence={id=>{documentEpoch.current++;recording.cancel();setEditingSequenceId(id);setSelectedIds([]);seek(0);}}
+          onOpenSequence={id=>switchTimeline(rootHistory.bank.active,id)}
           onVolume={(id,value)=>history.apply(p=>ops.setClipVolume(p,[id],value))}
           project={project}
           revealTrackId={revealTrackId}
@@ -746,7 +776,7 @@ export function App() {
           onSlip={(id, delta, follow) => history.apply((p) => ops.editSelection(p, [id], follow, (current) => ops.slipClip(current, id, delta)))}
           onSplit={(id, at) => history.apply((p) => ops.editSelection(p, id ? [id] : p.tracks.flatMap((t) => t.clips.map((c) => c.id)), linkedSelection, (current) => ops.splitAt(current, at, id)))}
           onAddText={addText}
-          onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))}
+          onZoom={changeZoom}
           onDropMedia={(payload,track,at,bypass)=>rangeDrag.dropNative(payload,track,at,bypass)}
           mediaDrag={rangeDrag.active} mediaHover={rangeDrag.hover} onMediaHover={rangeDrag.update} onMediaLeave={rangeDrag.clearHover}
           placementOptions={{media,hostId:editingSequenceId??undefined,nested:timelinePreferences.nestSequences}}
@@ -758,6 +788,16 @@ export function App() {
         <div className="workspace-panel-title"><strong>dBFS</strong>{workspace.handle("meter")}</div>
         <AudioMeter programRef={programRef} />
       </section>)}
+      {utility("properties","effectControls",propertiesContent)}
+      {utility("effectControls","effectControls",visualControls)}
+      {utility("effects","effects",<EffectsPanel key={`${rootHistory.bank.active}:${editingSequenceId}`} onTarget={setEffectTarget} onApply={applyPreset} onAI={openAssistant}/>)}
+      {utility("essentialSound","effectControls",<>
+        {selectedAudio?.kind==="audio"?<fieldset className="utility-fields" disabled={Boolean(ops.findClip(project,selectedAudio.id)?.track.locked)}><strong>{selectedAudio.name}</strong><label>Tipo de sonido<select aria-label="Tipo de sonido" value={selectedAudio.audioRole??""} disabled={Boolean(ops.findClip(project,selectedAudio.id)?.track.locked)} onChange={e=>history.apply(p=>ops.setAudioRole(p,[selectedAudio.id],e.target.value as "dialogue"|"music"|"sfx"|"ambience"))}><option value="" disabled>Sin clasificar</option><option value="dialogue">Diálogo</option><option value="music">Música</option><option value="sfx">Efectos</option><option value="ambience">Ambiente</option></select></label><AudioInspector clip={selectedAudio} fps={project.fps} onChange={patch=>history.apply(p=>ops.updateClip(p,selectedAudio.id,patch))}/><CommittedNumber key={`${documentEpoch.current}:${selectedAudio.id}:pan`} label="Panorama del clip" min={-1} max={1} step={.05} value={selectedAudio.pan??0} disabled={Boolean(ops.findClip(project,selectedAudio.id)?.track.locked)} onCommit={pan=>history.apply(p=>ops.setClipPan(p,[selectedAudio.id],pan))}/>{selectedAudio.crossfadeIn&&<><p>Crossfade {selectedAudio.crossfadeIn.curve==="equalPower"?"de potencia constante":"de ganancia constante"}</p><CommittedNumber label="Duración crossfade (frames)" value={selectedAudio.crossfadeIn.frames} min={1} max={project.fps*10} onCommit={frames=>{try{history.apply(p=>ops.applyEffectPreset(p,[selectedAudio.id],selectedAudio.crossfadeIn?.curve==="equalPower"?"constant-power":"constant-gain",frames));}catch(error){setFeedback(error instanceof Error?error.message:String(error));}}}/><button onClick={()=>history.apply(p=>ops.updateClip(p,selectedAudio.id,{crossfadeIn:undefined}))}>Quitar crossfade</button></> }</fieldset>:<p className="hint">Selecciona audio o un video enlazado para ajustar su sonido.</p>}
+        <details open><summary>Limpieza local de audio</summary><LocalAssistantPanel key={rootHistory.bank.active} mode="audio" ctx={assistantContext} project={project} result={visualResult}/></details>
+      </>)}
+      {utility("text","effectControls",<TextPanel key={`${rootHistory.bank.active}:${editingSequenceId}`} project={project} frame={frame} apply={applyForSession()} onSelect={selectResult} onAddText={addText} onProperties={()=>workspace.showPanel("properties")}/>)}
+      {utility("search","effectControls",<SearchPanel project={project} root={rootHistory.value} onClip={selectResult} onItem={key=>{if(key.startsWith("sequence:")){switchTimeline(rootHistory.bank.active,key.slice(9));return;}workspace.showPanel("bin");requestAnimationFrame(()=>projectPanelRef.current?.reveal(key));}}/>)}
+      {utility("mixer","mixer",<AudioTrackMixer key={`${rootHistory.bank.active}:${editingSequenceId}`} project={project} programRef={programRef} onPreview={(id,volume)=>setMixDraft(volume===null?null:{id,volume})} onMix={(id,patch)=>history.apply(p=>id?ops.setTrackMix(p,id,patch):ops.setMasterVolume(p,patch.volume??1))} onState={(id,patch)=>history.apply(p=>ops.setTrackState(p,id,patch))} onRecord={id=>{if(recording.state?.track===id)recording.stop();else void recording.start(id,frame,project.fps);}} recordingTrack={recording.state?.track??null}/>)}
       {workspace.overlays}
       </div>
     </div></UiDocument.Provider>
@@ -836,27 +876,13 @@ function FontSelect({ value, onChange }: { value: string; onChange: (fontFamily:
   );
 }
 
-function AudioInspector({ clip, fps, onChange }: { clip: AudioClip; fps: number; onChange: (patch: Partial<AudioClip>) => void }) {
-  const seconds = (frames: number) => Math.round((frames / fps) * 10) / 10;
-  return (
-    <div className="fields">
-      <div className="bin-name">♪ {clip.name}</div>
-      <div className="bin-dur">Duración: {formatTimecode(clip.durationInFrames, fps)}</div>
-      <label>
-        Volumen · {Math.round(clip.volume * 100)}%
-        <input type="range" min={0} max={4} step={0.01} value={clip.volume} onChange={(e) => onChange({ volume: Number(e.target.value) })} />
-      </label>
-      <label>
-        Fade in (segundos)
-        <input type="number" min={0} step={0.1} value={seconds(clip.fadeIn)} onChange={(e) => onChange({ fadeIn: Math.round(Number(e.target.value) * fps) })} />
-      </label>
-      <label>
-        Fade out (segundos)
-        <input type="number" min={0} step={0.1} value={seconds(clip.fadeOut)} onChange={(e) => onChange({ fadeOut: Math.round(Number(e.target.value) * fps) })} />
-      </label>
-      <div className="hint">Puedes moverlo entre pistas de audio. Si está enlazado con un video, ambos conservan su sincronía.</div>
-    </div>
-  );
+function AudioInspector({clip,fps,onChange}:{clip:AudioClip;fps:number;onChange:(patch:Partial<AudioClip>)=>void}) {
+  return <div className="fields"><div className="bin-name">♪ {clip.name}</div><div className="bin-dur">Duración: {formatTimecode(clip.durationInFrames,fps)}</div>
+    <CommittedNumber key={`${clip.id}:volume`} label="Volumen del clip (%)" min={0} max={400} step={1} value={clip.volume*100} onCommit={v=>onChange({volume:v/100})}/>
+    <CommittedNumber key={`${clip.id}:in`} label="Fundido entrada (s)" min={0} max={clip.durationInFrames/fps} step={.1} value={clip.fadeIn/fps} onCommit={v=>onChange({fadeIn:Math.round(v*fps)})}/>
+    <CommittedNumber key={`${clip.id}:out`} label="Fundido salida (s)" min={0} max={clip.durationInFrames/fps} step={.1} value={clip.fadeOut/fps} onCommit={v=>onChange({fadeOut:Math.round(v*fps)})}/>
+    {clip.mix&&<div className="hint">Incluye mezcla heredada de una secuencia. <button onClick={()=>onChange({mix:undefined})}>Restablecer mezcla heredada</button></div>}
+    <div className="hint">Se aplica al confirmar o soltar. Una pareja de video/audio conserva su sincronía.</div></div>;
 }
 
 function VideoInspector({ clip, fps, onChange }: { clip: VideoClip; fps: number; onChange: (patch: Partial<VideoClip>) => void }) {

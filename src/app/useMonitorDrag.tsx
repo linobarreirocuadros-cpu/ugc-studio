@@ -10,6 +10,7 @@ type Options={gestures:GesturePreferences;project:Project;snapping:boolean;playh
 /** Proyecto y monitores comparten hover/colocación. El proyecto solo cambia al soltar. */
 export function useMonitorDrag(options:Options){
   const latest=useRef(options);latest.current=options;
+  const wheelHandler=useRef<((event:WheelEvent,x:number)=>void)|null>(null);
   const cleanup=useRef<(()=>void)|null>(null),hoverRef=useRef<MediaHover|null>(null);
   const [active,setActive]=useState<MediaDrag|null>(null),[hover,setHover]=useState<MediaHover|null>(null);
   const clearHover=()=>{hoverRef.current=null;setHover(null);};
@@ -35,13 +36,14 @@ export function useMonitorDrag(options:Options){
       return{viewport,track,raw:Math.max(0,(point.x-r.left+viewport.scrollLeft)/latest.current.pxPerFrame)};
     };
     const preview=()=>{const hit=target();if(hit)update(payload,hit.track.dataset.trackId!,hit.raw,bypass);else clearHover();};
-    const stop=()=>{win.cancelAnimationFrame(animation);win.removeEventListener("pointermove",move,true);win.removeEventListener("pointerup",up,true);win.removeEventListener("pointercancel",abort,true);win.removeEventListener("blur",abort);win.removeEventListener("keydown",key,true);if(node.hasPointerCapture(event.pointerId))node.releasePointerCapture(event.pointerId);doc.body.classList.remove("monitor-range-dragging");setActive(null);clearHover();cleanup.current=null;};
+    const stop=()=>{win.cancelAnimationFrame(animation);win.removeEventListener("pointermove",move,true);win.removeEventListener("pointerup",up,true);win.removeEventListener("pointercancel",abort,true);win.removeEventListener("blur",abort);win.removeEventListener("keydown",key,true);win.removeEventListener("wheel",wheel,true);if(node.hasPointerCapture(event.pointerId))node.releasePointerCapture(event.pointerId);doc.body.classList.remove("monitor-range-dragging");setActive(null);clearHover();cleanup.current=null;};
     const move=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};bypass=bypassSnap(e,latest.current.gestures);if(Math.hypot(point.x-origin.x,point.y-origin.y)>4){moved=true;doc.body.classList.add("monitor-range-dragging");preview();}};
     const up=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};const hit=target(),snap=hit?resolve(payload,hit.track.dataset.trackId!,hit.raw,bypassSnap(e,latest.current.gestures)):null;stop();if(latest.current.session!==session)return;if(moved){onMoved?.();if(hit&&snap){latest.current.onActivate(hit.track);latest.current.onDrop(payload,hit.track.dataset.trackId!,snap.frame);}else onOutsideDrop?.(point.x,point.y);}else onClick?.();};
     const abort=()=>stop();
     const key=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();stop();}};
+    const wheel=(e:WheelEvent)=>{if(!moved||!target())return;e.preventDefault();e.stopPropagation();wheelHandler.current?.(e,point.x);};
     const scroll=()=>{if(moved){const hit=target();if(hit){const r=hit.viewport.getBoundingClientRect(),speed=(v:number,a:number,b:number)=>v<a+20?-8:v>b-20?8:0;hit.viewport.scrollLeft+=speed(point.x,r.left,r.right);hit.viewport.scrollTop+=speed(point.y,r.top,r.bottom);preview();}}animation=win.requestAnimationFrame(scroll);};
-    cleanup.current=stop;win.addEventListener("pointermove",move,true);win.addEventListener("pointerup",up,true);win.addEventListener("pointercancel",abort,true);win.addEventListener("blur",abort);win.addEventListener("keydown",key,true);animation=win.requestAnimationFrame(scroll);
+    cleanup.current=stop;win.addEventListener("pointermove",move,true);win.addEventListener("pointerup",up,true);win.addEventListener("pointercancel",abort,true);win.addEventListener("blur",abort);win.addEventListener("keydown",key,true);win.addEventListener("wheel",wheel,{capture:true,passive:false});animation=win.requestAnimationFrame(scroll);
   };
-  return{start,active,hover,update,clearHover,beginNative,dropNative,cancel};
+  return{wheelHandler,start,active,hover,update,clearHover,beginNative,dropNative,cancel};
 }

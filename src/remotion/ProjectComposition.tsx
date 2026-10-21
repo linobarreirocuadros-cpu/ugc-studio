@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { AbsoluteFill, Audio, Freeze, OffthreadVideo, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { AudioClip, CaptionClip, GraphicClip, Project, TextClip, VideoClip } from "../project/types";
+import {EffectFrame} from "./EffectFrame";
+import {transitionTiming,audioTransitionTiming} from "../project/effects";
+import {audioKey,clipMatrix,panHeadroom,IDENTITY,isIdentity,type PanMatrix} from "../project/audioMix";
 import { trackOutputEnabled } from "../project/types";
 import { cssFont, ensureFont, fontWeightFor } from "./fonts";
 
 // Convierte rutas relativas (/media/x.mp4) en absolutas para el render en el servidor.
 // `preview` = true en el Player de la app: usa proxies livianos para reproducir fluido.
-export type CompositionProps = { project: Project; mediaBaseUrl?: string; preview?: boolean; previewSources?: Record<string,string>; output?: "both" | "video" | "audio"; gain?: number; sequences?: Project["sequences"]; stack?: string[]; durationOverride?: number };
+export type CompositionProps = { project: Project; mediaBaseUrl?: string; preview?: boolean; previewSources?: Record<string,string>; output?: "both" | "video" | "audio"; gain?: number; sequences?: Project["sequences"]; stack?: string[]; durationOverride?: number; audioSources?:Record<string,string>;parentPan?:PanMatrix;meterTrack?:string;meterGain?:number };
 
 const resolveSrc = (src: string, base?: string) =>
   base && src.startsWith("/") ? base.replace(/\/$/, "") + src : src;
@@ -42,7 +45,7 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean; 
       volume={0}
       pauseWhenBuffering
       acceptableTimeShiftInSeconds={0.3}
-      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      style={{ width: "100%", height: "100%", objectFit: clip.effects?.enabled===false?"cover":clip.effects?.fit??"cover" }}
       onError={
         preview
           ? () => {
@@ -56,19 +59,14 @@ const VideoLayer: React.FC<{ clip: VideoClip; base?: string; preview?: boolean; 
   return clip.freezeFrame !== undefined ? <Freeze frame={0}>{video}</Freeze> : video;
 };
 
-const AudioLayer: React.FC<{ clip: AudioClip; base?: string; compositionEnd?: number; preview?: boolean }> = ({ clip, base, compositionEnd, preview }) => {
-  // Si la canción dura más que el video, el fade out se hace donde termina el video
-  const { durationInFrames: videoEnd } = useVideoConfig();
-  const d = Math.min(clip.durationInFrames, (compositionEnd ?? videoEnd) - clip.from);
-  const f=useCurrentFrame();
-  const fadeIn=clip.fadeIn>0?interpolate(f,[0,clip.fadeIn],[0,1],{extrapolateLeft:"clamp",extrapolateRight:"clamp"}):1;
-  const fadeOut=clip.fadeOut>0?interpolate(f,[d-clip.fadeOut,d],[1,0],{extrapolateLeft:"clamp",extrapolateRight:"clamp"}):1;
-  const volume=clip.volume*Math.min(fadeIn,fadeOut);
-  return (
-  <Audio src={resolveSrc(clip.src,base)} startFrom={clip.trimStart} playbackRate={clip.playbackRate??1}
-    useWebAudioApi={Boolean(preview)} ref={element=>{if(element)element.dataset.ugcVolume=String(volume);}} volume={volume} pauseWhenBuffering/>
-
-  );
+const AudioLayer=({clip,trackId,base,preview,pre=0,timing,meterVolume}:{meterVolume:number;clip:AudioClip;trackId:string;base?:string;preview?:boolean;pre?:number;timing:ReturnType<typeof transitionTiming>})=>{
+ const f=useCurrentFrame(),local=f-pre,rate=clip.playbackRate??1;const start=clip.trimStart-Math.floor(pre*rate),missing=Math.max(0,Math.ceil(-start/rate)),trim=Math.max(0,start),available=Math.ceil((clip.sourceDurationInFrames-trim)/rate);
+ if(f<missing||f>=missing+available)return null;
+ const clamp=(v:number)=>Math.max(0,Math.min(1,v));let envelope=Math.min(clip.fadeIn?clamp(local/clip.fadeIn):1,clip.fadeOut?clamp((clip.durationInFrames-local)/clip.fadeOut):1);
+ if(clip.crossfadeIn&&timing.previous){const x=clamp(f/Math.max(1,timing.pre+timing.inPost));envelope*=clip.crossfadeIn.curve==="equalPower"?Math.sin(x*Math.PI/2):x;}
+ if(timing.next?.kind==="audio"&&timing.next.crossfadeIn){const x=clamp((local-(clip.durationInFrames-timing.outPre))/Math.max(1,timing.outPre+timing.post));envelope*=timing.next.crossfadeIn.curve==="equalPower"?Math.cos(x*Math.PI/2):1-x;}
+ const volume=clip.volume*(clip.mix?.gain??1)*envelope;
+ return <Sequence from={missing} layout="none"><Audio src={resolveSrc(clip.src,base)} startFrom={trim} playbackRate={rate} useWebAudioApi={Boolean(preview)} ref={element=>{if(element){element.dataset.ugcVolume=String(volume);element.dataset.ugcTrack=trackId;element.dataset.ugcTrackVolume=String(meterVolume*(clip.mix?.gain??1)*envelope);}}} volume={volume} pauseWhenBuffering/></Sequence>;
 };
 
 const TextLayer: React.FC<{ clip: TextClip }> = ({ clip }) => {
@@ -158,36 +156,26 @@ const CaptionLayer: React.FC<{ clip: CaptionClip }> = ({ clip }) => {
 const GraphicLayer = ({clip}: {clip: GraphicClip}) => <AbsoluteFill style={{pointerEvents:"none"}}><div style={{position:"absolute",background:clip.color,opacity:clip.opacity,...(clip.shape==="solid"?{inset:0}:{left:`${clip.x*100}%`,top:`${clip.y*100}%`,width:`${clip.width*100}%`,height:`${clip.height*100}%`,transform:"translate(-50%,-50%)"})}}/></AbsoluteFill>;
 
 /** Separar el sonido de la pila visual evita que un ajuste de color afecte al audio. */
-export const ProjectComposition: React.FC<CompositionProps> = ({ project, mediaBaseUrl, preview, previewSources, output = "both", gain = 1, sequences = project.sequences, stack = [], durationOverride }) => {
-  const frame=useCurrentFrame(); let visuals: ReactNode = null;
-  const audio: ReactNode[]=[];
-  const nested=(clip: VideoClip|AudioClip)=><NestedSequence clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources} sequences={sequences} stack={stack} gain={gain}/>;
-  const timed=(clip: Project["tracks"][number]["clips"][number],node: ReactNode)=><Sequence key={clip.id} from={clip.from} durationInFrames={clip.durationInFrames} premountFor={clip.kind==="video"?project.fps:undefined}>{node}</Sequence>;
-  for(const track of project.tracks.filter(t=>trackOutputEnabled(project,t))) {
-    for(const clip of track.clips) {
-      if((clip.kind==="audio" || clip.kind==="video"&&clip.volume>0&&clip.freezeFrame===undefined)&&output!=="video") {
-        const a: AudioClip = clip.kind==="audio"?clip:{...clip,kind:"audio",fadeIn:0,fadeOut:0};
-        audio.push(timed(a,a.sequenceId?nested(a):<AudioLayer clip={{...a,volume:a.volume*gain}} base={mediaBaseUrl} compositionEnd={durationOverride} preview={preview}/>));
-      }
-      if(output==="audio" || clip.kind==="audio")continue;
-      if(clip.kind==="graphic"&&clip.shape==="adjustment") {
-        if(frame>=clip.from&&frame<clip.from+clip.durationInFrames) visuals=<AbsoluteFill key={clip.id} style={{filter:`brightness(${1+(clip.brightness-1)*clip.opacity}) contrast(${1+(clip.contrast-1)*clip.opacity}) saturate(${1+(clip.saturation-1)*clip.opacity})`}}>{visuals}</AbsoluteFill>;
-        continue;
-      }
-      const layer=clip.kind==="video"?(clip.sequenceId?nested(clip):<VideoLayer key={clip.src} clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources}/>):clip.kind==="text"?<TextLayer clip={clip}/>:clip.kind==="caption"?<CaptionLayer clip={clip}/>:<GraphicLayer clip={clip}/>;
-      visuals=<>{visuals}{timed(clip,layer)}</>;
-    }
-  }
-  return <AbsoluteFill style={{backgroundColor:output!=="both"||stack.length>0?"transparent":"black"}}>{visuals}{audio}</AbsoluteFill>;
+export const ProjectComposition: React.FC<CompositionProps> = ({project,mediaBaseUrl,preview,previewSources,output="both",gain=1,meterGain=1,sequences=project.sequences,stack=[],durationOverride,audioSources={},parentPan=IDENTITY,meterTrack})=>{
+ const frame=useCurrentFrame();let visuals:ReactNode=null;const audio:ReactNode[]=[];const busGain=gain*(project.masterVolume??1),meterBusGain=meterGain*(stack.length?project.masterVolume??1:1);
+ const nested=(clip:VideoClip|AudioClip,level:number,matrix:PanMatrix,trackId:string,meterLevel=meterBusGain)=><NestedSequence clip={clip} base={mediaBaseUrl} preview={preview} previewSources={previewSources} sequences={sequences} stack={stack} gain={level} matrix={matrix} audioSources={audioSources} meterTrack={trackId} meterGain={meterLevel}/>;
+ for(const track of project.tracks.filter(t=>trackOutputEnabled(project,t)))for(const clip of [...track.clips].sort((a,b)=>a.from-b.from)){
+   const timing=transitionTiming(track,clip),trackId=meterTrack??track.id;
+   if((clip.kind==="audio"||clip.kind==="video"&&clip.volume>0&&clip.freezeFrame===undefined&&clip.audioMode!=="none")&&output!=="video"){
+     const soundTiming=audioTransitionTiming(track,clip);const a:AudioClip=clip.kind==="audio"?clip:{...clip,kind:"audio",fadeIn:0,fadeOut:0};const matrix=clipMatrix(track,a,parentPan),key=audioKey(a.src,matrix),level=busGain*(track.kind==="audio"?track.volume??1:1);
+     if(a.sequenceId)audio.push(<Sequence key={a.id} from={a.from} durationInFrames={a.durationInFrames}>{nested(a,level,matrix,trackId,meterBusGain*(track.kind==="audio"?track.volume??1:1))}</Sequence>);
+     else if(audioSources[key]!==""&&(!preview||isIdentity(matrix)||audioSources[key]))audio.push(<Sequence key={a.id} from={soundTiming.from} durationInFrames={soundTiming.duration}><AudioLayer clip={{...a,src:audioSources[key]??a.src,volume:a.volume*level*(audioSources[key]?panHeadroom(matrix):1)}} meterVolume={a.volume*(audioSources[key]?panHeadroom(matrix):1)*meterBusGain*(track.kind==="audio"?track.volume??1:1)} timing={soundTiming} trackId={trackId} pre={soundTiming.pre} base={mediaBaseUrl} preview={preview}/></Sequence>);
+   }
+   if(output==="audio"||clip.kind==="audio")continue;
+   if(clip.kind==="graphic"&&clip.shape==="adjustment"){
+     if(frame>=clip.from&&frame<clip.from+clip.durationInFrames)visuals=<AbsoluteFill key={clip.id} style={{filter:`brightness(${1+(clip.brightness-1)*clip.opacity}) contrast(${1+(clip.contrast-1)*clip.opacity}) saturate(${1+(clip.saturation-1)*clip.opacity})`}}>{visuals}</AbsoluteFill>;continue;
+   }
+   const layer=clip.kind==="video"?<ExtendedVideo clip={clip} pre={timing.pre} duration={timing.duration} render={c=>c.sequenceId?nested(c,busGain,parentPan,trackId):<VideoLayer key={c.src} clip={c} base={mediaBaseUrl} preview={preview} previewSources={previewSources}/>}/>:clip.kind==="text"?<TextLayer clip={clip}/>:clip.kind==="caption"?<CaptionLayer clip={{...clip,words:clip.words.map(w=>({...w,start:w.start+timing.pre,end:w.end+timing.pre}))}}/>:<GraphicLayer clip={clip}/>;
+   visuals=<>{visuals}<Sequence key={clip.id} from={timing.from} durationInFrames={timing.duration} premountFor={clip.kind==="video"?project.fps:undefined}><EffectFrame clip={clip} track={track} project={project}>{layer}</EffectFrame></Sequence></>;
+ }
+ return <AbsoluteFill style={{backgroundColor:output!=="both"||stack.length>0?"transparent":"black"}}>{visuals}{audio}</AbsoluteFill>;
 };
-
-const NestedSequence: React.FC<{ clip: VideoClip | AudioClip; base?: string; preview?: boolean; previewSources?: Record<string,string>; sequences?: Project["sequences"]; stack: string[]; gain: number }> = ({ clip, base, preview, previewSources, sequences, stack, gain }) => {
-  const sequence = sequences?.[clip.sequenceId!];
-  if (!sequence) throw new Error(`No se encuentra la secuencia ${clip.name}.`);
-  if (stack.includes(sequence.id) || stack.length >= 8) throw new Error("Secuencia circular o más de 8 niveles de anidación.");
-  const frame = useCurrentFrame();
-  const fade = clip.kind === "audio" ? Math.min(clip.fadeIn ? Math.max(0, Math.min(1, frame / clip.fadeIn)) : 1, clip.fadeOut ? Math.max(0, Math.min(1, (clip.durationInFrames - frame) / clip.fadeOut)) : 1) : 1;
-  return <Sequence from={-clip.trimStart} durationInFrames={sequence.durationInFrames}>
-    <ProjectComposition project={sequence} mediaBaseUrl={base} preview={preview} previewSources={previewSources} output={clip.kind === "audio" ? "audio" : "video"} gain={clip.kind === "audio" ? gain * clip.volume * fade : gain} sequences={sequences} stack={[...stack, sequence.id]} durationOverride={sequence.durationInFrames}/>
-  </Sequence>;
+const ExtendedVideo=({clip,pre,duration,render}:{clip:VideoClip;pre:number;duration:number;render:(c:VideoClip)=>ReactNode})=>{const frame=useCurrentFrame();if(clip.freezeFrame!==undefined)return render(clip);const rate=clip.playbackRate??1,start=clip.trimStart-Math.floor(pre*rate),missing=Math.max(0,Math.ceil(-start/rate)),trim=Math.max(0,start),available=Math.max(1,Math.ceil((clip.sourceDurationInFrames-trim)/rate));const adjusted={...clip,trimStart:trim};if(frame<missing)return <Freeze frame={0}>{render(adjusted)}</Freeze>;if(frame>=missing+available)return <Freeze frame={available-1}>{render(adjusted)}</Freeze>;return <Sequence from={missing} durationInFrames={Math.min(available,duration-missing)} layout="none">{render(adjusted)}</Sequence>;};
+const NestedSequence:React.FC<{clip:VideoClip|AudioClip;base?:string;preview?:boolean;previewSources?:Record<string,string>;sequences?:Project["sequences"];stack:string[];gain:number;matrix:PanMatrix;audioSources:Record<string,string>;meterTrack:string;meterGain:number}>=({clip,base,preview,previewSources,sequences,stack,gain,matrix,audioSources,meterTrack,meterGain})=>{
+ const sequence=sequences?.[clip.sequenceId!];if(!sequence)throw new Error(`No se encuentra la secuencia ${clip.name}.`);if(stack.includes(sequence.id)||stack.length>=8)throw new Error("Secuencia circular o más de 8 niveles");const frame=useCurrentFrame();const fade=clip.kind==="audio"?Math.min(clip.fadeIn?Math.max(0,Math.min(1,frame/clip.fadeIn)):1,clip.fadeOut?Math.max(0,Math.min(1,(clip.durationInFrames-frame)/clip.fadeOut)):1):1;return <Sequence from={-clip.trimStart} durationInFrames={sequence.durationInFrames}><ProjectComposition project={sequence} mediaBaseUrl={base} preview={preview} previewSources={previewSources} audioSources={audioSources} output={clip.kind==="audio"?"audio":"video"} gain={clip.kind==="audio"?gain*clip.volume*(clip.mix?.gain??1)*fade:gain} parentPan={matrix} meterGain={clip.kind==="audio"?meterGain*clip.volume*(clip.mix?.gain??1)*fade:meterGain} meterTrack={meterTrack} sequences={sequences} stack={[...stack,sequence.id]} durationOverride={sequence.durationInFrames}/></Sequence>;
 };

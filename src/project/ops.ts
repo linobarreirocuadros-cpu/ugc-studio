@@ -1,3 +1,5 @@
+import {bakeTrackMix} from "./audioMix";
+import {validEffects,presetById,adjacentPrevious,adjacentNext,sliceClipEdges,type ClipEffects,type VideoTransition} from "./effects";
 // Operaciones puras sobre el proyecto. Cada una recibe un Project y devuelve uno nuevo.
 // La UI las usa hoy; en la Fase 2 el chat de IA las llamará como "tools".
 
@@ -262,7 +264,7 @@ export const createSequence = (project: Project, ids: string[], name: string): P
   const start = Math.min(...clips.map((c) => c.from)), end = Math.max(...clips.map((c) => c.from + c.durationInFrames));
   const id = newId();
   const { sequences: _, library: _library, ...base } = project;
-  const sequence = { ...base, id, name: name.trim().slice(0, 100) || "Secuencia", durationInFrames: end - start,
+  const sequence = { ...base, masterVolume:undefined, id, name: name.trim().slice(0, 100) || "Secuencia", durationInFrames: end - start,
     tracks: project.tracks.map((t) => ({ ...t, locked: false, targeted: false, clips: t.clips.filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from - start })) })),
     markers: (project.markers ?? []).filter((m) => m.frame >= start && m.frame < end).map((m) => ({ ...m, frame: m.frame - start })),
   };
@@ -317,7 +319,7 @@ export const placeSequence = (project: Project, sequenceId: string, trackId: str
   }
   const identities = new Map(sequence.tracks.flatMap((t) => t.clips.map((c) => [c.id, newId()]))), groups=new Map(sequence.tracks.flatMap(t=>t.clips).filter(c=>c.groupId).map(c=>[c.groupId!,newId()]));
   const placed = mapTracks(next, (t) => ({ ...t, clips: [...t.clips, ...sequence.tracks.filter((s) => destinations.get(s.id) === t.id).flatMap((s) => s.clips.map((c): Clip => {
-    const clip = { ...c, id: identities.get(c.id)!, from: from + c.from, groupId:c.groupId?groups.get(c.groupId):undefined };
+    const clip = { ...bakeTrackMix(c,s,sequence), id: identities.get(c.id)!, from: from + c.from, groupId:c.groupId?groups.get(c.groupId):undefined };
     if (clip.kind === "video" || clip.kind === "audio") clip.linkedClipId = clip.linkedClipId ? identities.get(clip.linkedClipId) : undefined;
     if (clip.kind === "audio" && clip.derivedFrom) clip.derivedFrom = { ...clip.derivedFrom, clipId: identities.get(clip.derivedFrom.clipId) ?? clip.derivedFrom.clipId };
     return clip;
@@ -354,7 +356,7 @@ const mergeRanges = (ranges: Range[]): Range[] => {
 /** Conserva un fragmento sin perder offset de origen, palabras ni fades de los extremos. */
 const clipSlice = (clip: Clip, start: number, end: number, id: string): Clip => {
   const offset = start - clip.from, durationInFrames = end - start;
-  const base = { ...clip, id, from: start, durationInFrames };
+  const base = { ...sliceClipEdges(clip,offset,durationInFrames), id, from: start, durationInFrames };
   if (base.kind === "video" || base.kind === "audio") base.trimStart = sourceFrame(base, offset);
   if (base.kind === "audio") {
     base.fadeIn = offset ? 0 : Math.min(base.fadeIn, durationInFrames);
@@ -473,7 +475,7 @@ export const exposeEmbeddedAudio = (project: Project, ids: string[], preferredTr
     if (preferredTrackId && !target) continue;
     if (!target) { next = addTrack(next, "audio"); target = next.tracks[0]; }
     const audioId = newId();
-    const audio: AudioClip = { id: audioId, kind: "audio", src: video.src, name: video.name, from: video.from, durationInFrames: video.durationInFrames, trimStart: video.trimStart, sourceDurationInFrames: video.sourceDurationInFrames, volume: video.volume, fadeIn: 0, fadeOut: 0, linkedClipId: video.id };
+    const audio: AudioClip = { id: audioId, kind: "audio", src: video.src, name: video.name, from: video.from, durationInFrames: video.durationInFrames, trimStart: video.trimStart, sourceDurationInFrames: video.sourceDurationInFrames, volume: video.volume, playbackRate:video.playbackRate,pan:video.pan,mix:video.mix,audioRole:video.audioRole,labelColor:video.labelColor,groupId:video.groupId,fadeIn: 0, fadeOut: 0, linkedClipId: video.id };
     const placed = mapTracks(next, (t) => ({ ...t, clips: [...t.clips.map((c): Clip => c.id === video.id ? { ...video, volume: 0, audioMode: "separate", linkedClipId: audioId } : c), ...(t.id === target!.id ? [audio] : [])] }));
     next = preferredTrackId ? overwritePlaced(next, placed, [video.id, audioId]) : placed;
   }
@@ -603,11 +605,11 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
 export const copyTimelineRange=(project:Project,start:number,end:number,mode:"auto"|"video"|"audio"="auto"):Project=>{
   if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<=start||end>getProjectDuration(project))throw new Error("El rango marcado está fuera del montaje.");
   const embedded:AudioClip[]=[];
-  const tracks=project.tracks.filter(t=>trackOutputEnabled(project,t)).map(t=>({...t,clips:t.clips.flatMap((c):Clip[]=>{
+  const tracks:Track[]=project.tracks.filter(t=>trackOutputEnabled(project,t)).map(t=>({...t,clips:t.clips.flatMap((c):Clip[]=>{
     const a=Math.max(start,c.from),b=Math.min(end,c.from+c.durationInFrames);if(b<=a)return [];
     const part=clipSlice(c,a,b,c.id);part.from-=start;
     if(mode==="audio"&&part.kind!=="audio"){
-      if(part.kind==="video"&&!part.linkedClipId&&part.audioMode!=="none"&&part.volume>0&&!part.sequenceId)embedded.push({id:part.id,kind:"audio",src:part.src,name:part.name,from:part.from,durationInFrames:part.durationInFrames,trimStart:part.trimStart,sourceDurationInFrames:part.sourceDurationInFrames,volume:part.volume,fadeIn:0,fadeOut:0});
+      if(part.kind==="video"&&!part.linkedClipId&&part.audioMode!=="none"&&part.volume>0&&!part.sequenceId)embedded.push({id:part.id,kind:"audio",src:part.src,name:part.name,from:part.from,durationInFrames:part.durationInFrames,trimStart:part.trimStart,sourceDurationInFrames:part.sourceDurationInFrames,volume:part.volume,pan:part.pan,mix:part.mix,fadeIn:0,fadeOut:0});
       return [];
     }
     if(mode==="video"&&part.kind==="audio")return [];
@@ -798,8 +800,8 @@ export const splitAt = (project: Project, frame: number, onlyClipId?: string): P
       if (targets && !targets.has(c.id)) return [c];
       const offset = frame - c.from;
       if (offset <= 0 || offset >= c.durationInFrames) return [c];
-      const left = { ...c, durationInFrames: offset };
-      const right = { ...c, id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
+      const left = { ...sliceClipEdges(c,0,offset), durationInFrames: offset };
+      const right = { ...sliceClipEdges(c,offset,c.durationInFrames-offset), id: rightIds.get(c.id)!, from: frame, durationInFrames: c.durationInFrames - offset };
       if ((right.kind === "video" || right.kind === "audio") && right.linkedClipId) right.linkedClipId = rightIds.get(right.linkedClipId);
       if (right.kind === "audio" && right.derivedFrom && rightIds.has(right.derivedFrom.clipId)) right.derivedFrom = { ...right.derivedFrom, clipId: rightIds.get(right.derivedFrom.clipId)! };
       if (right.kind === "video" || right.kind === "audio") right.trimStart = sourceFrame(c as VideoClip | AudioClip, offset);
@@ -961,7 +963,7 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
         const a = Math.max(clip.from, range.start), b = Math.min(clip.from + clip.durationInFrames, range.end);
         if (b <= a) continue;
         const offset = a - clip.from, length = b - a;
-        const base = { ...clip, id: identities.get(`${index}:${clip.id}`)!, from: cursor + a - range.start, durationInFrames: length };
+        const base = { ...sliceClipEdges(clip,offset,length), id: identities.get(`${index}:${clip.id}`)!, from: cursor + a - range.start, durationInFrames: length };
         if (base.kind === "video" || base.kind === "audio") {
           base.trimStart = sourceFrame(base, offset);
           if (base.linkedClipId) base.linkedClipId = identities.get(`${index}:${base.linkedClipId}`);
@@ -983,9 +985,9 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
 };
 
 /** Palabras de un clip de video, ya convertidas a frames de la línea de tiempo. */
-export const wordsOnTimeline = (project: Project, clip: VideoClip): Word[] => {
-  const words = project.transcripts?.[clip.src] ?? [];
-  if (clip.freezeFrame !== undefined) return [];
+export const wordsOnTimeline = (project: Project, clip: VideoClip|AudioClip): Word[] => {
+  const words = project.transcripts?.[clip.kind==="audio"&&clip.derivedFrom?clip.derivedFrom.src:clip.src] ?? [];
+  if (clip.kind==="video"&&clip.freezeFrame !== undefined) return [];
   const rate = clip.playbackRate ?? 1, inEnd = sourceFrame(clip, clip.durationInFrames);
   return words
     .filter((w) => w.start >= clip.trimStart && w.start < inEnd)
@@ -1006,10 +1008,10 @@ export const generateCaptions = (project: Project, opts: CaptionOptions = DEFAUL
   if (project.tracks.find((t) => t.id === "S1")?.locked) return project;
   const p = ensureCaptionTrack(project);
   const preferred=destinationTrack(p,"video");
-  const video = p.tracks.find(t=>t.id===preferred&&t.clips.some(c=>c.kind==="video"))??p.tracks.find(t=>t.clips.some(c=>c.kind==="video"));
+  const video = p.tracks.find(t=>t.id===preferred&&t.clips.some(c=>c.kind==="video"))??p.tracks.find(t=>t.clips.some(c=>c.kind==="video"))??p.tracks.find(t=>t.clips.some(c=>c.kind==="audio"));
   if (!video) return p;
   const words = video.clips
-    .filter((c): c is VideoClip => c.kind === "video")
+    .filter((c): c is VideoClip|AudioClip => c.kind === "video"||c.kind==="audio")
     .flatMap((c) => wordsOnTimeline(p, c))
     .sort((a, b) => a.start - b.start);
 
@@ -1130,3 +1132,34 @@ export const removeSilences = (
   });
   return mapTracks(next, (t) => ({ ...t, clips: t.clips.flatMap((c) => audioPieces.get(c.id) ?? [c]) }));
 };
+
+/** Controles constantes: una operación por gesto y los mismos valores en preview/exportación. */
+export const setClipEffects=(p:Project,ids:string[],patch:ClipEffects):Project=>{
+  if(!validEffects(patch))throw new Error("Parámetros de efecto inválidos");
+  const targets=ids.map(id=>findClip(p,id));if(!targets.length||targets.some(t=>!t||t.track.locked||t.clip.kind==="audio"))return p;
+  if(targets.some(t=>t!.clip.kind==="graphic"&&t!.clip.shape==="adjustment")&&Object.keys(patch).some(k=>!["brightness","contrast","saturation"].includes(k)))throw new Error("La capa de ajuste admite brillo, contraste y saturación en Propiedades");
+  return mapTracks(p,t=>({...t,clips:t.clips.map(c=>ids.includes(c.id)?c.kind==="graphic"&&c.shape==="adjustment"?{...c,...patch}:{...c,effects:{...c.effects,...patch}}:c)}));
+};
+export const resetClipEffects=(p:Project,ids:string[]):Project=>mapTracks(p,t=>t.locked?t:{...t,clips:t.clips.map(c=>ids.includes(c.id)?{...c,effects:undefined,transitionIn:undefined,transitionOut:undefined,...(c.kind==="audio"?{crossfadeIn:undefined,fadeIn:0,fadeOut:0}: {})}:c)});
+export const setTrackMix=(p:Project,id:string,patch:{volume?:number;pan?:number}):Project=>{if(patch.volume!==undefined&&(!Number.isFinite(patch.volume)||patch.volume<0||patch.volume>4)||patch.pan!==undefined&&(!Number.isFinite(patch.pan)||Math.abs(patch.pan)>1))throw new Error("Nivel o panorama inválido");return mapTracks(p,t=>t.id===id&&t.kind==="audio"&&!t.locked?{...t,...patch}:t);};
+export const setMasterVolume=(p:Project,volume:number):Project=>{if(!Number.isFinite(volume)||volume<0||volume>4)throw new Error("Volumen maestro inválido");return{...p,masterVolume:volume};};
+export const setClipPan=(p:Project,ids:string[],pan:number):Project=>{if(!Number.isFinite(pan)||Math.abs(pan)>1)throw new Error("Panorama inválido");return mapTracks(p,t=>t.locked?t:{...t,clips:t.clips.map(c=>ids.includes(c.id)&&(c.kind==="video"||c.kind==="audio")?{...c,pan}:c)});};
+export const setAudioRole=(p:Project,ids:string[],role:"dialogue"|"music"|"sfx"|"ambience"):Project=>mapTracks(p,t=>t.locked?t:{...t,clips:t.clips.map(c=>ids.includes(c.id)&&(c.kind==="audio"||c.kind==="video")?{...c,audioRole:role}:c)});
+export const applyEffectPreset=(p:Project,ids:string[],presetId:string,frames=Math.round(p.fps*.5),edge:"start"|"end"="start"):Project=>{
+ const preset=presetById(presetId);if(!preset)throw new Error("No existe ese efecto");if(!Number.isInteger(frames)||frames<1||frames>p.fps*10)throw new Error("La transición debe durar de un frame a diez segundos");
+ if(ids.some(id=>!findClip(p,id)))throw new Error("La selección cambió; vuelve a consultar el montaje");
+ let targets=[...new Set(ids)].map(id=>findClip(p,id)).filter((v):v is NonNullable<typeof v>=>Boolean(v));
+ if(preset.audio){targets=targets.map(t=>t.clip.kind==="video"&&t.clip.linkedClipId?findClip(p,t.clip.linkedClipId)??t:t);targets=[...new Map(targets.map(t=>[t.clip.id,t])).values()];}
+ targets=targets.filter(t=>preset.audio?t.clip.kind==="audio":t.clip.kind!=="audio");
+ if(!targets.length||targets.some(t=>t.track.locked))throw new Error(preset.audio?"Selecciona audio editable (o su video enlazado)":"Selecciona imagen, texto o gráficos en una pista desbloqueada");
+ if(targets.some(t=>t.clip.kind==="graphic"&&t.clip.shape==="adjustment")&&!preset.patch)throw new Error("Las transiciones se aplican a clips visuales; para esta capa de ajuste usa color básico en Propiedades");
+ if(preset.patch)return setClipEffects(p,targets.map(t=>t.clip.id),preset.patch);
+ const outgoingIds=new Set<string>();if(preset.transition&&edge==="end"&&targets.length>1)targets=[targets.reduce((a,b)=>a.clip.from>b.clip.from?a:b)];
+ if(preset.transition&&edge==="end")targets=targets.map(t=>{const next=adjacentNext(t.track,t.clip);if(!next)outgoingIds.add(t.clip.id);return next?{track:t.track,clip:next}:t;});
+ if(preset.transition||preset.audio==="linear"||preset.audio==="equalPower"){const selected=new Set(targets.map(t=>t.clip.id)),rights=targets.filter(t=>{const previous=adjacentPrevious(t.track,t.clip);return previous&&selected.has(previous.id);});if(rights.length)targets=rights;}
+ if(preset.audio==="linear"||preset.audio==="equalPower")for(const {clip,track}of targets){const previous=adjacentPrevious(track,clip);const pre=Math.floor(frames/2),post=frames-pre;if(clip.kind!=="audio"||previous?.kind!=="audio"||clip.sequenceId||previous.sequenceId||track.locked||clip.trimStart<pre*(clip.playbackRate??1)||availableFrames(previous)-previous.durationInFrames<post)throw new Error("El crossfade necesita dos clips contiguos con material extra antes y después del corte. Recorta sus extremos o utiliza fundidos de entrada/salida.");}
+ const targetIds=new Set(targets.map(t=>t.clip.id));return mapTracks(p,t=>({...t,clips:t.clips.map(c=>{if(!targetIds.has(c.id))return c;if(preset.transition){const out=outgoingIds.has(c.id);return{...c,[out?"transitionOut":"transitionIn"]:{type:preset.transition,frames} as VideoTransition};}if(c.kind!=="audio")return c;if(preset.audio==="linear"||preset.audio==="equalPower")return{...c,crossfadeIn:{curve:preset.audio,frames}};return{...c,...(preset.audio==="in"||preset.audio==="both"?{fadeIn:Math.min(frames,c.durationInFrames)}:{}),...(preset.audio==="out"||preset.audio==="both"?{fadeOut:Math.min(frames,c.durationInFrames)}:{})};})}));
+};
+
+export const importSubtitleBlocks=(p:Project,blocks:{start:number;end:number;text:string}[]):Project=>{if(!blocks.length||blocks.some(b=>!Number.isSafeInteger(b.start)||b.start<0||!Number.isSafeInteger(b.end)||b.end<=b.start||!b.text.trim()))throw new Error("Subtítulos inválidos");const clips:CaptionClip[]=blocks.map(b=>{const tokens=b.text.trim().split(/\s+/),duration=b.end-b.start;return{id:newId(),kind:"caption",from:b.start,durationInFrames:duration,style:{...DEFAULT_CAPTION_STYLE},words:tokens.map((text,i)=>({text,start:Math.floor(i*duration/tokens.length),end:Math.floor((i+1)*duration/tokens.length)}))};});return nameTracks({...p,tracks:[...p.tracks,{id:`S-${newId()}`,kind:"caption",name:"",clips}]});};
+export const setTranscriptWord=(p:Project,src:string,index:number,text:string):Project=>{const words=p.transcripts?.[src];if(!words||!Number.isInteger(index)||!words[index]||!text.trim()||words[index].text===text.trim())return p;return setTranscript(p,src,words.map((w,i)=>i===index?{...w,text:text.trim()}:w),p.transcriptInfo?.[src]);};

@@ -5,6 +5,7 @@ export type VisualMatch = { from: number; end: number; sourceStart: number; sour
 export type VisualResult = { clipId: string; clipStamp: string; query: string; model: string; sampleCount: number; matches: VisualMatch[] };
 export type AssistantContext = {
   getProject: () => Project;
+  showPanel?:(panel:"effects"|"effectControls"|"properties"|"text"|"essentialSound"|"mixer"|"search"|"timeline"|"bin"|"monitor"|"inspector")=>void;
   commit: (next: Project) => void;
   selectedClipId?: string | null;
   selectedClipIds?: string[];

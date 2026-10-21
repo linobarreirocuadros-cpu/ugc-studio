@@ -9,13 +9,13 @@ test("pestañas conservan paneles únicos, selección y serialización; extraer 
   let tree=groupPanel(defaultLayout(),"inspector","bin");tree=groupPanel(tree,"timeline","bin");
   assert.deepEqual([...panelsIn(tree)].sort(),[...PANELS].sort());assert.equal(tabGroups(tree)[0].active,"timeline");
   tree=activateTab(tree,"bin");assert.equal(tabGroups(tree)[0].active,"bin");assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(tree))),tree);
-  const removed=removePanel(tree,"bin")!;assert.deepEqual(tabGroups(removed)[0].panels,["inspector","timeline"]);assert.ok(panelsIn(removed).includes("inspector"));
-  const docked=dockPanel(tree,"timeline","workspace","bottom");assert.deepEqual(tabGroups(docked)[0].panels,["bin","inspector"]);assert.equal(layoutRects(docked,1200,700).panels.timeline.width,1200);
+  const removed=removePanel(tree,"bin")!;assert.deepEqual(tabGroups(removed)[0].panels,["effects","mixer","inspector","timeline"]);assert.ok(panelsIn(removed).includes("inspector"));
+  const docked=dockPanel(tree,"timeline","workspace","bottom");assert.deepEqual(tabGroups(docked)[0].panels,["bin","effects","mixer","inspector"]);assert.equal(layoutRects(docked,1200,700).panels.timeline.width,1200);
 });
 test("cada panel se puede agrupar y separar; pestañas inválidas no sustituyen una distribución válida",()=>{
   for(const source of PANELS)for(const target of PANELS){const tree=groupPanel(defaultLayout(),source,target);assert.deepEqual([...panelsIn(tree)].sort(),[...PANELS].sort());assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(tree))),tree);}
   assert.deepEqual(normalizeLayout({type:"tabs",panels:["bin","bin","monitor","inspector","timeline","meter"],active:"bin"}),defaultLayout());
-  const tree=PANELS.slice(1).reduce((t,p)=>groupPanel(t,p,"bin"),defaultLayout());assert.equal(tabGroups(tree)[0].panels.length,5);for(const r of Object.values(layoutRects(tree,800,500).panels))assert.deepEqual(r,{x:0,y:0,width:800,height:500});
+  const tree=PANELS.slice(1).reduce((t,p)=>groupPanel(t,p,"bin"),defaultLayout());assert.equal(tabGroups(tree)[0].panels.length,PANELS.length);for(const r of Object.values(layoutRects(tree,800,500).panels))assert.deepEqual(r,{x:0,y:0,width:800,height:500});
 });
 test("flotantes no quedan fuera del área al quitar un monitor o reducir la ventana",()=>{
   const r=constrainFloating({x:1400,y:800,width:700,height:500},640,380);assert.deepEqual(r,{x:0,y:0,width:640,height:380});

@@ -29,7 +29,7 @@ export const sourceTimecode=(info:MediaMetadata,end=false)=>{
 };
 const sizeText=(bytes?:number)=>bytes===undefined?"—":bytes>=1024**3?`${(bytes/1024**3).toFixed(2)} GB`:`${(bytes/1024**2).toFixed(1)} MB`;
 
-export type ProjectPanelHandle={command:(id:string)=>void;can:(id:string)=>boolean;folder:()=>string|undefined};
+export type ProjectPanelHandle={command:(id:string)=>void;reveal:(key:string)=>void;can:(id:string)=>boolean;folder:()=>string|undefined};
 type Props={onPointerMediaDrag:(event:ReactPointerEvent,payload:MediaDrag,outside:(x:number,y:number)=>void,onMoved:()=>void,onClick:()=>void)=>boolean;onMediaDrag:(payload:MediaDrag)=>void;project:Project;epoch:number;editingSequenceId:string|null;missing:Set<string>;view:"list"|"grid";onView:(view:"list"|"grid")=>void;onApply:(fn:(p:Project)=>Project)=>void;onImport:(folderId?:string)=>void;onImportFiles:(files:FileList,folderId?:string)=>void;uploading:boolean;onOpenMedia:(src:string,focus:boolean)=>void;onPlaceItems:(keys:string[])=>void;onOpenSequence:(id:string)=>void;onLocate:(use:ReturnType<typeof projectItemUses>[number])=>void;hint:(id:string)=>string};
 type Dialog={type:"delete";keys:string[];stamp:string}|{type:"rename";key:string}|{type:"folder"}|{type:"move"}|{type:"properties";key:string}|{type:"new";item:NewType};
 
@@ -85,7 +85,7 @@ export const ProjectPanel=forwardRef<ProjectPanelHandle,Props>(function ProjectP
       setSelected(ids=>id.startsWith("binextend")?[...new Set([...ids,visible[index].key])]:[visible[index].key]);requestAnimationFrame(()=>{const nodes=marquee.ref.current?.querySelectorAll<HTMLElement>("[data-selection-id]");[...nodes??[]].find(n=>n.dataset.selectionId===visible[index].key)?.scrollIntoView({block:"nearest",inline:"nearest"});});
     }
   };
-  useImperativeHandle(ref,()=>({command,can:id=>["binDelete","binDeleteOptions"].includes(id)?selected.length>0:["binRename","binProperties","binSource"].includes(id)?selected.length===1:true,folder:()=>folderId}));
+  useImperativeHandle(ref,()=>({command,reveal:key=>{const item=all.find(i=>i.key===key);if(!item)return;setFolderId(item.folderId);setQuery("");setSelected([key]);focus();},can:id=>["binDelete","binDeleteOptions"].includes(id)?selected.length>0:["binRename","binProperties","binSource"].includes(id)?selected.length===1:true,folder:()=>folderId}));
   const choose=(item:ProjectItem,event:{shiftKey:boolean;ctrlKey:boolean;metaKey:boolean})=>{
     focus();if(event.shiftKey&&anchor.current){const a=visible.findIndex(i=>i.key===anchor.current),b=visible.indexOf(item);if(a>=0)setSelected(visible.slice(Math.min(a,b),Math.max(a,b)+1).map(i=>i.key));else setSelected([item.key]);}
     else{setSelected(event.ctrlKey||event.metaKey?toggleSelection(selected,item.key):[item.key]);anchor.current=item.key;}

@@ -1,3 +1,4 @@
+import {executeEditingTool} from "./executeEditingTool";
 // Ejecuta en el navegador las herramientas que pide el chat de IA. Cada herramienta usa las
 // mismas operaciones puras de `ops.ts` que la línea de tiempo, así todo se puede deshacer.
 import * as ops from "../../project/ops";
@@ -123,6 +124,10 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
     );
 
   switch (name) {
+    case "open_panel": case "list_effects": case "apply_effect_preset":
+    case "set_effect_parameters": case "set_audio_mix":
+      return executeEditingTool(name,input,ctx);
+
     case "add_marker": {
       const next = ops.setMarker(project, { id: ops.newId(), frame: f(input.time_s), label: str(input.label) ?? "Marcador", color: str(input.color) ?? "#5ab0ff" });
       if (next === project) throw new Error("Tiempo o color de marcador inválido.");
@@ -176,6 +181,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
     case "get_project_state": {
       const foley = await ctx.fetchFoley().catch(() => []);
       return JSON.stringify({
+        master_volumen: project.masterVolume??1,
         duracion_s: round(getProjectDuration(project) / fps),
         clip_seleccionado: ctx.selectedClipId ?? null,
         clips_seleccionados: ctx.selectedClipIds ?? (ctx.selectedClipId ? [ctx.selectedClipId] : []),
@@ -183,7 +189,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
         secuencia_abierta: ctx.currentSequenceId ?? null,
         secuencias: Object.values(project.sequences ?? {}).map((s) => ({ id: s.id, nombre: s.name, duracion_s: round(s.durationInFrames / fps) })),
         marcadores: (project.markers ?? []).map((m) => ({ id: m.id, tiempo_s: round(m.frame / fps), nombre: m.label, color: m.color })),
-        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, bloqueada: Boolean(t.locked), oculta: Boolean(t.hidden), silencio: Boolean(t.muted), solo: Boolean(t.solo), destino: Boolean(t.targeted), seguir_ripple: Boolean(t.syncLock), clips: t.clips.map((c) => ({ ...clipSummary(c, fps), ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
+        pistas: [...project.tracks].reverse().map((t) => ({ pista: t.id, nombre: t.name, tipo: t.kind, bloqueada: Boolean(t.locked), oculta: Boolean(t.hidden), silencio: Boolean(t.muted), solo: Boolean(t.solo), destino: Boolean(t.targeted), seguir_ripple: Boolean(t.syncLock), volumen_pista:t.volume??1, panorama:t.pan??0, clips: t.clips.map((c) => ({ ...clipSummary(c, fps),efectos:c.effects,panorama:c.pan??0,tipo_sonido:c.audioRole??null,mezcla_heredada:c.mix??null,transicion_entrada:c.transitionIn,transicion_salida:c.transitionOut, ...((c.kind === "audio" || c.kind === "video") ? { enlace: c.linkedClipId ?? null, volumen: Math.round(ops.effectiveVolume(project, c) * 100) } : {}) })) })),
         transcripcion: transcriptLines(project) || "(sin transcribir: usa read_transcript antes de resumir el diálogo)",
         archivos_importados: ctx.media.map((m) => ({ nombre: m.name, tipo: m.kind ?? "video", duracion_s: round(m.durationInFrames / fps) })),
         foley: foley.flatMap((d) => d.files.map((x) => `${d.folder}/${x.name}`)).slice(0, 150),

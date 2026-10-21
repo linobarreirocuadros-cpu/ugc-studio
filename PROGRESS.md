@@ -1,5 +1,57 @@
 # Progreso
 
+## 2026-10-21 — Mezclador, efectos, Texto y varios proyectos
+
+**Entregado:** siete paneles reales adicionales: Propiedades, Controles de efectos, Sonido
+esencial, Buscar, Texto, Efectos y Mezclador de pistas. Usan el acoplamiento/pestañas/flotantes
+existentes; migración de workspace 2/3 a 4 preserva distribución. Nuevo layout inicial con
+inspector central y Monitores a la derecha. Se conserva tema y densidad aprobados.
+
+Alt+rueda del timeline también se enruta durante arrastre por puntero de Proyecto/monitores;
+se recalcula huella y anclaje. Área inicial 15 min y crecimiento por contenido entrante,
+independiente de duración/export. Regla virtualizada con etiquetas legibles según escala.
+
+Modelo/ops/validación/renderer incluyen 15 presets locales, transformación, recorte, opacidad,
+color básico, sombra paralela, blur, disolución, dips, barrido y fundidos/crossfades de audio.
+Video sin handles repite bordes; audio exige material real. Conserva cortes y duración.
+Mezcla constante con volumen/pan por pista, M/S, micrófono y Master; medición L/R posfader
+antes/después de Master. Preparación de pan PCM24 con headroom recuperable: el FFmpeg
+incluido rechaza PCM float, detectado y corregido en prueba real. Error breve y reintento. Mono mantiene nivel al iniciar panorama; exportación usa estéreo
+explícito para evitar atenuación distinta del monitor. Caché DSP pan3-pcm24. Video legado sin stream no bloquea export; un AudioClip
+explícito sin audio sí avisa. Se distingue fuente silenciosa de preparación pendiente.
+
+Texto muestra diálogo por pista, búsqueda, corrección de palabra, seguimiento, TXT, edición
+SRT y gráficos; conserva transcripción/captions existentes. Efectos permite buscar, aplicar y
+arrastrar a clips. Chat abre paneles, consulta presets, aplica efectos/parámetros y mezcla
+mediante ops; prueba de integración sin usar servicios ni consumir inferencia pagada.
+
+Documentos simultáneos: pestañas de proyectos y secuencias, historial por proyecto, vistas
+por secuencia, cierre recuperable y autoguardado de toda la sesión validada. No persiste pila
+Undo al recargar. Se invalida contexto asíncrono/gestos incluso para Undo del chat. Restaurar
+vista no pierde selección; localizar usos sincroniza Programa y abre Propiedades.
+
+**Verificado:** 128 pruebas; typecheck y build. UI aislada en :5174: cambio de dos proyectos,
+Undo independiente, secuencia editable sin alterar raíz, agrupación/extracción de panel nuevo,
+reapertura de cerrado y recarga, sombra 55→70→Undo, SRT de 6→5 clips al deshacer y zoom
+mínimo con 15 min en 511 px. Medidores reales: pista/Master difieren 6.0206 dB con Master .5.
+Export UI 6 s: H264/AAC 640×360; disolución roja/morada/azul, sombra visible, pan derecho
+(L RMS 0; R ≈.02999 fuera de transición) y crossfade de potencia constante medidos. Otra
+exportación de 4 s usa MP4 reales sin handles: repite bordes, mezcla al corte y decodifica
+completa sin errores. Evidencia y límites en QUALITY_AUDIT.md.
+
+**Recuperación final:** la pestaña principal mostraba un documento vacío y conservaba
+«Prueba Chat Ollama» en proyectos cerrados. Se reabrió esa versión (26 clips), conservando
+la pestaña vacía, y se descargó copia adicional `Prueba Chat Ollama.ugcproj (3).json`.
+No se sustituyó por las descargas antiguas de 45 clips ni se reconstruyó el montaje.
+
+**Pendiente:** Lumetri completo, LUT/curvas avanzadas, keyframes/rampas/shake, automatización,
+inserts/sends y presets personalizados. Frame.io sigue fuera por pedido. No se ejecutó una
+petición real al proveedor de chat ni una transcripción larga en esta entrega. Alt+rueda
+mientras se mantiene físicamente el arrastre y traslado entre dos monitores necesitan prueba
+con Lino; la herramienta de UI no permite intercalar rueda dentro de un arrastre sostenido.
+Rendimiento/recuperación en un anuncio UGC largo y licencia comercial de Remotion siguen
+como gates del MVP; no equivalencia completa con Premiere ni validación editorial.
+
 ## 2026-10-21 — Imán del cabezal, huellas de inserción y pistas visuales mixtas
 
 **Entregado:** arrastrar cabezal ajusta a bordes/cortes, cero y marcadores; umbral de entrada

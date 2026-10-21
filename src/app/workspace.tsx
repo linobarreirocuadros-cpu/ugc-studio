@@ -9,7 +9,7 @@ type Target = { panel: DockTarget; edge: Edge; label: string; scope: number; cou
 type Hit = { panel: Panel | "workspace"; edge: Edge };
 const geometry = (r: Rect): CSSProperties => ({ left: r.x, top: r.y, width: r.width, height: r.height });
 const EDGE_LABEL = { left: "a la izquierda", right: "a la derecha", top: "arriba", bottom: "abajo", center: "Agrupar en pestañas" };
-function load() { try { const value = JSON.parse(localStorage.getItem(KEY) ?? "null"); return {tree:normalizeLayout([2,3].includes(value?.version)?value.tree:value,window.innerWidth,window.innerHeight),floating:normalizeFloating(value?.floating)}; } catch { return {tree:defaultLayout(),floating:{}}; } }
+function load() { try { const value = JSON.parse(localStorage.getItem(KEY) ?? "null"); return {tree:normalizeLayout([2,3,4].includes(value?.version)?value.tree:value,window.innerWidth,window.innerHeight),floating:normalizeFloating(value?.floating)}; } catch { return {tree:defaultLayout(),floating:{}}; } }
 type Preset={id:string;name:string;tree:DockNode;floating:FloatingPanels;windows:Partial<Record<Panel,WindowPlacement>>};
 const PRESETS="ugc-studio:workspace-presets";
 function loadPresets():Preset[]{try{const list=JSON.parse(localStorage.getItem(PRESETS)??"[]");return Array.isArray(list)?list.filter(p=>p&&typeof p.id==="string"&&typeof p.name==="string").map(p=>({...p,tree:normalizeLayout(p.tree),floating:normalizeFloating(p.floating),windows:Object.fromEntries(Object.entries(p.windows??{}).filter(([key,v])=>PANELS.includes(key as Panel)&&v&&typeof v==="object"&&"rect" in v&&["x","y","width","height"].every(k=>Number.isFinite(((v as WindowPlacement).rect as unknown as Record<string,number>)?.[k]))&&(v as WindowPlacement).rect.width>0&&(v as WindowPlacement).rect.height>0))})):[];}catch{return[];}}
@@ -33,12 +33,13 @@ export function useWorkspace() {
     const observer = new ResizeObserver(measure); observer.observe(el); measure();
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ version: 3, tree,floating }));localStorage.setItem(PRESETS,JSON.stringify(presets)); } catch { /* almacenamiento deshabilitado */ } }, [tree,floating,presets]);
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ version: 4, tree,floating }));localStorage.setItem(PRESETS,JSON.stringify(presets)); } catch { /* almacenamiento deshabilitado */ } }, [tree,floating,presets]);
   useEffect(() => () => cleanup.current?.(), []);
   const visibleTree=(t:DockNode,source?:Panel)=>PANELS.filter(p=>p!==source&&(floating[p]||native.windows[p])).reduce<DockNode|null>((n,p)=>n?removePanel(n,p):null,t);
   const visible=visibleTree(tree),groups=visible?tabGroups(visible):[],layout=visible?layoutRects(visible,size.width,size.height):{panels:{} as Record<Panel,Rect>,dividers:[]};
   const find=(selector:string)=>appRef.current?.querySelector<HTMLElement>(selector)??Object.values(native.windows).map(w=>w?.document.querySelector<HTMLElement>(selector)).find(Boolean);
   const focusTab=(panel:Panel)=>{setTree(t=>activateTab(t,panel));setActivePanel(panel);requestAnimationFrame(()=>find(`[data-workspace-panel="${panel}"]`)?.focus({preventScroll:true}));};
+  useLayoutEffect(()=>{appRef.current?.querySelectorAll<HTMLElement>(".workspace-tab-strip button[aria-selected=true]").forEach(el=>el.scrollIntoView({block:"nearest",inline:"nearest"}));},[tree]);
   const reattach=(panel:Panel)=>{native.close(panel);setFloating(s=>{const n={...s};delete n[panel];return n;});focusTab(panel);};
   const finishDock=(panel:Panel,destination:DockTarget,edge:Edge,asTabs=false)=>{native.close(panel);setFloating(s=>{const n={...s};delete n[panel];return n;});setTree(t=>asTabs&&typeof destination==="string"&&destination!=="workspace"?groupPanel(t,panel,destination):dockPanel(t,panel,destination,edge));};
   const makeFloating=(panel:Panel)=>{native.close(panel);const r=layout.panels[panel]??{x:40,y:40,width:500,height:340};setFloating(s=>({...s,[panel]:constrainFloating({...r,x:r.x+24,y:r.y+24,width:Math.max(320,r.width),height:Math.max(240,r.height)},size.width,size.height)}));setFront(s=>[...s.filter(p=>p!==panel),panel]);setMaximized(null);};

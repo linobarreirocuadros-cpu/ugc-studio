@@ -12,8 +12,8 @@
 5. En **Mouse y rueda** puedes cambiar cada combinación sobre el timeline.
 
 Los atajos dependen del panel activo. Haz clic en Timeline, Origen, Programa o Proyecto, o usa
-Shift+1 (Proyecto), Shift+2 (Origen), Shift+3 (Timeline), Shift+4 (Programa). Shift+5 abre las
-propiedades que existen actualmente; no representa unos Controles de efectos completos.
+Shift+1 (Proyecto), Shift+2 (Origen), Shift+3 (Timeline), Shift+4 (Programa). Shift+5 abre Controles de efectos, Shift+6 el Mezclador de pistas y Shift+7 Efectos.
+Propiedades y Texto están en Ventana; las combinaciones siguen siendo editables.
 No se ejecutan al escribir en el chat, campos, elementos editables o dentro de un diálogo.
 
 ## Ejemplos de la base Windows
@@ -109,7 +109,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   No se distribuye el XML .kys original ni se requiere instalar Premiere para usar UGC Studio.
   **Referencia Premiere 2026** permite buscar todas esas asignaciones. Son referencia; no se
   anuncian como funciones ejecutables de UGC Studio.
-- El mapa operativo/adaptado contiene **229 comandos: 137 disponibles y 92 pendientes**.
+- El mapa operativo/adaptado contiene **233 comandos: 144 disponibles y 89 pendientes**.
   Los pendientes se distinguen por color y explicación; no ejecutan una función diferente.
   El contexto local tiene prioridad sobre el general. Una reserva pendiente también bloquea
   un comando general para evitar que una combinación haga algo inesperado.
@@ -136,7 +136,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   o reasignar. Los presets JSON de UGC Studio no importan/exportan archivos .kys personalizados.
 - Pendiente validar Alt/Ctrl/Shift+rueda con el mouse físico de Lino, distribución de teclado
   y comodidad del editor; también arrastre de comandos a teclas y traslado de presets entre equipos.
-  No se probó cada uno de los 137 comandos disponibles manualmente.
+  No se probó cada uno de los 144 comandos disponibles manualmente.
 
 ## Para continuar el desarrollo
 
@@ -152,7 +152,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   expone controles de Origen; `useShuttle.ts` gestiona transporte. `copyClips`, `pasteClips` e
   `insertSourceRange` son operaciones puras de `src/project/ops.ts`, una transacción de historial.
 - Siguiente paso: contrastar la sensación de rueda/puntuación con Lino y priorizar funciones
-  faltantes del catálogo. No convertir 92 reservas o 629 referencias en promesas de funciones.
+  faltantes del catálogo. No convertir 89 reservas o 629 referencias en promesas de funciones.
 
 ## Edición con clic derecho
 
@@ -188,7 +188,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   y ventanas en pantallas identificadas. Detectar pantallas solicita el permiso del navegador.
   Aplicar distribución abre/mueve las ventanas; el bloqueo de popups muestra una alternativa.
 - Nuevas entradas operativas: Anidar, tres variantes de congelado, Sólido, Ajuste, Rectángulo y
-  Presets de ventanas. No se asignaron teclas fijas fuera del mapa central. Las 92 reservas
+  Presets de ventanas. No se asignaron teclas fijas fuera del mapa central. Las 89 reservas
   siguen en la referencia/edición de atajos, y se ocultan en los menús de trabajo.
 - La disponibilidad de ganancia/canales/velocidad/anidar/grupos se comparte con clic derecho;
   una selección incompatible o protegida se deshabilita. No editar una selección antigua del
@@ -196,7 +196,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
 - Marcar selección en Origen marca su archivo completo; las marcas I/O son preferencias de
   ese visor. El foco y la entrada de las ventanas secundarias usan el mismo mapa de comandos.
 - Recorrido real: ocho menús inspeccionados; acciones de edición y monitor descritas en
-  QUALITY_AUDIT.md. No se ejecutó manualmente cada combinación de los 137 comandos.
+  QUALITY_AUDIT.md. No se ejecutó manualmente cada combinación de los 144 comandos.
 
 ## Imán y colocación — 2026-10-21
 
@@ -208,3 +208,15 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   La combinación se compara completa; no cambia Alt+arrastrar para duplicar.
 - Soltar coloca; cancelar el arrastre no edita el proyecto. Imagen/audio/ambos del monitor
   usan el mismo rango I/O, con salida inclusiva en la interfaz y exclusiva en el modelo.
+
+## Paneles y proyectos — 2026-10-21
+
+- Alt+rueda conserva zoom bajo puntero durante arrastre interno de Proyecto/monitores.
+  Usa la combinación elegida en Mouse y rueda, no un listener alternativo con Alt fijo.
+  La rueda durante el arrastre HTML5 entre ventanas no está validada.
+- Nuevo/abrir añade pestañas de proyecto. Cerrar tiene recuperación desde Archivo → Reabrir
+  proyecto cerrado. Undo/Redo se aplican al proyecto activo; sus secuencias comparten historial.
+- Vistas y documentos se recuperan con la sesión local. Tras recargar no se recupera la pila
+  de Undo ni la conversación del proveedor. No confundir sesión local con guardar un .ugcproj.
+- Los 629 atajos de referencia siguen siendo consulta. Catálogo adaptado actual: 233 comandos,
+  144 implementados y 89 reservas. No se comprobó manualmente cada combinación.

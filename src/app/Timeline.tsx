@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Clip, Project, Track } from "../project/types";
 import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled, trackFamily } from "../project/types";
+import {timelineExtent,timelineScale,timelineTicks} from "./timelineViewport";
 import {snapTimeline,type SnapHit} from "./timelineSnap";
 import {previewMedia,type PlacementOptions} from "./mediaPlacement";
 import type {MediaHover} from "./useMonitorDrag";
@@ -71,6 +72,8 @@ type Props = {
   onAddText: (frame: number) => void;
   onZoom: (factor: number) => void;
   onDropMedia: (media: MediaDrag, trackId: string, from: number,bypass?:boolean) => void;
+  effectTarget:string|null;
+  dragWheel:{current:((event:WheelEvent,x:number)=>void)|null};
   mediaDrag:MediaDrag|null;mediaHover:MediaHover|null;onMediaHover:(payload:MediaDrag,track:string,raw:number,bypass?:boolean)=>void;onMediaLeave:()=>void;placementOptions:PlacementOptions;
   onTrackChange: (id: string, patch: Partial<Pick<Track, "locked" | "hidden" | "muted" | "solo" | "targeted" | "syncLock">>) => void;
   onRecord: (id: string) => void;
@@ -80,7 +83,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const [volumePreview,setVolumePreview]=useState<Record<string,number>>({});
@@ -95,8 +98,9 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
   };
   const scrollRef = useRef<HTMLDivElement>(null);
   const timelineRef=useRef<HTMLDivElement>(null),rulerRef=useRef<HTMLDivElement>(null),headersRef=useRef<HTMLDivElement>(null);
+  const [rulerViewport,setRulerViewport]=useState({left:0,width:800});
   const [scrollbars,setScrollbars]=useState({x:0,y:0});
-  const syncScroll=()=>{const scroll=scrollRef.current;if(!scroll)return;if(rulerRef.current)rulerRef.current.scrollLeft=scroll.scrollLeft;if(headersRef.current)headersRef.current.scrollTop=scroll.scrollTop;};
+  const syncScroll=()=>{const scroll=scrollRef.current;if(!scroll)return;setRulerViewport(p=>p.left===scroll.scrollLeft&&p.width===scroll.clientWidth?p:{left:scroll.scrollLeft,width:scroll.clientWidth});if(rulerRef.current)rulerRef.current.scrollLeft=scroll.scrollLeft;if(headersRef.current)headersRef.current.scrollTop=scroll.scrollTop;};
   useLayoutEffect(()=>{const scroll=scrollRef.current;if(!scroll)return;const sync=()=>{syncScroll();const x=scroll.offsetHeight-scroll.clientHeight,y=scroll.offsetWidth-scroll.clientWidth;setScrollbars(p=>p.x===x&&p.y===y?p:{x,y});};const observer=new ResizeObserver(sync);observer.observe(scroll);sync();return()=>observer.disconnect();},[project,pxPerFrame]);
   const displaySelected = selectionIds(selectedIds, preferences.linkedSelection && !isolatedSelection);
   const hasLinkedAudio = project.tracks.some((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
@@ -112,17 +116,17 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
   const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
   useEffect(()=>{
     const horizontal=scrollRef.current,vertical=horizontal,root=timelineRef.current;if(!horizontal||!vertical||!root)return;
-    const wheel=(e:WheelEvent)=>{
-      if((e.target as HTMLElement).closest("input,select,textarea,[role=separator]"))return;
+    const wheel=(e:WheelEvent,dragX?:number)=>{
+      if(dragX===undefined&&(e.target as HTMLElement).closest("input,select,textarea,[role=separator]"))return;
       const action=gestures[wheelModifier(e)];if(action==="none")return;
       e.preventDefault();const delta=wheelPixels(e.deltaY||e.deltaX,e.deltaMode,vertical.clientHeight||300);
       if(action==="horizontal")horizontal.scrollLeft+=e.deltaX||delta;
       else if(action==="vertical")vertical.scrollTop+=delta;
-      else if(action==="zoom") {const factor=Math.exp(-delta*.006);if(Math.max(.02,Math.min(20,pxPerFrame*factor))===pxPerFrame)return;const x=Math.max(0,Math.min(horizontal.clientWidth,e.clientX-horizontal.getBoundingClientRect().left));zoomAnchor.current={frame:(horizontal.scrollLeft+x)/pxPerFrame,x};onZoom(factor);}
+      else if(action==="zoom") {const factor=Math.exp(-delta*.006);if(timelineScale(pxPerFrame,factor,horizontal.clientWidth,width/pxPerFrame)===pxPerFrame)return;const x=Math.max(0,Math.min(horizontal.clientWidth,(dragX??e.clientX)-horizontal.getBoundingClientRect().left));zoomAnchor.current={frame:(horizontal.scrollLeft+x)/pxPerFrame,x};onZoom(factor);}
       else if(action==="height")onTrackHeight(preferences.trackHeight+(delta<0?4:-4));
       else {onSeek(frame+Math.sign(delta)*(action==="fiveFrames"?5:1));}
     };
-    root.addEventListener("wheel",wheel,{passive:false});return()=>root.removeEventListener("wheel",wheel);
+    dragWheel.current=wheel;root.addEventListener("wheel",wheel,{passive:false});return()=>{dragWheel.current=null;root.removeEventListener("wheel",wheel);};
   },[gestures,pxPerFrame,frame,onZoom,onSeek,onTrackHeight,preferences.trackHeight]);
   const panCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => {panCleanup.current?.();if(snapTimer.current)clearTimeout(snapTimer.current);}, []);
@@ -133,7 +137,7 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
   const lastEnd = project.tracks.flatMap((t) => t.clips).reduce((end, c) => Math.max(end, c.from + c.durationInFrames), duration);
   const shapes=mediaHover?previewMedia(project,mediaHover.payload,mediaHover.trackId,mediaHover.at,placementOptions):[];
   const incomingEnd=shapes.reduce((end,{clip})=>Math.max(end,clip.from+clip.durationInFrames),lastEnd);
-  const width = (incomingEnd + project.fps * 10) * pxPerFrame;
+  const width = timelineExtent(project.fps,lastEnd,incomingEnd)*pxPerFrame;
 
   // Puntos de "imán": bordes de todos los clips y el cabezal de reproducción.
   const snapPoints = (excludeIds: string[]) => {
@@ -255,7 +259,7 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
     }
     if ((event.target as HTMLElement).closest(".ruler")) return;
     const at = frameFromX(event.clientX);
-    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); const factor=event.altKey ? 0.8 : 1.25; if(Math.max(.02,Math.min(20,pxPerFrame*factor))===pxPerFrame)return; zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(factor); }
+    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); const factor=event.altKey ? 0.8 : 1.25; if(timelineScale(pxPerFrame,factor,scrollRef.current!.clientWidth,timelineExtent(project.fps,lastEnd,incomingEnd))===pxPerFrame)return; zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(factor); }
     else if (tool === "text") { event.preventDefault(); event.stopPropagation(); onAddText(at); }
     else if (tool === "razor") {
       event.preventDefault(); event.stopPropagation();
@@ -268,10 +272,7 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
     }
   };
 
-  // Marcas de la regla: cada segundo, con etiqueta según el zoom.
-  const secondPx = project.fps * pxPerFrame;
-  const labelEvery = secondPx < 30 ? 5 : secondPx < 60 ? 2 : 1;
-  const totalSeconds = Math.ceil(width / secondPx);
+  const ticks=timelineTicks(project.fps,pxPerFrame,width,rulerViewport.left,rulerViewport.width);
   const scrubStart=(e:PointerEvent<HTMLDivElement>)=>{if(e.button!==0||(e.target as Element).closest("button"))return;e.preventDefault();e.stopPropagation();onScrubStart();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);seekFromX(e.clientX,true,bypassSnap(e,gestures));};
   const scrubMove=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))seekFromX(e.clientX,true,bypassSnap(e,gestures));};
   const scrubEnd=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);scrubSnapRef.current=null;snapTimer.current=setTimeout(()=>setScrubSnap(null),800);};
@@ -297,13 +298,7 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
             onPointerDown={scrubStart} onPointerMove={scrubMove} onPointerUp={scrubEnd} onPointerCancel={scrubEnd}
           >
             {(markRange.start!==null||markRange.end!==null)&&<span className="timeline-mark-range" aria-label="Rango de entrada y salida" style={{left:(markRange.start??0)*pxPerFrame,width:Math.max(0,(markRange.end??duration)-(markRange.start??0))*pxPerFrame}}/>}
-            {Array.from({ length: totalSeconds }, (_, s) =>
-              s % labelEvery === 0 ? (
-                <span key={s} className="tick" style={{ left: s * secondPx }}>
-                  {formatTime(s)}
-                </span>
-              ) : null,
-            )}
+            {ticks.map(t=><span key={t.second} className="tick" style={{left:t.x}}>{formatTime(t.second)}</span>)}
             {preferences.showMarkers && (project.markers ?? []).map((marker) => <button key={marker.id} className="timeline-marker" style={{ left: marker.frame * pxPerFrame, color: marker.color }} title={`${marker.label} · ${formatTimecode(marker.frame, project.fps)}`} aria-label={`Ir al marcador ${marker.label}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => onSeek(marker.frame)}>◆</button>)}
             {snapCue?.point!==null&&snapCue?.point!==undefined&&<i className="ruler-snap" style={{left:snapCue.point*pxPerFrame}}/>}
             <i className="ruler-playhead" aria-hidden style={{left:frame*pxPerFrame}}/>
@@ -352,7 +347,7 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
                 return (
                   <div
                     key={clip.id}
-                    className={`clip clip-${clip.kind} ${(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "clip-sequence" : ""} ${displaySelected.includes(clip.id) ? "selected" : ""}`}
+                    className={`clip ${effectTarget===clip.id?"effect-drop-target":""} clip-${clip.kind} ${(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "clip-sequence" : ""} ${displaySelected.includes(clip.id) ? "selected" : ""}`}
                     data-selection-id={clip.id}
                     data-selection-disabled={track.locked || undefined}
                     role="option"
@@ -402,11 +397,13 @@ export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placem
                         src={waveforms[clip.src]}
                         alt=""
                         draggable={false}
-                        style={{transform:`scaleY(${volumePreview[clip.id]??clip.volume})`,transformOrigin:"center center",width: clip.sourceDurationInFrames * pxPerFrame / (clip.playbackRate??1), left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame / (clip.playbackRate??1) }}
+                        style={{transform:`scaleY(${(volumePreview[clip.id]??clip.volume)*(clip.mix?.gain??1)})`,transformOrigin:"center center",width: clip.sourceDurationInFrames * pxPerFrame / (clip.playbackRate??1), left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame / (clip.playbackRate??1) }}
                       />
                     )}
                     {clip.kind==="audio"&&<VolumeRubberBand name={clip.name} volume={clip.volume} height={TRACK_H-8} disabled={Boolean(track.locked)} onChange={v=>onVolume(clip.id,v)} onPreview={v=>setVolumePreview(s=>{const next={...s};if(v===null)delete next[clip.id];else next[clip.id]=v;return next;})}/>}
                     {preferences.showNames && <span className="clip-label">{(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "▤ " : ""}{clipLabel(clip)}{dragging && drag?.mode === "slip" && (preview.kind === "video" || preview.kind === "audio") ? ` · Origen ${(preview.trimStart / project.fps).toFixed(2)} s` : ""}</span>}
+                    {clip.effects&&<span className="clip-fx" aria-label={clip.effects.enabled===false?"Efectos desactivados":"Efectos aplicados"} style={{opacity:clip.effects.enabled===false?.4:1}}>fx</span>}
+                    {(clip.transitionIn||clip.transitionOut||clip.kind==="audio"&&clip.crossfadeIn)&&<span className="clip-transition-mark" aria-label="Transición aplicada" style={{width:Math.min(p.dur,clip.transitionIn?.frames??clip.transitionOut?.frames??(clip.kind==="audio"?clip.crossfadeIn?.frames:0)??0)*pxPerFrame}}>◩</span>}
                     {(() => { if ((clip.kind !== "video" && clip.kind !== "audio") || !clip.linkedClipId) return null; const mate = projectClip(project, clip.linkedClipId)?.clip; if (!mate || (mate.kind !== "video" && mate.kind !== "audio")) return null; const offset = clip.from - clip.trimStart - mate.from + mate.trimStart; return offset ? <span className="clip-sync-warning" title="Diferencia de sincronía con su pareja">{offset > 0 ? "+" : ""}{offset} f</span> : null; })()}
                     <div
                       className="trim-handle right"

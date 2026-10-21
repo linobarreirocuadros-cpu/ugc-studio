@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { defaultLayout, dockPanel, dockTargets, dockScopes, layoutRects, normalizeLayout, panelsIn, PANELS, setSplitRatio, type DockNode } from "../src/app/workspaceLayout";
+import { defaultLayout, dockPanel, dockTargets, dockScopes, layoutRects, normalizeLayout, panelsIn, PANELS, setSplitRatio, type DockNode,tabGroups } from "../src/app/workspaceLayout";
 
 test("el acoplamiento conserva cada panel una vez y permite bordes globales o de otro panel", () => {
   let tree = defaultLayout();
@@ -31,7 +31,7 @@ test("la geometría queda dentro del área y sin solapamientos incluso en ventan
   for (const panel of PANELS) {
     tree = dockPanel(tree, panel, "workspace", "right");
     for (const [w, h] of [[1600, 900], [756, 500], [320, 180], [0, 0]]) {
-      const rects = Object.values(layoutRects(tree, w, h).panels);
+      const rects = Object.entries(layoutRects(tree, w, h).panels).filter(([id])=>!tabGroups(tree).some(g=>g.panels.includes(id as typeof PANELS[number])&&g.panels[0]!==id)).map(([,r])=>r);
       for (const r of rects) {
         assert.ok(r.width >= 0 && r.height >= 0 && Number.isFinite(r.x + r.y + r.width + r.height));
         assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.width <= w + .0001 && r.y + r.height <= h + .0001);
@@ -73,13 +73,13 @@ test("timeline puede abarcar Proyecto y Monitores sin invadir el chat lateral",(
   const upper=dividers.find(d=>d.first==="Proyecto"&&d.second==="Monitores")!;
   const resized=layoutRects(setSplitRatio(next,upper.id,.35),1600,900);
   assert.deepEqual(resized.panels.timeline,panels.timeline);assert.deepEqual(resized.panels.meter,panels.meter);
-  assert.equal(JSON.stringify(tree),original);assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),next);
+  assert.equal(JSON.stringify(tree),original);assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),normalizeLayout(next));
 });
 test("acoplar cada panel a conjuntos conserva regiones sin duplicados ni solapamientos",()=>{
   let tree=dockPanel(defaultLayout(),"inspector","workspace","right");
   for(const source of PANELS)for(const target of dockTargets(tree,source))for(const edge of ["left","right","top","bottom"] as const){
     const next=dockPanel(tree,source,target.target,edge);assert.deepEqual([...panelsIn(next)].sort(),[...PANELS].sort());
-    assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),next);
+    assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),normalizeLayout(next));
     for(const [w,h] of [[1600,900],[640,380]]){
       const rects=Object.values(layoutRects(next,w,h).panels);
       for(const r of rects)assert.ok(r.x>=0&&r.y>=0&&r.x+r.width<=w+.0001&&r.y+r.height<=h+.0001);

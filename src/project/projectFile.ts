@@ -1,3 +1,4 @@
+import {validEffects} from "./effects";
 import { normalizeProject, type Project, type LibraryMedia } from "./types";
 
 export type ProjectMedia = LibraryMedia;
@@ -14,11 +15,20 @@ export function assertProject(value:unknown):asserts value is Project {
     requireValue(p.version===1&&typeof p.name==="string","formato o versión desconocidos");
     requireValue(integer(p.fps,1)&&p.fps<=120&&integer(p.width,1)&&integer(p.height,1),"FPS o dimensiones incorrectos");
     requireValue(Array.isArray(p.tracks),"faltan las pistas");
+    if(p.masterVolume!==undefined)requireValue(number(p.masterVolume)&&p.masterVolume>=0&&p.masterVolume<=4,"mezcla maestra inválida");
     const tracks=new Set<string>(),clips=new Set<string>();
     for(const t of p.tracks){
       requireValue(object(t)&&typeof t.id==="string"&&!tracks.has(t.id)&&typeof t.name==="string"&&["video","audio","text","caption","graphic"].includes(String(t.kind))&&Array.isArray(t.clips),"pista incorrecta o duplicada");tracks.add(t.id);
+      if(t.volume!==undefined)requireValue(t.kind==="audio"&&number(t.volume)&&t.volume>=0&&t.volume<=4,"volumen de pista inválido");
+      if(t.pan!==undefined)requireValue(t.kind==="audio"&&number(t.pan)&&Math.abs(t.pan)<=1,"panorama de pista inválido");
       for(const c of t.clips){
         requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&["video","audio","text","caption","graphic"].includes(String(c.kind))&&(c.kind==="audio")===(t.kind==="audio")&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
+        if(c.effects!==undefined)requireValue(c.kind!=="audio"&&validEffects(c.effects),"efectos inválidos");
+        for(const key of ["transitionIn","transitionOut"]){const v=c[key];if(v!==undefined)requireValue(c.kind!=="audio"&&object(v)&&["dissolve","dipBlack","dipWhite","wipe"].includes(String(v.type))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de video inválida");}
+        if(c.crossfadeIn!==undefined){const v=c.crossfadeIn;requireValue(c.kind==="audio"&&object(v)&&["linear","equalPower"].includes(String(v.curve))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de audio inválida");}
+        if(c.pan!==undefined)requireValue(["audio","video"].includes(String(c.kind))&&number(c.pan)&&Math.abs(c.pan)<=1,"panorama de clip inválido");
+        if(c.audioRole!==undefined)requireValue(["dialogue","music","sfx","ambience"].includes(String(c.audioRole)),"tipo de sonido inválido");
+        if(c.mix!==undefined)requireValue(object(c.mix)&&number(c.mix.gain)&&c.mix.gain>=0&&c.mix.gain<=1e6&&Array.isArray(c.mix.matrix)&&c.mix.matrix.length===4&&c.mix.matrix.every(v=>number(v)&&Math.abs(v)<=64),"mezcla heredada inválida");
         if(c.labelColor!==undefined)requireValue(/^#[0-9a-f]{6}$/i.test(String(c.labelColor)),"etiqueta incorrecta");
         if(c.groupId!==undefined)requireValue(typeof c.groupId==="string","grupo incorrecto");
         if(c.kind==="video"||c.kind==="audio"){

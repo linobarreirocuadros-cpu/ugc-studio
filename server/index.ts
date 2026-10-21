@@ -1,3 +1,4 @@
+import {registerAudioMix,prepareAudioMix} from "./audioMix";
 // Servidor local: guarda los archivos importados y renderiza la exportación con Remotion.
 import express from "express";
 import multer from "multer";
@@ -43,6 +44,7 @@ app.use("/media", express.static(MEDIA_DIR));
 app.use("/out", express.static(OUT_DIR));
 app.use("/library", express.static(FOLEY_DIR));
 registerPreviewQuality(app, DATA_DIR);
+registerAudioMix(app,DATA_DIR);
 registerAudioChannels(app, DATA_DIR);
 registerMediaMetadata(app, DATA_DIR);
 
@@ -310,7 +312,7 @@ app.post("/api/render", async (req, res) => {
 
   try {
     const serveUrl = await getBundle();
-    const inputProps = { project, mediaBaseUrl: BASE_URL };
+    const inputProps = { project, mediaBaseUrl: BASE_URL, audioSources:await prepareAudioMix(project,DATA_DIR) };
     const browserExecutable = process.env.REMOTION_BROWSER ?? null;
     const composition = await selectComposition({ serveUrl, id: "Project", inputProps, browserExecutable });
     const fileName = `${project.name.replace(/[^\w\-]+/g, "_")}_${id}.${cfg.ext}`;

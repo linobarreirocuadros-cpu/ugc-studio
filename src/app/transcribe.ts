@@ -56,13 +56,11 @@ const STEP_LABEL: Record<TranscribeStep, string> = {
   transcribiendo: "Transcribiendo",
 };
 
-/** Archivos de V1 que todavía no tienen transcripción: [src, nombre]. */
+export const transcriptionSources=(project:Project):[string,string][]=>[...new Map(project.tracks.flatMap(t=>t.clips).flatMap(c=>(c.kind==="video"||c.kind==="audio")&&!c.sequenceId?[[c.kind==="audio"&&c.derivedFrom?c.derivedFrom.src:c.src,c.name] as [string,string]]:[])).entries()];
+/** Originales del montaje que todavía requieren transcripción (sin duplicar parejas/stems). */
 export const pendingTranscripts = (project: Project): [string, string][] => {
-  const clips = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter(
-    (c): c is VideoClip => c.kind === "video" && !c.sequenceId,
-  );
   const preferences = whisperPrefs();
-  return [...new Map(clips.map((c) => [c.src, c.name])).entries()].filter(([src]) => {
+  return transcriptionSources(project).filter(([src]) => {
     const info = project.transcriptInfo?.[src];
     return !project.transcripts?.[src] || !info || info.engine !== preferences.engine || info.model !== (preferences.engine === "local" ? "large-v3" : preferences.model) || info.language !== preferences.language || (info.vocabulary ?? "") !== preferences.vocabulary;
   });

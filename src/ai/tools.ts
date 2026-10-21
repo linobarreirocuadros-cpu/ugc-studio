@@ -1,3 +1,4 @@
+import {EFFECT_PRESETS,EFFECT_LIMITS} from "../project/effects";
 // Herramientas que el chat de IA puede usar para editar el proyecto. Se definen una sola vez y el
 // servidor las traduce al formato de cada proveedor (Claude, OpenAI/Ollama/Gemini/Groq/OpenRouter).
 // Los tiempos para la IA van en SEGUNDOS; el cliente los convierte a frames al ejecutarlas.
@@ -22,6 +23,12 @@ const font = {
 const position = { type: "string", enum: ["arriba", "centro", "abajo"], description: "Posición vertical en pantalla" };
 
 export const TOOLS: ToolDef[] = [
+  {name:"open_panel",description:"Abre y activa un panel del editor sin cambiar el montaje. Usa effects para mostrar el catálogo y effectControls para ajustar el clip.",parameters:{type:"object",properties:{panel:{type:"string",enum:["effects","effectControls","properties","text","essentialSound","mixer","search","timeline","bin","monitor","inspector"]}},required:["panel"],additionalProperties:false}},
+  {name:"list_effects",description:"Consulta efectos y transiciones locales disponibles antes de elegir sus IDs. Incluye disolución cruzada, sombra paralela, color básico y fundidos de audio. No importa plugins/presets binarios de Premiere.",parameters:{type:"object",properties:{query:{type:"string"}},additionalProperties:false}},
+  {name:"apply_effect_preset",description:"Aplica un preset local a clip_ids o a la selección capturada. Reversible, conserva duración y abre sus controles. Audio acepta video enlazado. Crossfade requiere material extra; si falla, explica la limitación sin cambiar tiempos ni sustituir por otro efecto sin permiso.",parameters:{type:"object",properties:{preset_id:{type:"string",enum:EFFECT_PRESETS.map(p=>p.id)},clip_ids:{type:"array",items:{type:"string"}},duration_s:{type:"number",minimum:.01,maximum:10},edge:{type:"string",enum:["start","end"]}},required:["preset_id"],additionalProperties:false}},
+  {name:"set_effect_parameters",description:"Ajusta parámetros visuales constantes en los clips indicados o seleccionados. x/y y anclas son proporciones del cuadro (0.5 centro); escalas 1=100%, opacidad y recortes 0..1. No hay keyframes. Los mismos controles se guardan y exportan.",parameters:{type:"object",properties:{clip_ids:{type:"array",items:{type:"string"}},values:{type:"object",properties:{...Object.fromEntries(Object.entries(EFFECT_LIMITS).map(([key,[minimum,maximum]])=>[key,{type:"number",minimum,maximum}])),shadowColor:{type:"string"},fit:{type:"string",enum:["cover","contain"]},enabled:{type:"boolean"}},additionalProperties:false}},required:["values"],additionalProperties:false}},
+  {name:"set_audio_mix",description:"Controla volumen/panorama constante de una pista Audio por nombre o ID. master true ajusta solo volumen de la salida. Valores dB de -60 (silencio) a +12, panorama -1 izquierda a +1 derecha. No altera volumen de clips ni automatiza. Abre mezclador; panorama se prepara localmente.",parameters:{type:"object",properties:{track:{type:"string"},master:{type:"boolean"},volume_db:{type:"number",minimum:-60,maximum:12},pan:{type:"number",minimum:-1,maximum:1}},additionalProperties:false}},
+
   { name: "add_marker", description: "Añade un marcador del montaje con nombre y color. Se guarda en el proyecto y puede deshacerse.", parameters: { type: "object", properties: { time_s: { type: "number" }, label: { type: "string" }, color: { type: "string" } }, required: ["time_s", "label"], additionalProperties: false } },
   { name: "delete_marker", description: "Elimina un marcador por su ID, consultado en get_project_state.", parameters: { type: "object", properties: { marker_id: { type: "string" } }, required: ["marker_id"], additionalProperties: false } },
   { name: "create_sequence", description: "Guarda una copia editable de la selección como secuencia; no quita los clips actuales. Incluye parejas de audio. Puedes colocarla después anidada o como clips individuales.", parameters: { type: "object", properties: { name: { type: "string" }, clip_ids: { type: "array", items: { type: "string" } } }, required: ["name"], additionalProperties: false } },
@@ -259,6 +266,10 @@ Cómo trabajas:
 - Para modificar un fragmento localizado, split_clip_range devuelve su id. No ejecutes cortes ni limpiezas cuando el usuario solo pide buscar o analizar.
 - Para resumir a una duración: get_project_state, read_transcript, create_edit_plan y apply_edit_plan. Conserva gancho, argumento y cierre que existan en el material y respeten el brief. Elige frases completas en orden; no inventes diálogo, no aceleres ni te limites a truncar el inicio del video. Comprueba la suma de segundos y aprovecha pausas para ajustar la duración exacta. Si no hay evidencia o no puedes conservar el sentido en ese tiempo, explícalo.
 - Los rangos de create_edit_plan son tiempos del montaje original, ordenados y sin solaparse. Solo apply_edit_plan modifica el timeline; aplica si el usuario pidió ejecutar el resumen. Si una validación falla, corrige la propuesta sin hacer cortes sueltos alternativos.
+
+Efectos y mezcla:
+- Usa list_effects y sus IDs reales. open_panel muestra el catálogo/controles. apply_effect_preset y set_effect_parameters editan el JSON con Deshacer; set_audio_mix controla pistas y Master.
+- Hay disolución cruzada, sombra paralela, corrección de color básica y transiciones básicas. No hay Lumetri completo ni plugins de Adobe, ni automatización/keyframes. No inventes efectos no implementados.
 
 Criterio editorial:
 - Respeta el brief, las decisiones de Lino, la tipografía, composición, timing y easing solicitados.

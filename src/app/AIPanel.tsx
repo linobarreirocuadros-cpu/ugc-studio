@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { WhisperWebLanguage, WhisperWebModel } from "@remotion/whisper-web";
 import * as ops from "../project/ops";
 import type { CaptionPreset, Project, VideoClip } from "../project/types";
-import { WHISPER_LANGUAGES, WHISPER_MODELS, loadPref, pendingTranscripts, savePref, transcribeMissing, whisperPrefs } from "./transcribe";
+import { WHISPER_LANGUAGES, WHISPER_MODELS, loadPref, pendingTranscripts, savePref, transcriptionSources, transcribeMissing, whisperPrefs } from "./transcribe";
 
 export const CAPTION_PRESETS: { id: CaptionPreset; label: string }[] = [
   { id: "karaoke", label: "Karaoke (resalta la palabra)" },
@@ -24,10 +24,7 @@ export function AIPanel({ project, apply }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const videoClips = (project.tracks.find((t) => t.id === "V1")?.clips ?? []).filter(
-    (c): c is VideoClip => c.kind === "video" && !c.sequenceId,
-  );
-  const sources = [...new Map(videoClips.map((c) => [c.src, c.name])).entries()];
+  const sources=transcriptionSources(project);
   const done = sources.length - pendingTranscripts(project).length;
 
   const transcribePending = (force = false) =>
@@ -104,6 +101,7 @@ export function AIPanel({ project, apply }: Props) {
             ))}
           </select>
         </label>
+        <button disabled={busy||sources.length===0} onClick={()=>void run("Transcribiendo…",()=>transcribePending())}>Transcribir</button>
         <button className="primary" disabled={busy || sources.length === 0} onClick={generate}>
           Generar subtítulos
         </button>
@@ -114,7 +112,7 @@ export function AIPanel({ project, apply }: Props) {
         </button>
         <div className="hint">
           {sources.length === 0
-            ? "Pon un video en B1 para empezar."
+            ? "Coloca video o audio en el montaje para empezar."
             : `Transcritos: ${done}/${sources.length} archivos. Consejo: quita silencios antes de generar subtítulos.`}
         </div>
         {status && <div className={status.startsWith("Error") ? "status error" : "status"}>{status}</div>}

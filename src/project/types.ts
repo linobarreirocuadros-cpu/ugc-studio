@@ -1,7 +1,8 @@
+import type {ClipEffects,VideoTransition,AudioTransition} from "./effects";
 // El proyecto completo es un JSON serializable. La línea de tiempo, el chat (Fase 2)
 // y el render de Remotion leen y escriben esta misma estructura.
 
-export type ClipMetadata = { labelColor?: string; groupId?: string; projectItemId?: string };
+export type ClipMetadata = { labelColor?: string; groupId?: string; projectItemId?: string;effects?:ClipEffects;transitionIn?:VideoTransition;transitionOut?:VideoTransition;pan?:number;audioRole?:"dialogue"|"music"|"sfx"|"ambience";mix?:{gain:number;matrix:[number,number,number,number]} };
 export type MediaTiming = { playbackRate?: number };
 
 export type VideoClip = ClipMetadata & MediaTiming & {
@@ -34,6 +35,7 @@ export type AudioClip = ClipMetadata & MediaTiming & {
   volume: number; // 0..4; 1 = 0 dB
   fadeIn: number; // frames
   fadeOut: number; // frames
+  crossfadeIn?:AudioTransition;
   channelSource?: string; // original antes de mapear canales localmente
   channelMode?: "stereo" | "mono" | "left" | "right";
   derivedFrom?: { clipId: string; src: string; originalVolume: number; mode: string };
@@ -103,6 +105,8 @@ export type Track = {
   solo?: boolean;
   targeted?: boolean;
   syncLock?: boolean;
+  volume?:number;
+  pan?:number;
 };
 
 /** Las pistas visuales antiguas siguen siendo compatibles: solo se separa audio de imagen. */
@@ -126,6 +130,7 @@ export type Project = {
   transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
   markers?: TimelineMarker[];
   sequences?: Record<string, SequenceProject>;
+  masterVolume?:number;
   library?: ProjectLibrary; // biblioteca global; comparte el historial del montaje
 };
 

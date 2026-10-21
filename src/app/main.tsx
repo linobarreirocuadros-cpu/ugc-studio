@@ -14,6 +14,7 @@ import "./monitors.css";
 import "./assistant.css";
 import "./editing-actions.css";
 import "./project-panel.css";
+import "./studio-panels.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

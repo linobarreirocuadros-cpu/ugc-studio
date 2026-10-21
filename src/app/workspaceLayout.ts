@@ -1,17 +1,18 @@
-export const PANELS = ["bin", "monitor", "inspector", "timeline", "meter"] as const;
+export const PANELS = ["bin", "monitor", "inspector", "timeline", "meter", "properties", "effectControls", "essentialSound", "search", "text", "effects", "mixer"] as const;
 export type Panel = typeof PANELS[number];
 export type Edge = "left" | "right" | "top" | "bottom" | "center";
 export type DockTarget = Panel | "workspace" | { group: string };
 export type DockNode = { type: "panel"; panel: Panel } | {type:"tabs";panels:Panel[];active:Panel} | { type: "split"; id: string; axis: "x" | "y"; ratio: number; first: DockNode; second: DockNode };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Divider = Rect & { id: string; axis: "x" | "y"; ratio: number; area: Rect; first: string; second: string };
-export const PANEL_LABEL: Record<Panel, string> = { bin: "Proyecto", monitor: "Monitores", inspector: "Inspector", timeline: "Timeline", meter: "Audio · dBFS" };
+export const PANEL_LABEL: Record<Panel, string> = { bin: "Proyecto", monitor: "Monitores", inspector: "Inspector", timeline: "Timeline", meter: "Audio · dBFS", properties:"Propiedades",effectControls:"Controles de efectos",essentialSound:"Sonido esencial",search:"Buscar",text:"Texto",effects:"Efectos",mixer:"Mezclador de pistas" };
 export const GAP = 8;
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const leaf = (panel: Panel): DockNode => ({ type: "panel", panel });
 const split = (id: string, axis: "x" | "y", ratio: number, first: DockNode, second: DockNode): DockNode => ({ type: "split", id, axis, ratio, first, second });
+const tabs=(panels:Panel[],active=panels[0]):DockNode=>({type:"tabs",panels,active});
 export const defaultLayout = (): DockNode => split("rows", "y", .56,
-  split("library", "x", .2, leaf("bin"), split("inspector", "x", .72, leaf("monitor"), leaf("inspector"))),
+  split("library", "x", .23, tabs(["bin","effects","mixer"]), split("inspector", "x", .46, tabs(["inspector","properties","effectControls","essentialSound","search","text"]), leaf("monitor"))),
   split("audio", "x", .91, leaf("timeline"), leaf("meter")));
 export const panelsIn = (node: DockNode): Panel[] => node.type === "panel" ? [node.panel] : node.type==="tabs"?[...node.panels]:[...panelsIn(node.first), ...panelsIn(node.second)];
 export const tabGroups=(node:DockNode):Extract<DockNode,{type:"tabs"}>[]=>node.type==="tabs"?[node]:node.type==="split"?[...tabGroups(node.first),...tabGroups(node.second)]:[];
@@ -27,16 +28,19 @@ export function normalizeLayout(value: unknown, width = 1280, height = 720): Doc
     if (n.type !== "split" || typeof n.id !== "string" || !n.id || ids.has(n.id) || !["x", "y"].includes(n.axis as string) || typeof n.ratio !== "number" || !Number.isFinite(n.ratio) || n.ratio < .02 || n.ratio > .98) return false;
     ids.add(n.id); return valid(n.first, depth + 1) && valid(n.second, depth + 1);
   }
-  if (valid(value) && seen.size === PANELS.length) return value;
+  if (valid(value)) {
+    if(seen.size===PANELS.length)return value;
+    if(["bin","monitor","inspector","timeline","meter"].every(p=>seen.has(p))){let upgraded=value;for(const [target,add]of [["bin",["effects","mixer"]],["inspector",["properties","effectControls","essentialSound","search","text"]]] as [Panel,Panel[]][]){const missing=add.filter(p=>!seen.has(p));if(missing.length)upgraded=mapTarget(upgraded,target,n=>tabs([...panelsIn(n),...missing],n.type==="tabs"?n.active:target));}return upgraded;}
+  }
   // Migrar las cuatro zonas antiguas sin tocar el montaje.
   if (value && typeof value === "object") {
     const old = value as { slots?: Record<string, Panel>; left?: number; right?: number; bottom?: number };
     const slots = ["left", "center", "right", "bottom"].map(k => old.slots?.[k]);
     if (new Set(slots).size === 4 && slots.every(p => p && PANELS.includes(p) && p !== "meter") && [old.left, old.right, old.bottom].every(n => typeof n === "number" && Number.isFinite(n))) {
       const item = (p: Panel): DockNode => p === "timeline" ? split("audio", "x", .87, leaf(p), leaf("meter")) : leaf(p);
-      return split("rows", "y", clamp(1 - old.bottom! / Math.max(1, height - 90), .15, .85),
+      return normalizeLayout(split("rows", "y", clamp(1 - old.bottom! / Math.max(1, height - 90), .15, .85),
         split("library", "x", clamp(old.left! / Math.max(1, width - 20), .12, .45), item(slots[0]!),
-          split("inspector", "x", clamp(1 - old.right! / Math.max(1, width - 20 - old.left!), .25, .85), item(slots[1]!), item(slots[2]!))), item(slots[3]!));
+          split("inspector", "x", clamp(1 - old.right! / Math.max(1, width - 20 - old.left!), .25, .85), item(slots[1]!), item(slots[2]!))), item(slots[3]!)));
     }
   }
   return defaultLayout();

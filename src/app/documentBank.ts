@@ -1,0 +1,23 @@
+import {getProjectDuration,type Project} from "../project/types";
+import {ensureProjectLibrary} from "../project/ops";
+import {parseProjectFile} from "../project/projectFile";
+export type TimelineView={sequenceId:string|null;frame:number;scale:number;left:number;top:number;selection:string[];marks:{start:number|null;end:number|null};source:string|null;isolated?:boolean};
+export type DocumentView={active:string|null;tabs:(string|null)[];timelines:Record<string,TimelineView>};
+export const emptyDocumentView=():DocumentView=>({active:null,tabs:[null],timelines:{}});
+export type DocumentEntry={id:string;past:Project[];present:Project;future:Project[];view:DocumentView};
+/** Historial independiente de cada documento; activar/cerrar son navegación, nunca edición. */
+export class DocumentBank {
+  entries:DocumentEntry[];closed:DocumentEntry[]=[];active:string;
+  constructor(project:Project,id="initial"){this.active=id;this.entries=[{id,past:[],present:project,future:[],view:emptyDocumentView()}];}
+  get current(){return this.entries.find(d=>d.id===this.active)!;}
+  apply(fn:(p:Project)=>Project){const e=this.current,next=fn(e.present);if(next===e.present)return false;e.past=[...e.past,e.present].slice(-200);e.present=next;e.future=[];return true;}
+  annotate(fn:(p:Project)=>Project){const e=this.current;e.past=e.past.map(fn);e.present=fn(e.present);e.future=e.future.map(fn);}
+  undo(){const e=this.current;if(!e.past.length)return;e.future=[e.present,...e.future];e.present=e.past.at(-1)!;e.past=e.past.slice(0,-1);}
+  redo(){const e=this.current;if(!e.future.length)return;e.past=[...e.past,e.present];e.present=e.future[0];e.future=e.future.slice(1);}
+  activate(id:string){if(!this.entries.some(e=>e.id===id))return false;this.active=id;return true;}
+  open(project:Project,id:string){if(this.entries.some(e=>e.id===id)||this.closed.some(e=>e.id===id))throw new Error("Documento duplicado");this.entries.push({id,past:[],present:project,future:[],view:emptyDocumentView()});this.active=id;}
+  close(id:string){const at=this.entries.findIndex(e=>e.id===id);if(at<0||this.entries.length===1)return false;this.closed=[this.entries[at],...this.closed];this.entries.splice(at,1);if(this.active===id)this.active=this.entries[Math.min(at,this.entries.length-1)].id;return true;}
+  reopen(){const e=this.closed.shift();if(!e)return false;this.entries.push(e);this.active=e.id;return true;}
+  serialize(){return JSON.stringify({version:1,active:this.active,documents:this.entries.map(({id,present,view})=>({id,project:present,view})),closed:this.closed.map(({id,present,view})=>({id,project:present,view}))});}
+  static parse(raw:string){const value=JSON.parse(raw);if(value?.version!==1||!Array.isArray(value.documents)||!value.documents.length)throw new Error("Sesión de proyectos inválida");const seen=new Set<string>();const read=(item:unknown):DocumentEntry=>{const d=item as {id:string;project:Project;view?:DocumentView};if(!d||typeof d.id!=="string"||seen.has(d.id))throw new Error("Documento inválido o duplicado");seen.add(d.id);const p=ensureProjectLibrary(parseProjectFile(JSON.stringify({project:d.project})).project);const view=emptyDocumentView();if(d.view&&Array.isArray(d.view.tabs)){view.tabs=[null,...d.view.tabs.filter((id):id is string=>typeof id==="string"&&Boolean(p.sequences?.[id]))];view.tabs=[...new Set(view.tabs)];view.active=view.tabs.includes(d.view.active)?d.view.active:null;for(const [id,v]of Object.entries(d.view.timelines??{})){if(!v||!Number.isSafeInteger(v.frame)||v.frame<0||!Number.isFinite(v.scale)||v.scale<=0)continue;const scope=id==="$root"?p:p.sequences?.[id];if(!scope)continue;const ids=new Set(scope.tracks.flatMap(t=>t.clips.map(c=>c.id))),end=getProjectDuration(scope),mark=(n:unknown)=>Number.isSafeInteger(n)&&Number(n)>=0&&Number(n)<=end?Number(n):null;const start=mark(v.marks?.start),stop=mark(v.marks?.end);view.timelines[id]={...v,sequenceId:id==="$root"?null:id,isolated:v.isolated===true,selection:Array.isArray(v.selection)?v.selection.filter(s=>typeof s==="string"&&ids.has(s)):[],frame:Math.min(v.frame,end-1),scale:Math.min(20,v.scale),left:Math.max(0,Number.isFinite(v.left)?v.left:0),top:Math.max(0,Number.isFinite(v.top)?v.top:0),marks:start!==null&&stop!==null&&stop<=start?{start:null,end:null}:{start,end:stop},source:typeof v.source==="string"&&p.library?.media.some(m=>m.src===v.source)?v.source:null};}}return{id:d.id,present:p,past:[],future:[],view};};const entries=value.documents.map(read);const bank=new DocumentBank(entries[0].present,entries[0].id);bank.entries=entries;bank.closed=Array.isArray(value.closed)?value.closed.map(read):[];bank.active=entries.some((d:DocumentEntry)=>d.id===value.active)?value.active:entries[0].id;return bank;}
+}
