@@ -5,18 +5,19 @@
   background-color: #111a2c;
   background-image: var(--glass-fill);
   border-color: var(--glass-border);
+  border-width: .5px;
   border-radius: 12px;
   box-shadow: var(--glass-shadow);
   background-clip: padding-box;
 }
 .workspace-canvas .dock-panel[data-active=true], .external-panel-window .dock-panel[data-active=true] {
-  border-color: #c5e2ff70;
-  box-shadow: var(--glass-shadow), 0 0 0 1px #a7cfff0b, 0 0 17px #76b9ec1b;
+  border-color: #c5e2ff3d;
+  box-shadow: var(--glass-shadow), 0 0 17px #76b9ec18;
 }
 .dock-panel[data-floating=true] { box-shadow: var(--glass-shadow), 0 18px 48px #02061166; }
 .app-chrome .topbar {
   background: linear-gradient(110deg, #d0e5ff08, #7283a510 65%, #9dbfff12);
-  border-color: #c1d7f526;
+  border-color: #c1d7f516;
   box-shadow: inset 0 1px #e2efff0d;
 }
 .app-menubar { background: transparent; }
@@ -26,41 +27,42 @@
   box-shadow: inset 0 1px #edf5ff12;
 }
 .workspace-panel-title, .panel-title, .monitor-toolbar, .utility-header {
-  border-color: #c1d7f51a;
+  border-color: #c1d7f510;
 }
 .document-tabs, .timeline-panel-header {
   background: linear-gradient(90deg, #c7e0ff08, #c9b7f608 70%, #e6b79a08);
-  border-color: #d4ddf316;
+  border-color: #d4ddf30d;
 }
 .timeline-toolbar { background: #0813211c; }
 
 /* Reflejos de los controles: un acento luminoso discreto indica selección/activación. */
 :is(.app,.external-panel-window) :is(button,select,input:not([type=range]):not([type=checkbox]),textarea) {
-  border-color: #c2d5f127;
+  border-color: #c2d5f117;
+  border-width: .5px;
 }
 :is(.app,.external-panel-window) :is(input:not([type=range]):not([type=checkbox]),select,textarea) {
   background-color: #ccd9f509;
   box-shadow: inset 0 1px 3px #0207111f, 0 1px #e2eeff04;
 }
-:is(.app,.external-panel-window) :is(button,select):hover:not(:disabled) { border-color: #d9e8ff4d; }
+:is(.app,.external-panel-window) :is(button,select):hover:not(:disabled) { border-color: #d9e8ff30; }
 .workspace-tab-strip button[aria-selected=true], :is(.app,.external-panel-window) .tabs button.active,
 :is(.app,.external-panel-window) .text-tabs button[aria-selected=true], :is(.app,.external-panel-window) .monitor-toolbar button.active,
 :is(.app,.external-panel-window) .document-tabs button[aria-selected=true] {
   color: #e8f1ff;
   background: linear-gradient(145deg, #cbdcff26, #7497c222 54%, #aa8fcc22);
-  border: 1px solid #c9e2ff4d;
+  border: .5px solid #c9e2ff2d;
   box-shadow: inset 0 1px 1px #e6f1ff1f, 0 0 7px #86bdf614;
 }
 :is(.app,.external-panel-window) :is(.timeline-tools,.timeline-toolbar,.monitor-transport) button.active,
 :is(.app,.external-panel-window) .project-footer button[aria-pressed=true] {
   background: linear-gradient(145deg, #8ecce531, #8f83cb2e);
-  border-color: #c8e5ff70;
+  border-color: #c8e5ff42;
   box-shadow: inset 0 1px #e3f6ff24, 0 0 8px #79c7f025;
   color: #e1f3ff;
 }
 :is(.app,.external-panel-window) button.primary {
   background: linear-gradient(110deg, #5089aa94, #7a62a88c);
-  border-color: #c3d9fa6b;
+  border-color: #c3d9fa3d;
   box-shadow: inset 0 1px #edf6ff2b, 0 0 12px #899fe91c;
 }
 :is(.app,.external-panel-window) input[type=range]::-webkit-slider-runnable-track {
@@ -72,10 +74,10 @@
 :is(.app,.external-panel-window) input[type=range]::-moz-range-thumb { box-shadow: 0 0 0 2px #9ddcf02b, 0 0 7px #91dbf078; }
 
 /* Superficies interiores dejan pasar el color del panel; los visores siguen siendo neutros. */
-.monitor-view :is(.source-pane,.program-pane) { background: #10131b38; border-color: #d2dff312; }
+.monitor-view :is(.source-pane,.program-pane) { background: #10131b38; border-color: #d2dff30c; }
 .monitor-label { color: #c6d2e2; }
-.project-items { background: #070d1b1c; border-color: #c0d2ef24; }
-.project-column-header { background: #25354be8; border-color: #c2d7f123; }
+.project-items { background: #070d1b1c; border-color: #c0d2ef15; }
+.project-column-header { background: #25354be8; border-color: #c2d7f114; }
 .project-column-header button:first-child { background: #25354b; }
 .project-items.list .project-item-name { background: #172035eb; }
 .project-row:hover, .project-row:hover .project-item-name { background: #34465adb; }
@@ -86,27 +88,28 @@
 .project-row.selected { box-shadow: inset 2px 0 #a3dcef, inset 0 0 0 1px #d0e6f326; }
 .timeline-headers { background: #18253c52; }
 .track-header { background: #cad8ed04; border-color: #d8e3f313; }
-.ruler, .ruler-spacer { background: #101c2c99; border-color: #c3d5f321; }
+.ruler, .ruler-spacer { background: #101c2c99; border-color: #c3d5f313; }
 .track { background-color: #0a122322; border-color: #becfe611; }
 .track:nth-child(2n) { background-color: #d0dcf205; }
 .track.locked { background: repeating-linear-gradient(135deg,transparent,transparent 6px,#dae5ff07 6px,#dae5ff07 8px); }
 .track.drop-target { background-color: #77a8d02b; }
 .timeline-tools, .audio-meter { background: #0c17212b; }
 .timeline-inner-divider { background: #7189a309; }
-.assistant-chat .chat-input { background: linear-gradient(135deg, #b2d6ef14, #d0b4e512 62%, #edb3a012); border-color: #d1dff445; box-shadow: inset 0 1px #d8ecff12; }
-:is(.app,.external-panel-window) .assistant-suggestions button { background: linear-gradient(110deg,#d0e4ff0d,#cfb6e80d); border-color: #d3dff128; }
-.chat-msg.assistant, .chat-settings, .chat-edit-plan { background: #202c4270; border-color: #c4daf329; }
-.chat-msg.user { background: linear-gradient(125deg,#6a9db333,#9d76b633); border-color: #bcd9f339; }
-.effect-preset, .search-result { background: linear-gradient(110deg,#daeaff07,#c4b6e60a); border-color: #c4d6ef21; }
-.effect-preset:hover, .search-result:hover { background: #c7deff12; border-color: #cde4ff50; }
-.mixer-strip { background: linear-gradient(155deg,#cbdfff0b,#0910211a); border-color: #c7d9ef24; box-shadow: inset 0 1px #e3edff08; }
+.assistant-chat .chat-input { background: linear-gradient(135deg, #b2d6ef14, #d0b4e512 62%, #edb3a012); border-color: #d1dff42a; box-shadow: inset 0 1px #d8ecff12; }
+:is(.app,.external-panel-window) .assistant-suggestions button { background: linear-gradient(110deg,#d0e4ff0d,#cfb6e80d); border-color: #d3dff118; }
+.chat-msg.assistant, .chat-settings, .chat-edit-plan { background: #202c4270; border-color: #c4daf31a; }
+.chat-msg.user { background: linear-gradient(125deg,#6a9db333,#9d76b633); border-color: #bcd9f322; }
+.effect-preset, .search-result { background: linear-gradient(110deg,#daeaff07,#c4b6e60a); border-color: #c4d6ef14; }
+.effect-preset:hover, .search-result:hover { background: #c7deff12; border-color: #cde4ff32; }
+.mixer-strip { background: linear-gradient(155deg,#cbdfff0b,#0910211a); border-color: #c7d9ef16; box-shadow: inset 0 1px #e3edff08; }
 .master-strip { background: linear-gradient(155deg,#ae9ac622,#17273b20); }
 
 /* Menús/diálogos portados a body y ventanas separadas comparten el material. */
 .edit-context-menu, .app-dropdown, .timeline-popover, .timeline-tool-menu,
 .command-dialog, .shortcut-dialog, .workspace-notice, .external-panel-list {
   background: linear-gradient(145deg,#b9d7fa14,#bc9ada0c), #111b2fef;
-  border-color: #c7dcf34a;
+  border-color: #c7dcf32a;
+  border-width: .5px;
   box-shadow: inset 0 1px #e8f3ff18, 0 16px 46px #03061066;
 }
 .command-dialog::backdrop, .shortcut-dialog::backdrop { background: #04091675; backdrop-filter: blur(5px); }
@@ -138,25 +141,34 @@
 .clip-graphic, .ghost-graphic { --clip-color:#47d8af; --clip-end:#32b8bc; }
 .clip-sequence { --clip-color:#9087ec; --clip-end:#bb6cce; }
 .clip, .media-drop-ghost, .label-swatch, .project-label-chip {
+  --clip-vivid: var(--clip-color);
+  --clip-vivid-end: var(--clip-end);
+  /* El color del relleno gana croma; texto y ondas nunca pasan por un filtro. */
   /* Primera declaración sirve de fallback sin color-mix. */
   background: var(--clip-color,#648ff1);
   background:
-    linear-gradient(180deg,#ffffff18,transparent 46%,#ffffff09),
-    radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--clip-color) 58%,transparent),transparent 78%),
-    linear-gradient(110deg,color-mix(in srgb,var(--clip-color) 43%,#091a27),color-mix(in srgb,var(--clip-end) 45%,#1c112c));
-  border: 1px solid color-mix(in srgb,var(--clip-color) 60%,#f0f7ff);
-  box-shadow: inset 0 1px 2px #efffff3b, inset 0 -1px 4px color-mix(in srgb,var(--clip-end) 36%,transparent),
-    0 0 5px color-mix(in srgb,var(--clip-color) 28%,transparent),
-    0 0 12px color-mix(in srgb,var(--clip-end) 14%,transparent);
+    linear-gradient(180deg,#ffffff10,transparent 46%,#ffffff07),
+    radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--clip-vivid) 58%,transparent),transparent 78%),
+    linear-gradient(110deg,color-mix(in srgb,var(--clip-vivid) 43%,#091a27),color-mix(in srgb,var(--clip-vivid-end) 45%,#1c112c));
+  border: 1px solid color-mix(in srgb,var(--clip-vivid) 75%,#f0f7ff);
+  box-shadow: inset 0 1px 2px #efffff2d, inset 0 -1px 4px color-mix(in srgb,var(--clip-vivid-end) 36%,transparent),
+    0 0 5px color-mix(in srgb,var(--clip-vivid) 36%,transparent),
+    0 0 12px color-mix(in srgb,var(--clip-vivid-end) 19%,transparent);
+}
+@supports (color: oklch(from #648ff1 l c h)) {
+  .clip, .media-drop-ghost, .label-swatch, .project-label-chip {
+    --clip-vivid: oklch(from var(--clip-color) l calc(c * 1.18) h);
+    --clip-vivid-end: oklch(from var(--clip-end) l calc(c * 1.18) h);
+  }
 }
 .clip { border-radius: 6px; }
 .clip.selected {
   outline: 1px solid #eff8ff;
   outline-offset: 0;
   border-color: #deefff;
-  box-shadow: inset 0 0 8px color-mix(in srgb,var(--clip-color) 32%,transparent),
-    inset 0 1px 2px #f2ffff66, 0 0 6px color-mix(in srgb,var(--clip-color) 64%,transparent),
-    0 0 18px color-mix(in srgb,var(--clip-end) 33%,transparent);
+  box-shadow: inset 0 0 8px color-mix(in srgb,var(--clip-vivid) 32%,transparent),
+    inset 0 1px 2px #f2ffff66, 0 0 6px color-mix(in srgb,var(--clip-vivid) 70%,transparent),
+    0 0 18px color-mix(in srgb,var(--clip-vivid-end) 36%,transparent);
 }
 .clip .clip-label { color: #f4f7ff; text-shadow: 0 1px 3px #0009; }
 .clip-waveform { opacity: .48; }

@@ -141,6 +141,8 @@ a estar validado para entregas de agencia.
       paneles con blur localizado y reflejos, menús/controles coherentes; video sin filtro
 - [x] Siete etiquetas compartidas con degradado y borde luminoso en clips/Proyecto y muestras;
       estado seleccionado visible y compatibilidad con labelColor hexadecimal anterior
+- [x] Primera corrección de Lino: clips algo más saturados con texto nítido y contornos de
+      paneles/controles más finos y de menor opacidad (2026-10-21)
 - [ ] Afinar con Lino intensidad del vidrio y glow de clips en su espacio habitual
 - [x] Primera pasada visual basada en referencias de Lino: paneles grafito separados/redondeados,
       degradados suaves, jerarquía de botones, biblioteca, chat y timeline coherentes

@@ -137,6 +137,8 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   delicados. Referencia del 2026-10-21 añade vidrio esmerilado con blur localizado, reflejo
   superior y clips con degradado/borde luminoso. `glass-ui.css` se carga al final para ese
   acabado; tokens en studio-theme.css. Nunca aplicar filter/blur a la composición o al video.
+  Refino del 2026-10-21: bordes de vidrio a ~11 % alfa, activo ~24 %, hairline CSS; croma de
+  fondos/glow de clips +18 % con OKLCH relativo, sin filtrar texto ni ondas ni cambiar el JSON.
   `labels.ts` ofrece Rojo/Naranja/Amarillo/Verde/Cian/Azul/Violeta; estilos por variables CSS,
   JSON labelColor hex intacto para etiquetas antiguas. Sin backdrop-filter por clip ni glow
   animado continuo. Sustituye la paleta anterior Pale Sky/Dusty Denim. UI en Poppins local (OFL),

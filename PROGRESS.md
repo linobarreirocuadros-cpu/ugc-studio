@@ -1,5 +1,22 @@
 # Progreso
 
+## 2026-10-21 — Glow más vivo y contornos más delicados
+
+Ajuste solicitado por Lino sobre el acabado de vidrio: croma de clips/muestras +18 % en
+OKLCH conservando luminosidad y tono; menos velo blanco en el reflejo y halo algo más
+saturado, sin ampliar radios. Se aplica al fondo/borde/sombra, nunca con filter sobre texto
+u ondas. Fallback conserva el color anterior en navegadores sin colores relativos.
+
+Paneles: borde base de 22 % a 11 % de alfa; activo de 44 % a 24 %. También se reducen bordes
+de pestañas, campos, controles, chat, utilidades y menús, con ancho declarado 0,5 CSS px
+(el navegador lo ajusta a su resolución). Se atenúa el reflejo interior y se retira el segundo
+contorno del panel activo. Se conservan foco de teclado y selección de clips distinguibles.
+
+Verificado con typecheck/build y captura real en QA :5175: siete colores, texto nítido,
+CSS relativo resuelto y consola sin errores. Solo CSS; sin cambio de JSON, contenido,
+paleta guardada ni comportamiento. Captura `studio-glow-bordes-delicados.png` en visualizaciones.
+No se añadieron pruebas funcionales para este ajuste visual reversible.
+
 ## 2026-10-21 — Vidrio esmerilado y etiquetas luminosas
 
 Referencia nueva de Lino aplicada al acabado del editor: fondo azul noche con luces azul,
