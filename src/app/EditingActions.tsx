@@ -1,3 +1,4 @@
+import {LABEL_COLORS,labelStyle} from "./labels";
 import {editAvailable} from "./editAvailability";
 import {useUiDocument} from "./UiDocument";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -10,7 +11,6 @@ import { ActionDialog } from "./ActionDialog";
 
 export type EditAction = "add"|"newSequence"|"nest"|"speed"|"channels"|"hold"|"holdTail"|"holdInsert"|"unfreeze"|"group"|"ungroup"|"link"|"gain"|"copy"|"cut"|"delete"|"rippleDelete";
 export type EditDialogKind = "add"|"newSequence"|"nest"|"speed"|"channels"|"hold"|"holdInsert";
-export const LABEL_COLORS = [{name:"Azul",color:"#487ab0"},{name:"Violeta",color:"#8761ad"},{name:"Cian",color:"#329aa0"},{name:"Verde",color:"#528b68"},{name:"Ámbar",color:"#bd9846"},{name:"Rosa",color:"#b46587"},{name:"Rojo",color:"#af5757"}];
 
 export function EditContextMenu({x,y,ids,project,onAction,onLabel,onClose}: {x:number;y:number;ids:string[];project:Project;onAction:(action:EditAction)=>void;onLabel:(color?:string)=>void;onClose:()=>void}) {
   const uiDoc=useUiDocument(),uiWindow=uiDoc.defaultView??window;
@@ -24,7 +24,7 @@ export function EditContextMenu({x,y,ids,project,onAction,onLabel,onClose}: {x:n
     {ids.length>0&&<><hr/>{item("cut","Cortar",locked)}{item("copy","Copiar")}{item("delete","Borrar",locked)}{item("rippleDelete","Eliminar y cerrar hueco",locked)}<hr/>
       {item("link",clips.some(c=>c&&(c.kind==="video"||c.kind==="audio")&&c.linkedClipId)?"Desenlazar":"Enlazar video y audio",locked||!media)}
       {item("group","Agrupar",locked||ids.length<2)}{item("ungroup","Desagrupar",locked||!clips.some(c=>c?.groupId))}{item("nest","Anidar…",locked)}
-      <details><summary>Etiqueta de color</summary><div className="label-swatches">{LABEL_COLORS.map(c=><button role="menuitem" key={c.color} disabled={locked} title={c.name} aria-label={`Etiqueta ${c.name}`} style={{background:c.color}} onClick={()=>{onLabel(c.color);onClose();}}/>)}<button role="menuitem" disabled={locked} onClick={()=>{onLabel();onClose();}}>Quitar</button></div></details>
+      <details><summary>Etiqueta de color</summary><div className="label-swatches">{LABEL_COLORS.map(c=><button role="menuitemradio" key={c.color} disabled={locked} title={c.name} aria-label={`Etiqueta ${c.name}`} aria-checked={clips.length>0&&clips.every(clip=>clip?.labelColor?.toLowerCase()===c.color)} className="label-swatch" style={labelStyle(c.color)} onClick={()=>{onLabel(c.color);onClose();}}/>)}<button role="menuitem" disabled={locked} onClick={()=>{onLabel();onClose();}}>Quitar</button></div></details>
       <hr/>{item("speed","Velocidad / duración…",locked||!media||clips.some(c=>c&&((c.kind!=="video"&&c.kind!=="audio")||c.sequenceId||c.kind==="video"&&c.freezeFrame!==undefined)))}
       {item("gain","Ganancia de audio…",locked||!media)}{item("channels","Canales de audio…",!editAvailable(project,ids,"channels"))}
       <hr/>{item("hold","Opciones de congelado…",locked||!video)}{item("holdTail","Congelar desde el cabezal",locked||!video)}{item("holdInsert","Insertar segmento congelado…",locked||!video)}{video?.kind==="video"&&video.freezeFrame!==undefined&&item("unfreeze","Quitar congelado",locked)}

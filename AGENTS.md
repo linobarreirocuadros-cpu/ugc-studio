@@ -132,13 +132,18 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   código disponible, pesos descargables, servicio con cuota gratuita y licencia open source.
 - La investigación y las propuestas del roadmap no autorizan dar por aprobado un rediseño
   visual. Consultar a Lino antes de decisiones importantes de composición, timing y estilo.
-- Dirección visual vigente (última referencia de Lino, 2026-10-20): fondo degradado azul noche
+- Dirección visual vigente (última referencia de Lino, 2026-10-21): fondo degradado azul noche
   con luz azul superior y ámbar lateral, tarjetas oscuras redondeadas/translúcidas, bordes y glow
-  delicados. Sustituye la paleta anterior Pale Sky/Dusty Denim. UI en Poppins local (OFL),
+  delicados. Referencia del 2026-10-21 añade vidrio esmerilado con blur localizado, reflejo
+  superior y clips con degradado/borde luminoso. `glass-ui.css` se carga al final para ese
+  acabado; tokens en studio-theme.css. Nunca aplicar filter/blur a la composición o al video.
+  `labels.ts` ofrece Rojo/Naranja/Amarillo/Verde/Cian/Azul/Violeta; estilos por variables CSS,
+  JSON labelColor hex intacto para etiquetas antiguas. Sin backdrop-filter por clip ni glow
+  animado continuo. Sustituye la paleta anterior Pale Sky/Dusty Denim. UI en Poppins local (OFL),
   escala reducida de nuevo por Lino tomando la barra vertical como referencia: texto base 9 px,
   auxiliar 8 px, títulos 10 px, iconos 12 px y controles de unos 20 px. No imponer esa tipografía
   ni escala al contenido del video. El tema vive en `src/app/studio-theme.css` y la densidad en
-  `src/app/compact-ui.css`, cargada al final; acabado y legibilidad se afinan con Lino.
+  `src/app/compact-ui.css`, cargada después del tema base; acabado y legibilidad se afinan con Lino.
 - Asistente (2026-10-20): Lino aprobó sintetizar la cara de su personaje como vector sencillo:
   sombrero, máscara oscura, ojos luminosos y barba. `Mascot.tsx` y `public/mascot.svg` comparten
   esa identidad para logo/favicon y botón de chat; adaptar a la paleta vigente, sin cambiarla.

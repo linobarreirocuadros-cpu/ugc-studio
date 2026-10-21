@@ -137,6 +137,11 @@ a estar validado para entregas de agencia.
       guía de destino, copia editable de capas/cortes del Programa y Deshacer en una operación
 - [x] Glow sutil para panel activo por clic/foco de teclado, con soporte de movimiento reducido
 - [ ] Validar con Lino comodidad del agarre y controles de rango, tacto e intensidad del glow
+- [x] Acabado de vidrio según referencia del 2026-10-21: fondo degradado azul/violeta/ámbar,
+      paneles con blur localizado y reflejos, menús/controles coherentes; video sin filtro
+- [x] Siete etiquetas compartidas con degradado y borde luminoso en clips/Proyecto y muestras;
+      estado seleccionado visible y compatibilidad con labelColor hexadecimal anterior
+- [ ] Afinar con Lino intensidad del vidrio y glow de clips en su espacio habitual
 - [x] Primera pasada visual basada en referencias de Lino: paneles grafito separados/redondeados,
       degradados suaves, jerarquía de botones, biblioteca, chat y timeline coherentes
 - [x] Aplicar paleta indicada por Lino: Pale Sky, Dusty Denim, Deep Lilac, Midnight Violet,

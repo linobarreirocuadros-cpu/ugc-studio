@@ -20,7 +20,19 @@
   --video: var(--dusty-denim);
   --text-clip: var(--deep-lilac);
   --playhead: var(--pale-sky);
-  --studio-line: #97bfff21;
+  --studio-line: #bed5f52e;
+  /* Vidrio aprobado por Lino: luces detrás de cada superficie, texto siempre nítido. */
+  --glass-blur: 22px;
+  --glass-border: #c4d6f338;
+  --glass-fill: linear-gradient(180deg, #e1ebff12, transparent 46px),
+    linear-gradient(135deg, #34405630, #151a302e 58%, #22192f30);
+  --glass-shadow: inset 0 1px 0 #eef5ff16, inset 0 -1px 0 #a1b9d50a,
+    0 8px 24px #02050b26;
+  --studio-background: radial-gradient(ellipse 66% 85% at 91% -14%, #316b9b7d, transparent 76%),
+    radial-gradient(ellipse 48% 70% at -8% 46%, #315d6a42, transparent 78%),
+    radial-gradient(ellipse 32% 76% at 105% 75%, #b65d3c8c, transparent 76%),
+    radial-gradient(ellipse 60% 60% at 65% 107%, #702c704f, transparent 80%),
+    linear-gradient(135deg, #0a1420, #11162b 58%, #1c1525);
   /* Transparencia de las superficies, nunca opacidad sobre sus textos. */
   --studio-glow:
     radial-gradient(ellipse at 15% 120%, #47bfff70, transparent 70%),

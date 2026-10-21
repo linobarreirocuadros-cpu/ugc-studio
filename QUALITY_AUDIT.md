@@ -1,5 +1,16 @@
 # Control de calidad — actualizado 2026-10-21
 
+## Acabado de vidrio — 2026-10-21
+
+Cambio de presentación, sin operaciones nuevas del montaje. Typecheck/build, 135 tests y
+diff --check aprobados. Navegador aislado :5175: siete etiquetas con degradado/glow; cambiar
+y deshacer en timeline y Proyecto; sin errores de consola. CSS calculado verifica blur de
+fondo en paneles, sin blur/filtro de raíz ni imagen del monitor y Poppins 9 px. No se cambió
+el documento de :5173/:5174. Colores previos conservados; JSON sigue usando labelColor hex.
+Pendientes de criterio visual: intensidad final en el espacio real de Lino. No es una nueva
+fiscalización completa del software ni una medición de rendimiento sostenido/multimonitor.
+
+
 ## Gesto Añadir por rango — 2026-10-21
 
 135 tests y typecheck/build aprobados. Controlador de puntero probado con eventos locales:

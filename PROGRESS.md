@@ -1,5 +1,30 @@
 # Progreso
 
+## 2026-10-21 — Vidrio esmerilado y etiquetas luminosas
+
+Referencia nueva de Lino aplicada al acabado del editor: fondo azul noche con luces azul,
+violeta y ámbar; paneles translúcidos con backdrop-filter local, reflejo superior y bordes
+suaves. Pestañas, controles, Proyecto, inspector/chat, utilidades, mezclador, menús y diálogos
+comparten el material. Incluye ventanas flotantes/independientes; fallback opaco sin soporte
+y con preferencia de transparencia reducida. No cambia geometría guardada ni tamaño Poppins
+9/8/10 px. Visores permanecen neutros y nítidos; no se aplica filtro al video/composición.
+
+`labels.ts` centraliza siete etiquetas: Rojo, Naranja, Amarillo, Verde, Cian, Azul, Violeta.
+Clips, preview/copia arrastrada y muestras de Proyecto usan variables CSS, degradado y borde
+luminoso; seleccionado refuerza contorno/luz. Menús señalan la etiqueta actual. JSON conserva
+un único labelColor hexadecimal, incluidos los colores previos/personalizados, sin migración.
+Las etiquetas siguen usando ops y Deshacer existentes. No hay blur por clip ni animación
+continua del glow; evita multiplicar superficies de composición en timelines cargados.
+
+Verificación: 135 tests, typecheck/build y diff --check aprobados. QA de navegador en :5175,
+separado de los documentos de :5173/:5174: siete colores visibles con gradiente/glow, selección,
+cambio de etiqueta y un Deshacer en timeline y Proyecto. CSS calculado confirma blur solo en
+paneles (22 px), raíz/monitor sin filtro. Poppins 9 px y consola sin errores. Captura real:
+`studio-glass-seven-labels.png` en el directorio de visualizaciones de esta sesión.
+
+Pendiente: criterio de Lino sobre intensidad final del cristal/brillo en su espacio habitual;
+no se afirma auditoría funcional completa ni rendimiento sostenido a partir de esta pasada.
+
 ## 2026-10-21 — Dibujar duración con el botón derecho
 
 En una zona vacía de una pista, mantener botón derecho y arrastrar horizontalmente dibuja

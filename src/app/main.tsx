@@ -15,6 +15,7 @@ import "./assistant.css";
 import "./editing-actions.css";
 import "./project-panel.css";
 import "./studio-panels.css";
+import "./glass-ui.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import type { Clip, Project, Track } from "../project/types";
 import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled, trackFamily } from "../project/types";
 import {timelineExtent,timelineScale,timelineTicks} from "./timelineViewport";
+import {labelStyle} from "./labels";
 import {useAddRange} from "./useAddRange";
 import {snapTimeline,type SnapHit} from "./timelineSnap";
 import {previewMedia,type PlacementOptions} from "./mediaPlacement";
@@ -337,8 +338,8 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
                 } catch { /* otros tipos de arrastre no son medios del proyecto */ }
               }}
             >
-              {drag?.duplicate && drag.mode === "move" && Math.abs(drag.dx)+Math.abs(drag.dy)>2 && project.tracks.flatMap(t=>t.clips).filter(c=>drag.clipIds.includes(c.id) && dragTargetTrack(c.id,drag)?.id===track.id).map(c=><div key={`copy-${c.id}`} className={`clip clip-${c.kind} clip-copy-preview`} aria-hidden style={{left:(c.from+moveDelta(drag))*pxPerFrame,width:Math.max(4,c.durationInFrames*pxPerFrame)}}><span className="clip-label">+ {clipLabel(c)}</span></div>)}
-              {shapes.filter(s=>s.trackId===track.id).map(({clip},i)=><div key={`ghost-${i}`} className={`media-drop-ghost ghost-${clip.kind} ${mediaHover?.snap.point!==null?"snapped":""}`} aria-label={`Vista previa: ${clipLabel(clip)}`} style={{left:clip.from*pxPerFrame,width:Math.max(3,clip.durationInFrames*pxPerFrame)}}><span>{clipLabel(clip)}</span><small>{formatTimecode(clip.durationInFrames,project.fps)}{newTracks>0?` · +${newTracks} pistas`:""}</small></div>)}
+              {drag?.duplicate && drag.mode === "move" && Math.abs(drag.dx)+Math.abs(drag.dy)>2 && project.tracks.flatMap(t=>t.clips).filter(c=>drag.clipIds.includes(c.id) && dragTargetTrack(c.id,drag)?.id===track.id).map(c=><div key={`copy-${c.id}`} className={`clip clip-${c.kind} clip-copy-preview`} aria-hidden style={{...labelStyle(c.labelColor),left:(c.from+moveDelta(drag))*pxPerFrame,width:Math.max(4,c.durationInFrames*pxPerFrame)}}><span className="clip-label">+ {clipLabel(c)}</span></div>)}
+              {shapes.filter(s=>s.trackId===track.id).map(({clip},i)=><div key={`ghost-${i}`} className={`media-drop-ghost ghost-${clip.kind} ${mediaHover?.snap.point!==null?"snapped":""}`} aria-label={`Vista previa: ${clipLabel(clip)}`} style={{...labelStyle(clip.labelColor),left:clip.from*pxPerFrame,width:Math.max(3,clip.durationInFrames*pxPerFrame)}}><span>{clipLabel(clip)}</span><small>{formatTimecode(clip.durationInFrames,project.fps)}{newTracks>0?` · +${newTracks} pistas`:""}</small></div>)}
               {addGesture.range?.trackId===track.id&&<div className={`timeline-add-range ${addGesture.range.snap!==null?"snapped":""}`} role="status" aria-label="Rango para añadir" style={{left:addGesture.range.start*pxPerFrame,width:Math.max(2,(addGesture.range.end-addGesture.range.start)*pxPerFrame)}}><span style={{left:Math.max(0,rulerViewport.left-addGesture.range.start*pxPerFrame)}}>Añadir · {formatTimecode(addGesture.range.end-addGesture.range.start,project.fps)}</span></div>}
               {track.clips.map((clip) => {
                 const dragging = Boolean(drag && !drag.duplicate && (drag.mode === "move" ? drag.clipIds.includes(clip.id) : drag.clipId === clip.id));
@@ -358,7 +359,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
                     aria-selected={displaySelected.includes(clip.id)}
                     aria-label={clipLabel(clip)}
                     style={{
-                      ...(clip.labelColor?{background:clip.labelColor,borderColor:clip.labelColor}:{}),
+                      ...labelStyle(clip.labelColor),
                       left: p.from * pxPerFrame,
                       width: Math.max(4, p.dur * pxPerFrame),
                       transform: shiftY ? `translateY(${shiftY}px)` : undefined,
