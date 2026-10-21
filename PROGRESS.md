@@ -18,7 +18,7 @@ por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, si
 Regla del timeline fija durante scroll vertical, cabezal arrastrable a cualquier altura y glow sutil
 del panel activo. Rangos I/O de Origen/Programa arrastrables como video, audio o ambos, con guía.
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
-configurable. 121 comandos disponibles, 99 reservas pendientes y 629 asignaciones de Premiere 2026
+configurable. 129 comandos disponibles, 93 reservas pendientes y 629 asignaciones de Premiere 2026
 auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
 Chat simplificado con IA/modelo y cuenta en vistas secundarias; mascota/logo vectoriales basados
 en el personaje de Lino. Apertura animada y conversación/borrador conservados al ocultar el panel.
@@ -39,8 +39,50 @@ tipografías, B2 para imagen adicional y ondas de audio. Falta: panel de transcr
 Menús contextuales, búsqueda Añadir, grupos/etiquetas y secuencias vacías desde Proyecto.
 Barra de volumen constante, ganancia hasta 400 %, canales locales, velocidad constante y congelados.
 Gráficos editables (sólido/cuadrado) y ajustes básicos en capas, con exportación directa/anidada probada.
+Proyecto permite eliminar por papelera/Delete/Backspace/clic derecho, con aviso de usos y Deshacer;
+carpetas, renombrado, etiquetas, búsqueda, columnas técnicas del original y elementos reutilizables.
 
 ## Registro
+
+### 2026-10-20 — Gestión de Proyecto y eliminación reversible (Codex)
+
+- Se encontró la causa del fallo informado: Delete/Backspace de Proyecto estaban reservados como
+  pendientes y no existía papelera. Se activaron y se añadieron papelera y menú contextual propios.
+  Un elemento usado requiere revisar su alcance antes de quitarlo; borra sus clips y parejas en
+  montaje/secuencias en una operación reversible, respetando candados. Nunca borra archivos del PC.
+- `Project.library` reúne medios, carpetas, plantillas de gráficos/texto y metadatos de secuencias.
+  Migra la biblioteca antigua y comparte el historial raíz; abrir/guardar conserva compatibilidad.
+  Las secuencias no duplican la biblioteca. Proxies tardíos enriquecen instantáneas sin insertar
+  pasos vacíos de Deshacer ni recrear entradas eliminadas. Se limpian transcripciones afectadas
+  también dentro de secuencias al retirar un medio.
+- `ProjectPanel.tsx` reemplaza las listas separadas: vista lista/cuadrícula, miniaturas ajustables,
+  previsualización muda opcional bajo el mouse, selección múltiple/recuadro, búsqueda por nombre,
+  tipo y notas, filtros, ordenación y columnas opcionales. Vista/columnas/tamaño son preferencias
+  locales, fuera del documento. Cabecera de información y pie con controles siempre accesibles;
+  al reducir altura se oculta la cabecera secundaria. Transcripción/subtítulos siguen disponibles
+  en un desplegable inferior.
+- Carpetas/subcarpetas, mover mediante diálogo o arrastre, F2 para renombrar, colores, notas,
+  propiedades y usos con acceso al clip correspondiente. Alias de medio conserva nombre al importar
+  y ubicación física. Doble clic en medio abre Origen; en secuencia abre su contenido editable.
+- Nuevo elemento crea en Proyecto: secuencia, ajuste, sólido de color, video negro/transparente,
+  texto y cuadrado. Nombre/duración/color según corresponda; la secuencia hereda formato actual.
+  Se colocan desde el menú o se arrastran al timeline. El buscador Añadir del timeline encuentra
+  también estas plantillas. Colocación múltiple consecutiva/atómica con un Deshacer.
+- Metadatos del original por ffprobe local, con cola/caché: FPS fraccional, inicio/final, duración,
+  resolución, canales/frecuencia, códecs, tamaño/fecha. No inventar streams ausentes ni confundir
+  los 30 fps de un proxy con los 24000/1001 fps del AssortedTapes original.
+- Verificación automatizada: 95/95 pruebas, incluidos 13 casos nuevos de biblioteca, eliminación
+  usada y bloqueada, parejas/derivados, carpetas/ciclos, renombrado, plantillas, secuencias, guardado,
+  metadatos, ámbito de Delete y proxy tardío; typecheck y build correctos.
+- UI probada en origen aislado 5174 con copia de `Prueba pistas y audio visible`: Delete mostró
+  6 clips usados, los retiró y un Ctrl+Z recuperó todo. Carpeta Brutos QA, mover, F2, notas, capa de
+  ajuste reutilizable colocada en timeline, crear/abrir secuencia, Backspace y recuperación.
+  Guardar/reabrir conservó organización; búsqueda por notas, filtro, lista/cuadrícula y reducción
+  de panel comprobados. El archivo original se conserva. El montaje principal no se usó para QA.
+- Pendiente: criterio de Lino sobre comodidad/columnas, validar arrastre físico de selecciones
+  mixtas a carpetas/timeline y muchos archivos; gestión avanzada (reconexión manual, multicámara,
+  columnas reordenables, metadatos masivos, barras/tono/offline y otros generadores). No se implementó
+  todo Premiere ni esta entrega sustituye la validación editorial/de exportación del MVP.
 
 ### 2026-10-20 — Volumen, edición contextual, secuencias y buscador Añadir (Codex)
 

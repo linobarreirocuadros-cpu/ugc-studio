@@ -40,11 +40,18 @@ export function useHistory<T>(initial: T | (() => T), limit = 200) {
   }, []);
 
   const current = useCallback(() => state.current!.present, []);
+  // Solo metadatos derivados (p. ej. proxies): no interrumpir Deshacer ni Rehacer.
+  const annotate=useCallback((fn:(value:T)=>T)=>{
+    const s=state.current!,present=fn(s.present);
+    state.current={past:s.past.map(fn),present,future:s.future.map(fn)};
+    if(present!==s.present)rerender();
+  },[]);
   const reset=useCallback((present:T)=>{state.current={past:[],present,future:[]};rerender();},[]);
 
   return {
     value: state.current.present,
     current,
+    annotate,
     reset,
     apply,
     undo,

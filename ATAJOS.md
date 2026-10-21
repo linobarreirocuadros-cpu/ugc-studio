@@ -109,7 +109,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   No se distribuye el XML .kys original ni se requiere instalar Premiere para usar UGC Studio.
   **Referencia Premiere 2026** permite buscar todas esas asignaciones. Son referencia; no se
   anuncian como funciones ejecutables de UGC Studio.
-- El mapa operativo/adaptado contiene **220 comandos: 121 disponibles y 99 pendientes**.
+- El mapa operativo/adaptado contiene **222 comandos: 129 disponibles y 93 pendientes**.
   Los pendientes se distinguen por color y explicación; no ejecutan una función diferente.
   El contexto local tiene prioridad sobre el general. Una reserva pendiente también bloquea
   un comando general para evitar que una combinación haga algo inesperado.
@@ -136,7 +136,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   o reasignar. Los presets JSON de UGC Studio no importan/exportan archivos .kys personalizados.
 - Pendiente validar Alt/Ctrl/Shift+rueda con el mouse físico de Lino, distribución de teclado
   y comodidad del editor; también arrastre de comandos a teclas y traslado de presets entre equipos.
-  No se probó cada uno de los 121 comandos disponibles manualmente.
+  No se probó cada uno de los 129 comandos disponibles manualmente.
 
 ## Para continuar el desarrollo
 
@@ -152,7 +152,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   expone controles de Origen; `useShuttle.ts` gestiona transporte. `copyClips`, `pasteClips` e
   `insertSourceRange` son operaciones puras de `src/project/ops.ts`, una transacción de historial.
 - Siguiente paso: contrastar la sensación de rueda/puntuación con Lino y priorizar funciones
-  faltantes del catálogo. No convertir 99 reservas o 629 referencias en promesas de funciones.
+  faltantes del catálogo. No convertir 93 reservas o 629 referencias en promesas de funciones.
 
 ## Edición con clic derecho
 
@@ -161,7 +161,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
 - Zona vacía del timeline → **Añadir…**: buscar secuencias y elementos existentes por nombre;
   crear texto, sólido, cuadrado o capa de ajuste. Se coloca en la posición del clic, y las
   secuencias usan la pista B pulsada. **Espacio conserva Reproducir/Pausa**.
-- Proyecto → **+ Nueva secuencia** permite escribir el nombre; hereda tamaño/FPS actuales.
+- Proyecto → **Nuevo elemento → Secuencia** permite escribir el nombre; hereda tamaño/FPS actuales.
 - Barra de volumen: arrastrar verticalmente, Shift para ajuste fino, doble clic a 0 dB;
   flechas arriba/abajo ajustan 1 dB, Home restablece y End silencia. Un arrastre es un Deshacer.
 - Velocidad 25–400 % en archivos: enlaza imagen/audio y sobrescribe si extiendes. No retima
@@ -169,3 +169,15 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
 - Congelado: Opciones mantiene todo el clip; Congelar desde cabezal corta y mantiene la cola;
   Insertar abre un hueco en todas las pistas (si no hay candados afectados) y agrega un segmento
   mudo. El sonido de las partes originales sigue reproduciéndose.
+
+## Gestión de Proyecto
+
+- Selecciona elementos y pulsa **Delete** o **Backspace**, o usa papelera/clic derecho. Si están
+  usados, se revisan los clips afectados antes de quitar las entradas y sus usos. **Ctrl+Z**
+  recupera la operación completa; los archivos originales permanecen en el PC.
+- **F2** renombra el elemento. **Ctrl+B** o **Ctrl+/** crea carpeta dentro de Proyecto.
+- **Shift+H** alterna la previsualización muda al pasar el mouse en la cuadrícula. **= / −**
+  y **Shift+] / Shift+[** ajustan miniaturas. Las combinaciones se editan en el mapa común.
+- El contexto del panel decide qué se elimina; escribir nombres/notas/búsqueda nunca borra clips.
+- Pie → **Nuevo elemento** reúne secuencia, ajuste, sólidos/negro/transparente, texto y cuadrado.
+  Propiedades muestra datos del original, notas y botones para localizar sus usos en secuencias.

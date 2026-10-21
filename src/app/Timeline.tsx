@@ -33,6 +33,7 @@ export type MediaDrag = {
   outFrame: number;
   mode: "auto" | "video" | "audio";
   sequenceId?: string;
+  elementId?: string;
   items?: Omit<MediaDrag, "items">[];
   timelineRange?: { project: Project; documentEpoch: number };
 };

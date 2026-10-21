@@ -16,6 +16,7 @@ import { registerVision } from "./vision";
 import { registerAudioProcessing } from "./audioProcessing";
 import { registerTranscription } from "./transcription";
 import { localMedia } from "./localTasks";
+import { registerMediaMetadata } from "./mediaMetadata";
 import { registerAudioChannels } from "./audioChannels";
 import { registerPreviewQuality } from "./previewQuality";
 
@@ -43,6 +44,7 @@ app.use("/out", express.static(OUT_DIR));
 app.use("/library", express.static(FOLEY_DIR));
 registerPreviewQuality(app, DATA_DIR);
 registerAudioChannels(app, DATA_DIR);
+registerMediaMetadata(app, DATA_DIR);
 
 const upload = multer({
   storage: multer.diskStorage({

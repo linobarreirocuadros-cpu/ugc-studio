@@ -133,3 +133,18 @@ el encaje de licencia del render, antes de considerar el editor apto para sustit
   protege la validación del documento tras ese cambio.
 - Evidencias y límites detallados en PROGRESS.md. Esta ampliación no reemplaza las pruebas
   de anuncio completo, escucha editorial, formatos variados, montajes largos y recuperación.
+
+## Ampliación de Proyecto — 2026-10-20
+
+- Corregido Delete/Backspace de Proyecto: estaba reservado como pendiente. Papelera y clic derecho
+  retiran entradas y usos en una sola transacción, con aviso del alcance, candados y Deshacer;
+  no eliminan medios físicos. Parejas y fuentes de canales/derivados están incluidas en la revisión.
+- Biblioteca dentro del JSON/historial, migración compatible y validación de carpetas/ciclos,
+  plantillas y referencias. Proxies asíncronos no interrumpen Deshacer ni recrean medios borrados.
+- 95/95 pruebas totales, typecheck/build; eliminación de 6 usos y recuperación en un Ctrl+Z
+  comprobadas por UI en 5174. También Backspace en secuencia, carpetas, alias, notas, propiedades,
+  crear/colocar ajuste, abrir secuencia y guardar/reabrir. Panel reducido con pie accesible.
+- ffprobe del original AssortedTapes confirmó 1080×1920, 24000/1001 fps, AAC estéreo 48 kHz y
+  duración 26.109417 s; la lista no usa los FPS del proxy para esta información.
+- Pendientes: colecciones grandes, arrastre físico mixto y criterio de Lino. No se reexportó un
+  anuncio completo en esta entrega, ni se implementaron todas las opciones de Proyecto de Premiere.

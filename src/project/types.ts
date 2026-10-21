@@ -1,7 +1,7 @@
 // El proyecto completo es un JSON serializable. La línea de tiempo, el chat (Fase 2)
 // y el render de Remotion leen y escriben esta misma estructura.
 
-export type ClipMetadata = { labelColor?: string; groupId?: string };
+export type ClipMetadata = { labelColor?: string; groupId?: string; projectItemId?: string };
 export type MediaTiming = { playbackRate?: number };
 
 export type VideoClip = ClipMetadata & MediaTiming & {
@@ -105,6 +105,12 @@ export type Track = {
   syncLock?: boolean;
 };
 
+export type LibraryMetadata = {folderId?:string;labelColor?:string;notes?:string};
+export type LibraryMedia = LibraryMetadata & {src:string;name:string;originalName?:string;durationInFrames:number;proxySrc?:string;kind?:"video"|"audio";hasAudio?:boolean};
+export type ProjectFolder = {id:string;name:string;parentId?:string;labelColor?:string;notes?:string};
+export type LibraryElement = LibraryMetadata & {id:string;name:string;clip:GraphicClip|TextClip};
+export type ProjectLibrary = {media:LibraryMedia[];folders:ProjectFolder[];elements:LibraryElement[];sequenceMeta:Record<string,LibraryMetadata>};
+
 export type Project = {
   version: 1;
   name: string;
@@ -116,10 +122,11 @@ export type Project = {
   transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
   markers?: TimelineMarker[];
   sequences?: Record<string, SequenceProject>;
+  library?: ProjectLibrary; // biblioteca global; comparte el historial del montaje
 };
 
 export type TimelineMarker = { id: string; frame: number; label: string; color: string };
-export type SequenceProject = Omit<Project, "sequences"> & { id: string; durationInFrames: number };
+export type SequenceProject = Omit<Project, "sequences" | "library"> & { id: string; durationInFrames: number };
 
 /** La salida es la misma para Programa y exportación. Bloquear no cambia la reproducción. */
 export const trackOutputEnabled = (project: Project, track: Track): boolean => {

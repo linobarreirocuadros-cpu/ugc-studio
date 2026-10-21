@@ -58,7 +58,7 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
   US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.
   Preset de Premiere 2026 auditado: 629 asignaciones de Edición/Color, consultables como referencia;
-  solo 121 comandos adaptados están disponibles y 99 están reservados por funciones pendientes.
+  solo 129 comandos adaptados están disponibles y 93 están reservados por funciones pendientes.
   Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
   Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
   Con Selección: Alt+clic aísla imagen/audio temporalmente, conservando su enlace; el movimiento
@@ -68,6 +68,21 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   abre búsqueda por nombre de secuencias y elementos, además de Texto/Sólido/Cuadrado/Ajuste.
   Espacio sigue reproduciendo. Secuencias vacías desde Proyecto, nombre editable, formato heredado;
   Anidar sustituye la selección por referencias editables; doble clic abre su contenido.
+- Proyecto (2026-10-20): `ProjectPanel.tsx` unifica medios, carpetas, secuencias y plantillas
+  de texto/gráficos. Biblioteca global en `Project.library`, migrada desde `ProjectFile.media`;
+  no duplicarla dentro de secuencias. Renombrar/mover/etiquetar/crear/eliminar pasan por ops y
+  comparten Deshacer con el montaje. Delete/Backspace, papelera y clic derecho eliminan entradas
+  del proyecto, nunca archivos físicos. Si hay usos, confirmar su alcance en raíz/secuencias;
+  contar parejas y derivados y respetar candados. Una eliminación es una sola transacción.
+  `library.ts` consulta elementos/usos. Lista ordenable con columnas opcionales y cuadrícula;
+  búsqueda por nombre/tipo/notas, carpetas, propiedades y localización de usos. Nuevo elemento
+  crea secuencia/ajuste/sólido/negro/transparente/texto/cuadrado reutilizable en Proyecto.
+  `mediaMetadata.ts` lee originales por ffprobe local; no presentar FPS del proxy como originales.
+  Vistas/columnas/miniaturas son preferencias locales; notas y organización viven en el JSON.
+  `useHistory.annotate` se reserva para metadatos derivados de proxies en todas las instantáneas;
+  no crear entradas de historial asíncronas que interrumpan la recuperación de un borrado.
+  Gestión avanzada (reconexión manual, multicámara, columnas reordenables, edición masiva de
+  metadatos y generadores adicionales de Premiere) sigue pendiente.
 - `labelColor` y `groupId` son metadatos de clips; remapear grupos al duplicar/pegar. La barra
   horizontal de cada AudioClip controla volumen constante 0..4 en una transacción al soltar,
   no automatización por keyframes. Ganancia no debe aplicarse dos veces a una pareja.

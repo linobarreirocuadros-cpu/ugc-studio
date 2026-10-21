@@ -1,6 +1,6 @@
-import { normalizeProject, type Project } from "./types";
+import { normalizeProject, type Project, type LibraryMedia } from "./types";
 
-export type ProjectMedia = {src:string;name:string;durationInFrames:number;proxySrc?:string;kind?:"video"|"audio";hasAudio?:boolean};
+export type ProjectMedia = LibraryMedia;
 export type ProjectFile = {project:Project;media:ProjectMedia[]};
 const object=(v:unknown):v is Record<string,unknown>=>Boolean(v)&&typeof v==="object"&&!Array.isArray(v);
 const integer=(v:unknown,min=0):v is number=>typeof v==="number"&&Number.isSafeInteger(v)&&v>=min;
@@ -44,6 +44,25 @@ export function assertProject(value:unknown):asserts value is Project {
     if(p.transcripts!==undefined)requireValue(object(p.transcripts)&&Object.values(p.transcripts).every(words=>Array.isArray(words)&&words.every(w=>object(w)&&typeof w.text==="string"&&integer(w.start)&&integer(w.end)&&w.end>=w.start)),"transcripción incorrecta");
   };
   check(value);
+  if(value.library!==undefined){
+    const l=value.library;requireValue(object(l)&&Array.isArray(l.media)&&Array.isArray(l.folders)&&Array.isArray(l.elements)&&object(l.sequenceMeta),"biblioteca incorrecta");
+    const folders=new Map<string,Record<string,unknown>>();
+    for(const f of l.folders){requireValue(object(f)&&typeof f.id==="string"&&f.id.length>0&&!folders.has(f.id)&&typeof f.name==="string","carpeta incorrecta o duplicada");folders.set(f.id,f);}
+    const meta=(m:Record<string,unknown>)=>{
+      if(m.folderId!==undefined)requireValue(typeof m.folderId==="string"&&folders.has(m.folderId),"carpeta de un elemento ausente");
+      if(m.labelColor!==undefined)requireValue(/^#[0-9a-f]{6}$/i.test(String(m.labelColor)),"etiqueta de biblioteca incorrecta");
+      if(m.notes!==undefined)requireValue(typeof m.notes==="string","notas incorrectas");
+    };
+    for(const f of folders.values()){
+      meta(f);const seen=new Set<string>([String(f.id)]);let parent=f.parentId;
+      while(parent!==undefined){requireValue(typeof parent==="string"&&folders.has(parent)&&!seen.has(parent),"carpeta ausente o circular");seen.add(parent);parent=folders.get(parent)!.parentId;}
+    }
+    const media=new Set<string>();
+    for(const m of l.media){requireValue(object(m)&&typeof m.src==="string"&&!media.has(m.src)&&typeof m.name==="string"&&integer(m.durationInFrames,1)&&(m.kind===undefined||m.kind==="audio"||m.kind==="video")&&(m.proxySrc===undefined||typeof m.proxySrc==="string")&&(m.originalName===undefined||typeof m.originalName==="string"),"medio de biblioteca incorrecto o duplicado");media.add(m.src);meta(m);}
+    const elements=new Set<string>();
+    for(const e of l.elements){requireValue(object(e)&&typeof e.id==="string"&&!elements.has(e.id)&&typeof e.name==="string"&&object(e.clip)&&(e.clip.kind==="text"||e.clip.kind==="graphic"),"elemento de biblioteca incorrecto o duplicado");elements.add(e.id);meta(e);check({...value,tracks:[{id:"asset",name:"Elemento",kind:e.clip.kind,clips:[e.clip]}]});}
+    for(const [id,m] of Object.entries(l.sequenceMeta)){requireValue(object(m)&&object(value.sequences)&&Boolean(value.sequences[id]),"metadatos de secuencia ausente");meta(m);}
+  }
   if(value.sequences!==undefined){requireValue(object(value.sequences),"secuencias incorrectas");for(const s of Object.values(value.sequences)){requireValue(object(s)&&integer(s.durationInFrames,1),"secuencia incorrecta");check(s);}}
   const sequences=(value.sequences??{}) as Record<string,Record<string,unknown>>;
   const visit=(p:Record<string,unknown>,stack:Set<string>)=>{
@@ -58,7 +77,7 @@ export function parseProjectFile(text:string):ProjectFile {
   let data:unknown;
   try{data=JSON.parse(text);}catch{throw new Error("No se pudo abrir: el archivo no contiene JSON válido.");}
   requireValue(object(data),"archivo incorrecto");assertProject(data.project);
-  const media=data.media??[];
+  const media=data.project.library?.media??data.media??[];
   requireValue(Array.isArray(media)&&media.every(m=>object(m)&&typeof m.src==="string"&&typeof m.name==="string"&&integer(m.durationInFrames,1)&&(m.kind===undefined||m.kind==="video"||m.kind==="audio")&&(m.proxySrc===undefined||typeof m.proxySrc==="string")),"biblioteca de medios incorrecta");
   return {project:normalizeProject(data.project),media:media as ProjectMedia[]};
 }

@@ -5,6 +5,7 @@ import {
   getProjectDuration,
   sourceFrame, availableFrames, createEmptyProject,
   type GraphicClip,
+  type LibraryMedia, type ProjectLibrary, type LibraryMetadata,
   destinationTrack,
   nameTracks,
   trackOutputEnabled,
@@ -21,8 +22,93 @@ import {
   type Word,
   type TimelineMarker,
 } from "./types";
+import { emptyLibrary, projectLibrary, projectItems, expandProjectItems, projectItemUses } from "./library";
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
+
+/** Migración del archivo antiguo: biblioteca global dentro del mismo JSON e historial. */
+export const ensureProjectLibrary = (p:Project,legacyMedia:LibraryMedia[]=[]):Project => p.library?p:{...p,library:{...emptyLibrary(),media:legacyMedia}};
+export const setLibraryMedia = (p:Project,media:LibraryMedia[]):Project => {
+  const library=projectLibrary(p);return media===library.media||JSON.stringify(media)===JSON.stringify(library.media)?p:{...p,library:{...library,media}};
+};
+/** Un proxy es información derivada; aplicarla también a instantáneas de historial. */
+export const annotateProjectProxy=(p:Project,src:string,proxySrc:string):Project=>{
+  let next=p;
+  if(p.library?.media.some(m=>m.src===src&&m.proxySrc!==proxySrc))next=setLibraryMedia(p,p.library.media.map(m=>m.src===src?{...m,proxySrc}:m));
+  const update=(view:Project)=>view.tracks.some(t=>t.clips.some(c=>c.kind==="video"&&c.src===src&&c.proxySrc!==proxySrc))?setProxy(view,src,proxySrc):view;
+  next=update(next);
+  const sequences=p.sequences?Object.fromEntries(Object.entries(p.sequences).map(([id,s])=>[id,update(s)])):undefined;
+  if(sequences&&Object.keys(sequences).some(id=>sequences[id]!==p.sequences?.[id]))next={...next,sequences:sequences as Project["sequences"]};
+  return next;
+};
+export const addProjectFolder = (p:Project,name:string,parentId?:string,id=newId()):Project => {
+  const l=projectLibrary(p);if(parentId&&!l.folders.some(f=>f.id===parentId))throw new Error("La carpeta de destino ya no existe.");
+  if(l.folders.some(f=>f.id===id))throw new Error("La carpeta ya existe.");
+  return {...p,library:{...l,folders:[...l.folders,{id,name:name.trim().slice(0,160)||"Nueva carpeta",parentId}]}};
+};
+export const moveProjectItems = (p:Project,keys:string[],folderId?:string):Project => {
+  const l=projectLibrary(p),chosen=new Set(keys);
+  if(folderId&&!l.folders.some(f=>f.id===folderId))throw new Error("La carpeta de destino ya no existe.");
+  if(folderId&&expandProjectItems(p,keys).has(`folder:${folderId}`))throw new Error("Una carpeta no se puede mover dentro de sí misma ni de una subcarpeta.");
+  const change=(key:string,meta:LibraryMetadata):LibraryMetadata=>chosen.has(key)?{...meta,folderId}:meta;
+  return {...p,library:{...l,media:l.media.map(m=>({...m,...change(m.src,m)})),folders:l.folders.map(f=>chosen.has(`folder:${f.id}`)?{...f,parentId:folderId}:f),elements:l.elements.map(e=>({...e,...change(`element:${e.id}`,e)})),sequenceMeta:Object.fromEntries(Object.keys(p.sequences??{}).map(id=>[id,change(`sequence:${id}`,l.sequenceMeta[id]??{})]))}};
+};
+export const setProjectItemMetadata = (p:Project,key:string,patch:Pick<LibraryMetadata,"labelColor"|"notes">):Project => {
+  if(patch.labelColor!==undefined&&!/^#[0-9a-f]{6}$/i.test(patch.labelColor))throw new Error("Color de etiqueta no válido.");
+  const l=projectLibrary(p),sequence=key.startsWith("sequence:")?key.slice(9):undefined;
+  return {...p,library:{...l,media:l.media.map(m=>m.src===key?{...m,...patch}:m),elements:l.elements.map(e=>`element:${e.id}`===key?{...e,...patch}:e),folders:l.folders.map(f=>`folder:${f.id}`===key?{...f,...patch}:f),sequenceMeta:sequence?{...l.sequenceMeta,[sequence]:{...l.sequenceMeta[sequence],...patch}}:l.sequenceMeta}};
+};
+export const renameProjectItem = (p:Project,key:string,name:string):Project => {
+  name=name.trim().slice(0,160);if(!name)throw new Error("Escribe un nombre.");
+  const l=projectLibrary(p);if(!projectItems(p).some(i=>i.key===key))return p;
+  const sequenceId=key.startsWith("sequence:")?key.slice(9):undefined;
+  const rename=(tracks:Track[])=>tracks.map(t=>({...t,clips:t.clips.map(c=>(c.kind==="video"||c.kind==="audio")&&(c.src===key||sequenceId&&c.sequenceId===sequenceId)?{...c,name}:c)}));
+  return {...p,tracks:rename(p.tracks),sequences:p.sequences?Object.fromEntries(Object.entries(p.sequences).map(([id,s])=>[id,{...s,name:id===sequenceId?name:s.name,tracks:rename(s.tracks)}])):undefined,library:{...l,media:l.media.map(m=>m.src===key?{...m,originalName:m.originalName??m.name,name}:m),folders:l.folders.map(f=>`folder:${f.id}`===key?{...f,name}:f),elements:l.elements.map(e=>`element:${e.id}`===key?{...e,name,clip:{...e.clip,...(e.clip.kind==="graphic"?{name}:{})}}:e)}};
+};
+export type LibraryElementType="adjustment"|"solid"|"rectangle"|"text"|"black"|"transparent";
+export const addProjectElement = (p:Project,type:LibraryElementType,name:string,duration:number,color="#ffffff",folderId?:string,id=newId()):Project => {
+  if(!Number.isSafeInteger(duration)||duration<1||!/^#[0-9a-f]{6}$/i.test(color))throw new Error("Duración o color no válidos.");
+  const l=projectLibrary(p);if(folderId&&!l.folders.some(f=>f.id===folderId))throw new Error("La carpeta de destino ya no existe.");
+  name=name.trim().slice(0,160)||"Elemento";
+  const clip:GraphicClip|import("./types").TextClip=type==="text"?{id,kind:"text",text:name,from:0,durationInFrames:duration,style:{...DEFAULT_TEXT_STYLE}}:{id,kind:"graphic",shape:type==="adjustment"?"adjustment":type==="rectangle"?"rectangle":"solid",name,from:0,durationInFrames:duration,color:type==="black"?"#000000":color,x:.5,y:.5,width:.3,height:Math.min(1,.3*p.width/p.height),opacity:type==="transparent"?0:1,brightness:1,contrast:1,saturation:1};
+  return {...p,library:{...l,elements:[...l.elements,{id,name,folderId,clip}]}};
+};
+export const placeProjectElement = (p:Project,id:string,at:number,hostId?:string):Project => {
+  const item=projectLibrary(p).elements.find(e=>e.id===id);if(!item)return p;
+  const clip={...item.clip,projectItemId:id,labelColor:item.labelColor};
+  const track:Track={id:clip.kind==="text"?"T1":`G-item-${id}`,kind:clip.kind,name:item.name,clips:[clip]};
+  return pasteClips(p,{...p,tracks:[track]},at,hostId);
+};
+/** Colocar varios elementos consecutivos en una sola operación reversible. */
+export const placeProjectItems = (p:Project,keys:string[],at:number,hostId?:string,nested=true):Project => {
+  if(!Number.isSafeInteger(at)||at<0)return p;
+  let next=p,cursor=at;const library=projectLibrary(p);
+  for(const key of keys){
+    const m=library.media.find(m=>m.src===key),s=key.startsWith("sequence:")?p.sequences?.[key.slice(9)]:undefined,e=key.startsWith("element:")?library.elements.find(e=>e.id===key.slice(8)):undefined;
+    const before=next;
+    if(m){const target=destinationTrack(next,m.kind==="audio"?"audio":"video");if(!target)return p;next=addSourceRange(next,m,target,cursor);cursor+=m.durationInFrames;}
+    else if(s){const target=destinationTrack(next,"video");if(!target)return p;next=placeSequence(next,s.id,target,cursor,nested,hostId);cursor+=s.durationInFrames;}
+    else if(e){next=placeProjectElement(next,e.id,cursor,hostId);cursor+=e.clip.durationInFrames;}
+    else return p;
+    if(next===before)return p;
+  }
+  return next;
+};
+/** Quitar de Proyecto nunca borra archivos. Usos y biblioteca son una sola transacción. */
+export const removeProjectItems = (p:Project,keys:string[],allowUsed=false):Project => {
+  const selected=expandProjectItems(p,keys),items=projectItems(p).filter(i=>selected.has(i.key));if(!items.length)return p;
+  const uses=projectItemUses(p,keys),removedSequences=new Set(items.filter(i=>i.kind==="sequence").map(i=>i.key.slice(9)));
+  if(uses.length&&!allowUsed)throw new Error("El elemento está usado en secuencias. Revisa la eliminación antes de continuar.");
+  for(const id of removedSequences)if(p.sequences?.[id]?.tracks.some(t=>t.locked&&t.clips.length))throw new Error("La secuencia contiene pistas bloqueadas. Desbloquéalas antes de eliminarla.");
+  const remove=(view:Project,sequenceId?:string):Project=>{
+    const ids=uses.filter(u=>u.sequenceId===sequenceId).map(u=>u.clipId);
+    if(!clipsEditable(view,ids))throw new Error("Hay clips o parejas en pistas bloqueadas. Desbloquéalas antes de eliminar.");
+    const clean=deleteClips(view,ids);return {...clean,transcripts:clean.transcripts?Object.fromEntries(Object.entries(clean.transcripts).filter(([src])=>!selected.has(src))):undefined,transcriptInfo:clean.transcriptInfo?Object.fromEntries(Object.entries(clean.transcriptInfo).filter(([src])=>!selected.has(src))):undefined};
+  };
+  let next=remove(p);
+  next={...next,sequences:Object.fromEntries(Object.entries(p.sequences??{}).filter(([id])=>!removedSequences.has(id)).map(([id,s])=>[id,{...s,...remove(s,id)}]))};
+  const l=projectLibrary(p);return {...next,library:{...l,media:l.media.filter(m=>!selected.has(m.src)),folders:l.folders.filter(f=>!selected.has(`folder:${f.id}`)),elements:l.elements.filter(e=>!selected.has(`element:${e.id}`)),sequenceMeta:Object.fromEntries(Object.entries(l.sequenceMeta).filter(([id])=>!removedSequences.has(id)))}};
+};
 
 /** Selección de grupo y parejas, transitiva. Alt permite aislar una parte en la UI. */
 export const groupedIds = (p: Project, ids: string[]): string[] => {
@@ -173,7 +259,7 @@ export const createSequence = (project: Project, ids: string[], name: string): P
   if (!clips.length) return project;
   const start = Math.min(...clips.map((c) => c.from)), end = Math.max(...clips.map((c) => c.from + c.durationInFrames));
   const id = newId();
-  const { sequences: _, ...base } = project;
+  const { sequences: _, library: _library, ...base } = project;
   const sequence = { ...base, id, name: name.trim().slice(0, 100) || "Secuencia", durationInFrames: end - start,
     tracks: project.tracks.map((t) => ({ ...t, locked: false, targeted: false, clips: t.clips.filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from - start })) })),
     markers: (project.markers ?? []).filter((m) => m.frame >= start && m.frame < end).map((m) => ({ ...m, frame: m.frame - start })),
@@ -183,11 +269,11 @@ export const createSequence = (project: Project, ids: string[], name: string): P
 
 export const updateSequence = (project: Project, id: string, contents: Project): Project => {
   if (!project.sequences?.[id]) return project;
-  const { sequences, ...sequence } = contents;
+  const { sequences, library, ...sequence } = contents;
   const end = Math.max(1, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.from + c.durationInFrames)));
   const refresh = (tracks: Track[]) => tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: end, trimStart: Math.min(c.trimStart,end-1), durationInFrames: Math.min(c.durationInFrames,end-Math.min(c.trimStart,end-1)) } : c) }));
   const next = { ...sequences, [id]: { ...sequence, id, durationInFrames: end } };
-  return { ...project, tracks: refresh(project.tracks), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks) }])) };
+  return { ...project, ...(library ? {library} : {}), tracks: refresh(project.tracks), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks) }])) };
 };
 
 const containsSequence = (project: Project, id: string, sought: string, visited = new Set<string>()): boolean => {

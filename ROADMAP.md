@@ -145,6 +145,14 @@ a estar validado para entregas de agencia.
       animación breve, favicon coherente, paleta conservada y soporte de movimiento reducido
 - [ ] Validar con Lino la cara, proporciones y timing de la mascota, navegación del chat y voz
 - [x] Panel Proyecto con vistas de lista y cuadrícula; selección del archivo de origen
+- [x] Papelera, Delete/Backspace y clic derecho en Proyecto: eliminación reversible de medios,
+      carpetas, elementos y secuencias; aviso de usos, parejas/derivados y candados; originales intactos
+- [x] Biblioteca global en JSON/historial: carpetas/subcarpetas, mover, renombrar, etiquetas y notas;
+      búsqueda, filtro, lista ordenable con columnas opcionales y metadatos reales del original
+- [x] Nuevo elemento en Proyecto: secuencia, ajuste, sólido, negro/transparente, texto y cuadrado;
+      plantillas reutilizables, propiedades, localizar usos y guardado/reapertura de la organización
+- [ ] Validar organización de muchos archivos y arrastre físico mixto con Lino; ampliar reconexión
+      manual, multicámara, metadatos masivos, columnas reordenables y otros generadores
 - [x] Selección múltiple por recuadro en timeline y Proyecto (lista/cuadrícula), Ctrl/Shift+clic,
       movimiento/borrado conjunto reversible y selección independiente entre paneles
 - [x] Barra de herramientas: selección, selección hacia delante, cuchilla, recorte ripple de
@@ -152,7 +160,7 @@ a estar validado para entregas de agencia.
 - [x] Menús Archivo/Edición/Clip/Secuencia/Marcadores/Gráficos/Ventana/Ayuda; teclado visual
       editable con búsqueda, ámbitos, conflictos, varias combinaciones, persistencia y presets JSON
 - [x] Auditar preset Windows de Premiere 2026: 629 asignaciones consultables; mapa adaptado con
-      116 comandos disponibles y 104 pendientes identificados; rueda del timeline configurable
+      129 comandos disponibles y 93 pendientes identificados; rueda del timeline configurable
 - [x] Conectar atajos de Origen, inserción por ripple, portapapeles interno, recortes Q/W,
       navegación, transporte y marcadores con historial y respeto de enlaces/candados
 - [ ] Validar mouse físico, puntuación del teclado, arrastre de comandos y traslado de presets con Lino
