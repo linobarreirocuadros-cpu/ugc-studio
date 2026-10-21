@@ -43,7 +43,9 @@ con rawvideo/pcm explícitos decodificó bien: no era fallo del archivo ni del e
 **Entrega local:** el Vite anterior en 5173 solo escuchaba en ::1; se dejó también Vite en
 127.0.0.1:5173 (sesión 40940), conservando API 3001. La pestaña principal estaba en una página
 interna de error y la herramienta bloqueó su control por política de URL; se solicitó a Lino
-recargarla. No se eludió el bloqueo ni se alteró su documento. QA 5174 se cerró al terminar.
+recargarla. Lino confirmó que volvió a abrir; se verificó su proyecto «Prueba Chat Ollama»
+con video y cinco elementos de audio en readyState 4 y sin errores de medios. Se dejó la pestaña
+como entrega. No se eludió el bloqueo ni se alteró su documento. QA 5174 se cerró al terminar.
 
 **Pendiente:** desconexión/reconexión física de pantallas y arrastre OS entre ventanas (la API
 no expone la popup para esa prueba automatizada); reconocimiento/posición se cubren con pruebas
