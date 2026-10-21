@@ -11,7 +11,7 @@ export function TrackControls({ track, targeted, onChange, onRecord, recording, 
     <button type="button" title={`${name} · ${track.name}`} aria-label={`${name} · ${track.name}`} aria-pressed={active} className={active ? "active" : ""} disabled={disabled} onClick={action}>{content}</button>;
   return <>
     {button("Bloquear pista", Boolean(track.locked), () => onChange({ locked: !track.locked }), icon(<><rect x="5" y="10" width="14" height="11" rx="2"/><path d={track.locked ? "M8 10V6a4 4 0 0 1 8 0v4" : "M8 10V6a4 4 0 0 1 8 0"}/></>))}
-    {track.kind === "video" || track.kind === "audio" ? <button className={`track-name ${targeted ? "active" : ""}`} aria-label={`Pista destino · ${track.name}`} aria-pressed={targeted} title={`Destino para añadir desde Origen/Proyecto · ${track.name}`} onClick={() => onChange({ targeted: true })}>{track.name}</button> : <span className="track-name">{track.name}</span>}
+    {<button className={`track-name ${targeted ? "active" : ""}`} aria-label={`Pista destino · ${track.name}`} aria-pressed={targeted} title={`Destino para añadir desde Origen/Proyecto · ${track.name}`} onClick={() => onChange({ targeted: true })}>{track.name}</button>}
     {button("Seguir ripple", Boolean(track.syncLock), () => onChange({ syncLock: !track.syncLock }), icon(<><path d="M4 6h12M4 18h12M8 3v18m6-12 5 3-5 3"/></>))}
     {track.kind === "audio" ? <>
       {button("Silenciar pista", Boolean(track.muted), () => onChange({ muted: !track.muted }), "M")}

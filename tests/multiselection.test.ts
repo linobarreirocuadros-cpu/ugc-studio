@@ -10,11 +10,11 @@ test("mover selección conserva distancias entre pistas y limita el grupo comple
   const video = project.tracks.find((t) => t.id === "V1")!.clips[0];
   const before = JSON.stringify(project);
   assert.throws(() => sourceClip({ getProject: () => project, commit: () => {}, selectedClipIds: [video.id, "title"] }), /varios clips/);
-  const moved = ops.moveClips(project, [video.id, "title"], -100, 1); // el título no tiene pista compatible arriba
+  const moved = ops.moveClips(project, [video.id, "title"], -100, 1); // video y título pueden subir a cualquier pista visual
   assert.equal(ops.findClip(moved, video.id)!.clip.from, 0);
   assert.equal(ops.findClip(moved, "title")!.clip.from, 30);
-  assert.equal(ops.findClip(moved, video.id)!.track.id, "V1");
-  assert.equal(ops.findClip(moved, "title")!.track.id, "T1");
+  assert.equal(ops.findClip(moved, video.id)!.track.id, "V2");
+  assert.equal(ops.findClip(moved, "title")!.track.id, "S1");
   assert.equal(JSON.stringify(project), before);
   const broll = ops.moveClips(project, [video.id], 10, 1);
   assert.equal(ops.findClip(broll, video.id)!.track.id, "V2");

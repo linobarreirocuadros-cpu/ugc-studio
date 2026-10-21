@@ -18,7 +18,7 @@ export function assertProject(value:unknown):asserts value is Project {
     for(const t of p.tracks){
       requireValue(object(t)&&typeof t.id==="string"&&!tracks.has(t.id)&&typeof t.name==="string"&&["video","audio","text","caption","graphic"].includes(String(t.kind))&&Array.isArray(t.clips),"pista incorrecta o duplicada");tracks.add(t.id);
       for(const c of t.clips){
-        requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&c.kind===t.kind&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
+        requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&["video","audio","text","caption","graphic"].includes(String(c.kind))&&(c.kind==="audio")===(t.kind==="audio")&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
         if(c.labelColor!==undefined)requireValue(/^#[0-9a-f]{6}$/i.test(String(c.labelColor)),"etiqueta incorrecta");
         if(c.groupId!==undefined)requireValue(typeof c.groupId==="string","grupo incorrecto");
         if(c.kind==="video"||c.kind==="audio"){

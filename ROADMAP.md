@@ -201,6 +201,15 @@ a estar validado para entregas de agencia.
 - [x] Comprobar integridad y reproducción local del video UGC original en un proyecto aislado
 - [ ] Validar con Lino el arrastre y la continuidad visual de la reproducción en sus videos
 - [x] Pistas genéricas B1, B2… y Audio 1, Audio 2…; botones para añadir más desde el timeline y chat
+- [x] Pistas B mixtas: video, texto, subtítulos y gráficos en cualquier capa visual; JSON,
+      movimiento/duplicado/pegado, secuencias y rangos compatibles; Audio separado
+- [x] Cabezal con imán suave a cortes/bordes/marcadores, guía visual, desactivación y modificador editable
+- [x] Huella temporal translúcida por pieza al insertar Proyecto/Origen/Programa, preview puro,
+      mismo cálculo de destino e imán al soltar; modos imagen/audio/ambos preservan la otra señal
+- [x] Verificar Origen/Programa por UI, selección de piezas nuevas, Deshacer y guardar/reabrir video en B3
+- [x] Proyecto con puntero: medios/gráficos, selección múltiple consecutiva, foco/borrado y mover a carpetas
+- [ ] Validar físicamente arrastre entre ventanas, cancelación/modificadores
+      y comodidad del imán con Lino; evaluar rendimiento en montajes largos
 - [x] Barra superior: anidar/individuales, imán, selección enlazada, selección bajo cabezal,
       marcadores editables y ajustes de nombres/ondas/altura persistidos localmente
 - [x] Crear secuencia desde selección; colocar anidada o como clips, abrir/editar/volver al montaje,

@@ -332,7 +332,7 @@ export async function executeTool(name: string, input: Input, ctx: ToolContext):
       if (target.locked) throw new Error("La pista destino está bloqueada.");
       let next: Project;
       if (target.kind === "audio") next = ops.addSourceRange(project, item, track, f(input.start_s));
-      else if (target.kind === "video" && item.kind !== "audio") next = ops.addVideoClip(project, item, track, num(input.start_s) !== undefined ? f(input.start_s) : undefined);
+      else if (item.kind !== "audio") next = ops.addVideoClip(project, item, track, num(input.start_s) !== undefined ? f(input.start_s) : undefined);
       else throw new Error("El tipo de archivo no es compatible con la pista elegida.");
       if (next === project) throw new Error("No se pudo colocar: una pista o pareja afectada está bloqueada.");
       if (num(input.volume_percent) !== undefined) {

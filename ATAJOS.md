@@ -197,3 +197,14 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   ese visor. El foco y la entrada de las ventanas secundarias usan el mismo mapa de comandos.
 - Recorrido real: ocho menús inspeccionados; acciones de edición y monitor descritas en
   QUALITY_AUDIT.md. No se ejecutó manualmente cada combinación de los 137 comandos.
+
+## Imán y colocación — 2026-10-21
+
+- **S** (asignación por defecto del mapa) alterna Imán. Cabezal y material entrante de Proyecto,
+  Origen/Programa se acercan a cortes, inicios/finales y marcadores. Material entrante también
+  ajusta su extremo final y el cabezal existente. La guía ámbar señala el punto elegido.
+- **Shift** por defecto ignora el imán mientras arrastras cabezal, insertas o mueves/recortas
+  clips. Cambiarlo/desactivarlo en **Atajos → Mouse y rueda → Ignorar imán al arrastrar**.
+  La combinación se compara completa; no cambia Alt+arrastrar para duplicar.
+- Soltar coloca; cancelar el arrastre no edita el proyecto. Imagen/audio/ambos del monitor
+  usan el mismo rango I/O, con salida inclusiva en la interfaz y exclusiva en el modelo.

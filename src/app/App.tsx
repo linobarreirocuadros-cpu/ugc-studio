@@ -48,6 +48,7 @@ import { updateMonitorRange, sourceRange, type MonitorDragMode } from "./monitor
 import { assertProject, parseProjectFile, type ProjectMedia } from "../project/projectFile";
 import { exportProject } from "./exportJob";
 import { guardAssistantSession } from "./assistantSession";
+import {placeMedia,previewMedia,placedMediaIds} from "./mediaPlacement";
 import { useMonitorDrag } from "./useMonitorDrag";
 
 type MediaItem = ProjectMedia;
@@ -259,7 +260,7 @@ export function App() {
     if (!timelinePreferences.selectionFollowsPlayhead) return;
     const clip = clipAtPlayhead(history.current(), f);
     setSelectedIds(clip ? [clip.id] : []); selectionPanel.current = "timeline";
-  }, [timelinePreferences.selectionFollowsPlayhead, history.current]);
+  }, [timelinePreferences.selectionFollowsPlayhead]);
 
   // Sincroniza el cabezal con el reproductor; selección automática solo al buscar, no al reproducir.
   useEffect(() => {
@@ -347,35 +348,17 @@ export function App() {
   const dropMedia = (dragged: MediaDrag, trackId: string, at: number) => {
     if(dragged.documentEpoch!==undefined&&dragged.documentEpoch!==documentEpoch.current){setFeedback("El documento cambió desde que empezaste a arrastrar.");return;}
     if(dragged.timelineRange){
-      try{
-        if(dragged.timelineRange.documentEpoch!==documentEpoch.current)throw new Error("El documento cambió desde que empezaste a arrastrar.");
-        assertProject(dragged.timelineRange.project);
-        const before=history.current(),next=ops.placeTimelineRange(before,dragged.timelineRange.project,trackId,at,dragged.mode??"auto",editingSequenceId??undefined);
-        if(next===before)setFeedback("No se pudo colocar el rango: comprueba su contenido, el tipo de pista y los candados de destino.");
-        else history.apply(()=>next);
-      }catch(error){setFeedback(error instanceof Error?error.message:String(error));}
-      return;
+      try{if(dragged.timelineRange.documentEpoch!==documentEpoch.current)throw new Error("El documento cambió desde que empezaste a arrastrar.");assertProject(dragged.timelineRange.project);}catch(error){setFeedback(error instanceof Error?error.message:String(error));return;}
     }
-    const items = dragged.items ?? [dragged];
-    const track = project.tracks.find((t) => t.id === trackId);
-    if (items.some((item) => !item.sequenceId&&!item.elementId&&(missing.has(item.src) || !media.some((m) => m.src === item.src)))) return;
-    if (track?.kind === "video" && items.some((item) => item.kind === "audio" || item.mode === "audio")) { alert("Para colocar la selección en una pista de video, selecciona solo videos. También puedes colocarla completa como audio en una pista de audio."); return; }
-    history.apply((p) => {
-      let next = p, cursor = at;
-      for (const item of items) {
-        if(item.elementId){const placed=ops.placeProjectElement(next,item.elementId,cursor,editingSequenceId??undefined);if(placed===next)return p;next=placed;cursor+=item.outFrame-item.inFrame;continue;}
-        if(item.sequenceId){const placed=ops.placeSequence(next,item.sequenceId,trackId,cursor,timelinePreferences.nestSequences,editingSequenceId??undefined);if(placed===next)return p;next=placed;cursor+=item.outFrame-item.inFrame;continue;}
-        const m = media.find((entry) => entry.src === item.src)!;
-        const placed = ops.addSourceRange(next, m, trackId, cursor, item.inFrame, item.outFrame, item.mode === "video");
-        if(placed===next)return p;next=placed;
-        cursor += item.outFrame - item.inFrame;
-      }
-      return next;
-    });
+    const items=dragged.items??[dragged];
+    if(!dragged.timelineRange&&items.some(item=>!item.sequenceId&&!item.elementId&&(missing.has(item.src)||!media.some(m=>m.src===item.src))))return;
+    const before=history.current(),next=placeMedia(before,dragged,trackId,at,{media,hostId:editingSequenceId??undefined,nested:timelinePreferences.nestSequences});
+    if(next===before)setFeedback("No se puede colocar aquí: revisa el tipo de contenido y los candados de destino.");else{const shapes=previewMedia(before,dragged,trackId,at,{media,hostId:editingSequenceId??undefined,nested:timelinePreferences.nestSequences});history.apply(()=>next);setSelectedIds(placedMediaIds(before,next,shapes));setIsolatedSelection(dragged.mode!=="auto");}
   };
+
   const startMediaDrag = (e: React.DragEvent, m: MediaItem, inFrame = 0, outFrame = m.durationInFrames, mode: MediaDrag["mode"] = "auto") => {
     const payload: MediaDrag = { documentEpoch:documentEpoch.current,src: m.src, kind: m.kind ?? "video", inFrame, outFrame, mode };
-    e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
+    rangeDrag.beginNative(payload);e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copy";
   };
   const programRangeDrag=(mode:MonitorDragMode):MediaDrag=>{
@@ -385,10 +368,10 @@ export function App() {
   const startProgramRangeDrag=(e:React.DragEvent,mode:MonitorDragMode)=>{
     const payload=programRangeDrag(mode);
     if(!payload.timelineRange!.project.tracks.some(t=>t.clips.length)){e.preventDefault();setFeedback("El rango no contiene ese tipo de contenido.");return;}
-    transport("stop");sourceRef.current?.command("stop");e.dataTransfer.setData(MEDIA_DRAG_TYPE,JSON.stringify(payload));e.dataTransfer.effectAllowed="copy";
+    transport("stop");sourceRef.current?.command("stop");rangeDrag.beginNative(payload);e.dataTransfer.setData(MEDIA_DRAG_TYPE,JSON.stringify(payload));e.dataTransfer.effectAllowed="copy";
   };
   const placeProgramRange=(mode:MonitorDragMode)=>{const target=destinationTrack(project,mode==="audio"?"audio":"video");if(target)dropMedia(programRangeDrag(mode),target,frame);else setFeedback("Desbloquea una pista destino para colocar el rango.");};
-  const rangeDrag=useMonitorDrag({pxPerFrame,session:documentEpoch.current,root:()=>workspace.find(".timeline-area")??null,onDrop:dropMedia,onActivate:element=>{workspace.activatePanel(element);activeScope.current="timeline";selectionPanel.current="timeline";element.closest<HTMLElement>("[data-shortcut-scope]")?.focus({preventScroll:true});}});
+  const rangeDrag=useMonitorDrag({gestures:shortcuts.settings.gestures,project,snapping:timelinePreferences.snapping,playhead:frame,pxPerFrame,session:documentEpoch.current,root:()=>workspace.find(".timeline-area")??null,onDrop:dropMedia,onActivate:element=>{workspace.activatePanel(element);activeScope.current="timeline";selectionPanel.current="timeline";element.closest<HTMLElement>("[data-shortcut-scope]")?.focus({preventScroll:true});}});
   const startRangePointer=(e:React.PointerEvent,payload:MediaDrag,clickToPlace=false)=>{
     transport("stop");sourceRef.current?.command("stop");
     if(workspace.find(".timeline-scroll")?.ownerDocument!==e.currentTarget.ownerDocument)return false;
@@ -515,7 +498,7 @@ export function App() {
     if(/^(nudge|slip)(Left|Right)[15]$/.test(id)){const delta=(id.includes("Left")?-1:1)*Number(id.at(-1));history.apply(p=>ops.editSelection(p,selectedIds,linkedSelection,current=>{if(id.startsWith("nudge"))return ops.moveClips(current,selectedIds,delta);const done=new Set<string>();return selectedIds.reduce((next,clipId)=>{if(done.has(clipId))return next;ops.linkedIds(current,[clipId]).forEach(key=>done.add(key));return ops.slipClip(next,clipId,delta);},current);}));return;}
     if(/^step(Left|Right)[15]$/.test(id)){transport("stop");seek(frame+(id.includes("Left")?-1:1)*Number(id.at(-1)));return;}
     if(id==="start"||id==="end"){seek(id==="start"?0:duration-1);return;}
-    if(["nextEdit","prevEdit","nextEditAll","prevEditAll","nextCaption","prevCaption"].includes(id)){const forward=id.startsWith("next"),captions=id.includes("Caption"),targets=[destinationTrack(project,"video"),destinationTrack(project,"audio")],points=[...new Set(project.tracks.filter(t=>captions?t.kind==="caption":id.endsWith("All")||targets.includes(t.id)).flatMap(t=>t.clips.flatMap(c=>captions?[c.from]:[c.from,c.from+c.durationInFrames])))].sort((a,b)=>a-b);const point=forward?points.find(p=>p>frame):points.reverse().find(p=>p<frame);if(point!==undefined)seek(point);return;}
+    if(["nextEdit","prevEdit","nextEditAll","prevEditAll","nextCaption","prevCaption"].includes(id)){const forward=id.startsWith("next"),captions=id.includes("Caption"),targets=[destinationTrack(project,"video"),destinationTrack(project,"audio")],points=[...new Set(project.tracks.filter(t=>captions||id.endsWith("All")||targets.includes(t.id)).flatMap(t=>t.clips.flatMap(c=>captions?(c.kind==="caption"?[c.from]:[]):[c.from,c.from+c.durationInFrames])))].sort((a,b)=>a-b);const point=forward?points.find(p=>p>frame):points.reverse().find(p=>p<frame);if(point!==undefined)seek(point);return;}
     if(["markIn","markOut","clearIn","clearOut","clearMarks"].includes(id)){setMarkRange(r=>updateMonitorRange(r,id,frame,duration));return;}
     if(id==="goIn"||id==="goOut"){seek(id==="goIn"?markRange.start??0:(markRange.end??duration)-1);return;}
     if(id==="markClip"||id==="markSelection"){const clips=id==="markClip"?[clipAtPlayhead(project,frame)].filter(c=>Boolean(c)):project.tracks.flatMap(t=>t.clips).filter(c=>selectedIds.includes(c.id));if(clips.length)setMarkRange({start:Math.min(...clips.map(c=>c!.from)),end:Math.max(...clips.map(c=>c!.from+c!.durationInFrames))});return;}
@@ -553,7 +536,7 @@ export function App() {
   };
 
   return (
-    <UiDocument.Provider value={workspace.activeDocument}><div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style} onPointerDownCapture={e=>focusClickedPanel(e.target)} onFocusCapture={e=>captureScope(e.target)} onPointerOver={e=>{const panel=(e.target as HTMLElement).closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel)hoveredPanel.current=panel;}}>
+    <UiDocument.Provider value={workspace.activeDocument}><div ref={workspace.appRef} className={`app ${workspace.dragged ? "docking-panel" : ""}`} style={workspace.style} onDragEndCapture={()=>rangeDrag.cancel()} onPointerDownCapture={e=>focusClickedPanel(e.target)} onFocusCapture={e=>captureScope(e.target)} onPointerOver={e=>{const panel=(e.target as HTMLElement).closest<HTMLElement>("[data-workspace-panel]")?.dataset.workspacePanel as Panel|undefined;if(panel)hoveredPanel.current=panel;}}>
       <div className="app-chrome">
       <MenuBar run={runCommand} hint={shortcuts.hint} enabled={canRun}/>
       <header className="topbar">
@@ -621,7 +604,7 @@ export function App() {
         </div>
       )}
 
-      {rangeDrag.overlay}<div className="workspace-canvas" ref={workspace.canvasRef}>
+      <div className="workspace-canvas" ref={workspace.canvasRef}>
       {workspace.renderPanel("bin",<aside className="panel bin dock-panel" {...workspace.panelProps("bin")} data-shortcut-scope="bin" tabIndex={-1}>
         <div className="panel-title">
           <div className="tabs">
@@ -632,7 +615,7 @@ export function App() {
           <input ref={fileInput} type="file" accept="video/*,audio/*" multiple hidden onChange={(e) => {void importFiles(e.currentTarget.files);e.currentTarget.value="";}} />
         </div>
         {binTab === "foley" && <FoleyPanel onAdd={addFoley} />}
-        {binTab === "proyecto" && <ProjectPanel ref={projectPanelRef} project={rootHistory.value} epoch={documentEpoch.current} editingSequenceId={editingSequenceId} missing={missing} view={binView} onView={setBinView} uploading={uploading} hint={shortcuts.hint}
+        {binTab === "proyecto" && <ProjectPanel onPointerMediaDrag={(e,payload,outside,onMoved,onClick)=>{if(workspace.find(".timeline-scroll")?.ownerDocument!==e.currentTarget.ownerDocument)return false;transport("stop");sourceRef.current?.command("stop");rangeDrag.start(e,payload,onClick,outside,onMoved);return true;}} onMediaDrag={payload=>{transport("stop");rangeDrag.beginNative(payload);}} ref={projectPanelRef} project={rootHistory.value} epoch={documentEpoch.current} editingSequenceId={editingSequenceId} missing={missing} view={binView} onView={setBinView} uploading={uploading} hint={shortcuts.hint}
           onApply={fn=>{const epoch=documentEpoch.current;rootHistory.apply(p=>{if(epoch!==documentEpoch.current)throw new Error("El documento cambió. Repite la operación.");return fn(p);});}}
           onImport={folder=>{importFolder.current=folder;fileInput.current?.click();}} onImportFiles={(files,folder)=>{importFolder.current=folder;void importFiles(files);}}
           onOpenMedia={(src,focus)=>{setSourceSrc(src);if(focus){setMonitorTab("source");focusPanel("source","monitor");}}}
@@ -764,7 +747,9 @@ export function App() {
           onSplit={(id, at) => history.apply((p) => ops.editSelection(p, id ? [id] : p.tracks.flatMap((t) => t.clips.map((c) => c.id)), linkedSelection, (current) => ops.splitAt(current, at, id)))}
           onAddText={addText}
           onZoom={(factor) => setPxPerFrame((value) => Math.max(0.02, Math.min(20, value * factor)))}
-          onDropMedia={dropMedia}
+          onDropMedia={(payload,track,at,bypass)=>rangeDrag.dropNative(payload,track,at,bypass)}
+          mediaDrag={rangeDrag.active} mediaHover={rangeDrag.hover} onMediaHover={rangeDrag.update} onMediaLeave={rangeDrag.clearHover}
+          placementOptions={{media,hostId:editingSequenceId??undefined,nested:timelinePreferences.nestSequences}}
           waveforms={waveforms}
         />
         </div></div>

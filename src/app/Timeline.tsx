@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Clip, Project, Track } from "../project/types";
-import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled } from "../project/types";
+import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled, trackFamily } from "../project/types";
+import {snapTimeline,type SnapHit} from "./timelineSnap";
+import {previewMedia,type PlacementOptions} from "./mediaPlacement";
+import type {MediaHover} from "./useMonitorDrag";
 import { VolumeRubberBand } from "./VolumeRubberBand";
 import { TrackControls } from "./TrackControls";
 import { toggleSelection, useMarqueeSelection } from "./useMarqueeSelection";
@@ -8,7 +11,7 @@ import type { TimelineTool } from "./TimelineTools";
 import { findClip as projectClip, rippleTrimClip, slipClip, trimClip, groupedIds, linkedIds, clipsEditable, editSelection } from "../project/ops";
 import type { TimelinePreferences } from "./timelinePreferences";
 import { useTimelinePanelWidth } from "./useTimelinePanelWidth";
-import { wheelModifier, wheelPixels, type GesturePreferences } from "./gesturePreferences";
+import { bypassSnap, wheelModifier, wheelPixels, type GesturePreferences } from "./gesturePreferences";
 
 type Drag = {
   clipId: string;
@@ -18,6 +21,7 @@ type Drag = {
   restoreLinksOnClick?: boolean;
   followLinks?: boolean;
   duplicate?: boolean;
+  bypass?: boolean;
   mode: "move" | "trim-start" | "trim-end" | "slip";
   ripple?: boolean;
   startX: number;
@@ -66,7 +70,8 @@ type Props = {
   onSplit: (clipId: string | undefined, frame: number) => void;
   onAddText: (frame: number) => void;
   onZoom: (factor: number) => void;
-  onDropMedia: (media: MediaDrag, trackId: string, from: number) => void;
+  onDropMedia: (media: MediaDrag, trackId: string, from: number,bypass?:boolean) => void;
+  mediaDrag:MediaDrag|null;mediaHover:MediaHover|null;onMediaHover:(payload:MediaDrag,track:string,raw:number,bypass?:boolean)=>void;onMediaLeave:()=>void;placementOptions:PlacementOptions;
   onTrackChange: (id: string, patch: Partial<Pick<Track, "locked" | "hidden" | "muted" | "solo" | "targeted" | "syncLock">>) => void;
   onRecord: (id: string) => void;
   recordingTrack: string | null;
@@ -75,7 +80,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const [volumePreview,setVolumePreview]=useState<Record<string,number>>({});
@@ -102,6 +107,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     const index = revealTrackId ? reversed.findIndex((t) => t.id === revealTrackId) : reversed.findIndex((t) => t.clips.some((c) => c.kind === "audio" && c.linkedClipId));
     if (index >= 0) viewport.scrollTop = Math.max(0, (index + 1) * TRACK_H - viewport.clientHeight);
   }, [hasLinkedAudio, revealTrackId, TRACK_H]);
+  const [scrubSnap,setScrubSnap]=useState<SnapHit|null>(null),scrubSnapRef=useRef<SnapHit|null>(null),snapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [cutFrame, setCutFrame] = useState<number | null>(null);
   const zoomAnchor = useRef<{ frame: number; x: number } | null>(null);
   useEffect(()=>{
@@ -119,13 +125,15 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     root.addEventListener("wheel",wheel,{passive:false});return()=>root.removeEventListener("wheel",wheel);
   },[gestures,pxPerFrame,frame,onZoom,onSeek,onTrackHeight,preferences.trackHeight]);
   const panCleanup = useRef<(() => void) | null>(null);
-  useEffect(() => () => panCleanup.current?.(), []);
+  useEffect(() => () => {panCleanup.current?.();if(snapTimer.current)clearTimeout(snapTimer.current);}, []);
   useLayoutEffect(() => { if (zoomAnchor.current && scrollRef.current) { scrollRef.current.scrollLeft = zoomAnchor.current.frame * pxPerFrame - zoomAnchor.current.x; zoomAnchor.current = null; } }, [pxPerFrame]);
   const marquee = useMarqueeSelection({ selected: selectedIds, onSelect, onEmptyClick: (clientX) => seekFromX(clientX) });
   const duration = getProjectDuration(project);
   // Ancho: hasta el último clip (aunque sea una canción más larga que el video) + 10 s de margen
   const lastEnd = project.tracks.flatMap((t) => t.clips).reduce((end, c) => Math.max(end, c.from + c.durationInFrames), duration);
-  const width = (lastEnd + project.fps * 10) * pxPerFrame;
+  const shapes=mediaHover?previewMedia(project,mediaHover.payload,mediaHover.trackId,mediaHover.at,placementOptions):[];
+  const incomingEnd=shapes.reduce((end,{clip})=>Math.max(end,clip.from+clip.durationInFrames),lastEnd);
+  const width = (incomingEnd + project.fps * 10) * pxPerFrame;
 
   // Puntos de "imán": bordes de todos los clips y el cabezal de reproducción.
   const snapPoints = (excludeIds: string[]) => {
@@ -135,7 +143,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     return pts;
   };
   const snap = (value: number, excludeIds: string[]) => {
-    if (!snapping) return value;
+    if (!snapping||dragRef.current?.bypass) return value;
     let best = value;
     let bestDist = SNAP_PX / pxPerFrame;
     for (const p of snapPoints(excludeIds)) {
@@ -152,10 +160,10 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     if (!drag) return;
     const onMoveEvt = (e: MouseEvent) => {
       const d = dragRef.current;
-      if (d) setDrag({ ...d, dx: e.clientX - d.startX, dy: e.clientY - d.startY });
+      if (d) setDrag({ ...d, dx: e.clientX - d.startX, dy: e.clientY - d.startY,bypass:bypassSnap(e,gestures) });
     };
-    const onUp = () => {
-      if (dragRef.current) commitDrag(dragRef.current);
+    const onUp = (e:MouseEvent) => {
+      if (dragRef.current){dragRef.current={...dragRef.current,bypass:bypassSnap(e,gestures)};commitDrag(dragRef.current); }
       setDrag(null);
     };
     const cancel = () => setDrag(null);
@@ -174,7 +182,9 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
   }, [drag?.clipId, drag?.mode]);
 
   const findClip = (id: string) => project.tracks.flatMap((t) => t.clips).find((c) => c.id === id);
-  const displayed = [...project.tracks].reverse(); // arriba: subtítulos; abajo: audio
+  const newTracks=new Set(shapes.filter(s=>!project.tracks.some(t=>t.id===s.trackId)).map(s=>s.trackId)).size;
+  const snapCue=mediaHover&&shapes.length?mediaHover.snap:scrubSnap;
+  const displayed = [...project.tracks].reverse(); // pila visual arriba; audio abajo
 
   /** Pista destino al arrastrar verticalmente: solo entre pistas del mismo tipo. */
   const dragTargetTrack = (clipId: string, d: Drag) => {
@@ -182,7 +192,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     const verticalIds = d.explicitIds ?? d.clipIds;
     if (!verticalIds.includes(clipId)) return displayed[idx];
     const offset = Math.round(d.dy / TRACK_H);
-    const valid = displayed.every((t, i) => !t.clips.some((c) => verticalIds.includes(c.id)) || displayed[i + offset]?.kind === t.kind);
+    const valid = displayed.every((t, i) => !t.clips.some((c) => verticalIds.includes(c.id)) || displayed[i + offset] && trackFamily(displayed[i + offset].kind) === trackFamily(t.kind));
     return displayed[valid ? idx + offset : idx];
   };
 
@@ -225,10 +235,12 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
     else onTrim(clip.id, "start", d.ripple ? clip.durationInFrames - p.dur : p.from - clip.from, Boolean(d.ripple),d.followLinks ?? preferences.linkedSelection);
   };
 
-  const seekFromX = (clientX: number) => {
+  const seekFromX = (clientX: number,magnet=false,bypass=false) => {
+    if(snapTimer.current)clearTimeout(snapTimer.current);
     const rect = scrollRef.current!.getBoundingClientRect();
     const x = clientX - rect.left + scrollRef.current!.scrollLeft;
-    onSeek(Math.max(0, Math.min(duration - 1, Math.round(x / pxPerFrame))));
+    const hit=snapTimeline(project,x/pxPerFrame,pxPerFrame,magnet&&snapping&&!bypass,{previous:scrubSnapRef.current,maximum:duration-1});
+    scrubSnapRef.current=hit;setScrubSnap(hit.point===null?null:hit);onSeek(hit.frame);
   };
   const frameFromX = (clientX: number) => Math.max(0, Math.round((clientX - scrollRef.current!.getBoundingClientRect().left + scrollRef.current!.scrollLeft) / pxPerFrame));
   const captureTool = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -260,9 +272,9 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
   const secondPx = project.fps * pxPerFrame;
   const labelEvery = secondPx < 30 ? 5 : secondPx < 60 ? 2 : 1;
   const totalSeconds = Math.ceil(width / secondPx);
-  const scrubStart=(e:PointerEvent<HTMLDivElement>)=>{if(e.button!==0||(e.target as Element).closest("button"))return;e.preventDefault();e.stopPropagation();onScrubStart();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);seekFromX(e.clientX);};
-  const scrubMove=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))seekFromX(e.clientX);};
-  const scrubEnd=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);};
+  const scrubStart=(e:PointerEvent<HTMLDivElement>)=>{if(e.button!==0||(e.target as Element).closest("button"))return;e.preventDefault();e.stopPropagation();onScrubStart();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);seekFromX(e.clientX,true,bypassSnap(e,gestures));};
+  const scrubMove=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))seekFromX(e.clientX,true,bypassSnap(e,gestures));};
+  const scrubEnd=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);scrubSnapRef.current=null;snapTimer.current=setTimeout(()=>setScrubSnap(null),800);};
 
   return (
     <div ref={timelineRef} onContextMenu={e=>{e.preventDefault();const viewport=scrollRef.current;if(!viewport)return;const rect=viewport.getBoundingClientRect(),at=frameFromX(e.clientX),track=e.clientX>=rect.left&&e.clientY>=rect.top?displayed[Math.floor((e.clientY-rect.top+viewport.scrollTop)/TRACK_H)]:undefined;const clip=track?.clips.find(c=>c.from<=at&&c.from+c.durationInFrames>at);onContextMenu(e.clientX,e.clientY,clip?selectionIds(selectedIds.includes(clip.id)?selectedIds:[clip.id],!isolatedSelection&&preferences.linkedSelection):[],clip?frame:at,track?.id,Boolean(clip&&isolatedSelection&&selectedIds.includes(clip.id)));}} className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px`,"--timeline-scrollbar":`${scrollbars.x}px`,"--timeline-vertical-scrollbar":`${scrollbars.y}px` } as CSSProperties}>
@@ -270,7 +282,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
         <div className="ruler-spacer" />
         <div className="track-headers-scroll" ref={headersRef}>{displayed.map((t) => (
           <div key={t.id} className={`track-header ${t.locked ? "locked" : ""}`} style={{ height: TRACK_H }}>
-            <TrackControls track={t} targeted={(t.kind === "video" || t.kind === "audio") && destinationTrack(project, t.kind) === t.id} onChange={(patch) => onTrackChange(t.id, patch)} onRecord={() => onRecord(t.id)} recording={recordingTrack === t.id} recordingBusy={recordingTrack !== null}/>
+            <TrackControls track={t} targeted={destinationTrack(project, trackFamily(t.kind)) === t.id} onChange={(patch) => onTrackChange(t.id, patch)} onRecord={() => onRecord(t.id)} recording={recordingTrack === t.id} recordingBusy={recordingTrack !== null}/>
           </div>
         ))}</div>
       </div>
@@ -293,10 +305,11 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
               ) : null,
             )}
             {preferences.showMarkers && (project.markers ?? []).map((marker) => <button key={marker.id} className="timeline-marker" style={{ left: marker.frame * pxPerFrame, color: marker.color }} title={`${marker.label} · ${formatTimecode(marker.frame, project.fps)}`} aria-label={`Ir al marcador ${marker.label}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => onSeek(marker.frame)}>◆</button>)}
+            {snapCue?.point!==null&&snapCue?.point!==undefined&&<i className="ruler-snap" style={{left:snapCue.point*pxPerFrame}}/>}
             <i className="ruler-playhead" aria-hidden style={{left:frame*pxPerFrame}}/>
           </div>
         </div>
-      <div className="timeline-scroll" ref={scrollRef} onScroll={syncScroll}>
+      <div className="timeline-scroll" ref={scrollRef} onScroll={()=>{syncScroll();}}>
         <div ref={marquee.ref} onMouseDownCapture={captureTool} onMouseDown={marquee.onMouseDown} onMouseMove={(e) => { if (tool === "razor") setCutFrame(frameFromX(e.clientX)); }} onMouseLeave={() => setCutFrame(null)} role="listbox" aria-label="Clips de la línea de tiempo" aria-multiselectable style={{ width, position: "relative", minHeight:"100%" }}>
           {displayed.map((track, trackIndex) => (
             <div
@@ -306,27 +319,28 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
               style={{ height: TRACK_H }}
               onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContextMenu(e.clientX,e.clientY,[],frameFromX(e.clientX),track.id);}}
               onDragOver={(e) => {
-                if (track.locked || !e.dataTransfer.types.includes(MEDIA_DRAG_TYPE) || (track.kind !== "video" && track.kind !== "audio")) return;
+                if (track.locked || !e.dataTransfer.types.includes(MEDIA_DRAG_TYPE)) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "copy";
-                setDropTrackId(track.id);
+                setDropTrackId(track.id);if(mediaDrag)onMediaHover(mediaDrag,track.id,(e.clientX-scrollRef.current!.getBoundingClientRect().left+scrollRef.current!.scrollLeft)/pxPerFrame,bypassSnap(e,gestures));
               }}
-              onDragLeave={() => setDropTrackId(null)}
+              onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null)){setDropTrackId(null);onMediaLeave();}}}
               onDrop={(e) => {
                 e.preventDefault();
                 setDropTrackId(null);
                 if (track.locked) return;
                 try {
                   const source = JSON.parse(e.dataTransfer.getData(MEDIA_DRAG_TYPE)) as MediaDrag;
-                  if (!source.items?.length && track.kind === "video" && (source.kind === "audio" || source.mode === "audio")) return;
+                  if (!source.items?.length && track.kind !== "audio" && (source.kind === "audio" || source.mode === "audio")) return;
                   if (track.kind === "audio" && source.mode === "video") return;
                   const rect = scrollRef.current!.getBoundingClientRect();
                   const x = e.clientX - rect.left + scrollRef.current!.scrollLeft;
-                  onDropMedia(source, track.id, Math.max(0, Math.round(x / pxPerFrame)));
+                  onDropMedia(source, track.id, Math.max(0, x / pxPerFrame),bypassSnap(e,gestures));
                 } catch { /* otros tipos de arrastre no son medios del proyecto */ }
               }}
             >
               {drag?.duplicate && drag.mode === "move" && Math.abs(drag.dx)+Math.abs(drag.dy)>2 && project.tracks.flatMap(t=>t.clips).filter(c=>drag.clipIds.includes(c.id) && dragTargetTrack(c.id,drag)?.id===track.id).map(c=><div key={`copy-${c.id}`} className={`clip clip-${c.kind} clip-copy-preview`} aria-hidden style={{left:(c.from+moveDelta(drag))*pxPerFrame,width:Math.max(4,c.durationInFrames*pxPerFrame)}}><span className="clip-label">+ {clipLabel(c)}</span></div>)}
+              {shapes.filter(s=>s.trackId===track.id).map(({clip},i)=><div key={`ghost-${i}`} className={`media-drop-ghost ghost-${clip.kind} ${mediaHover?.snap.point!==null?"snapped":""}`} aria-label={`Vista previa: ${clipLabel(clip)}`} style={{left:clip.from*pxPerFrame,width:Math.max(3,clip.durationInFrames*pxPerFrame)}}><span>{clipLabel(clip)}</span><small>{formatTimecode(clip.durationInFrames,project.fps)}{newTracks>0?` · +${newTracks} pistas`:""}</small></div>)}
               {track.clips.map((clip) => {
                 const dragging = Boolean(drag && !drag.duplicate && (drag.mode === "move" ? drag.clipIds.includes(clip.id) : drag.clipId === clip.id));
                 const preview = projectClip(previewProject, clip.id)?.clip ?? clip;
@@ -361,13 +375,13 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
                       if (!editable(clip.id, e.altKey ? false : follow)) { onSelect([clip.id],e.altKey); return; }
                       if (tool === "track") {
                         const ids = displayed.flatMap((t) => e.shiftKey && t.id !== track.id ? [] : t.clips.filter((c) => c.from >= clip.from).map((c) => c.id));
-                        onSelect(ids); setDrag({ clipId: clip.id, clipIds: selectionIds(ids), explicitIds: ids, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return;
+                        onSelect(ids); setDrag({ clipId: clip.id, clipIds: selectionIds(ids), explicitIds: ids, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0,bypass:bypassSnap(e,gestures) }); return;
                       }
                       if (e.shiftKey || e.ctrlKey || e.metaKey) { onSelect(toggleSelection(selectedIds, clip.id),e.altKey || isolatedSelection); return; }
-                      if (tool === "slip") { onSelect([clip.id], !follow || e.altKey); setDrag({ followLinks:follow && !e.altKey, clipId: clip.id, clipIds: [clip.id], mode: "slip", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 }); return; }
+                      if (tool === "slip") { onSelect([clip.id], !follow || e.altKey); setDrag({ followLinks:follow && !e.altKey, clipId: clip.id, clipIds: [clip.id], mode: "slip", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0,bypass:bypassSnap(e,gestures) }); return; }
                       const ids = selectedIds.includes(clip.id) ? selectedIds : clip.groupId&&!e.altKey?selectionIds([clip.id]):[clip.id];
                       onSelect(e.altKey ? [clip.id] : ids, !follow || e.altKey);
-                      setDrag({ clipId: clip.id, clipIds: selectionIds(ids,follow), explicitIds: ids, followLinks:follow, duplicate:e.altKey, restoreLinksOnClick:isolatedSelection&&!e.altKey, collapseOnClick: ids.length > 1, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                      setDrag({ clipId: clip.id, clipIds: selectionIds(ids,follow), explicitIds: ids, followLinks:follow, duplicate:e.altKey, restoreLinksOnClick:isolatedSelection&&!e.altKey, collapseOnClick: ids.length > 1, mode: "move", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0,bypass:bypassSnap(e,gestures) });
                     }}
                     title={`${clipLabel(clip)}${clip.groupId ? " · Grupo" : ""}${(clip.kind==="video"||clip.kind==="audio")&&(clip.playbackRate??1)!==1?` · ${(clip.playbackRate??1)*100}%`:""}${clip.kind==="video"&&clip.freezeFrame!==undefined?" · Congelado":""}${(clip.kind === "video" || clip.kind === "audio") && clip.linkedClipId ? " · Video/audio enlazados · Alt+clic: seleccionar solo esta parte" : ""} · Alt+arrastrar: duplicar`}
                   >
@@ -379,7 +393,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
                         const follow = preferences.linkedSelection && !e.altKey && !(isolatedSelection && selectedIds.includes(clip.id));
                         if (!editable(clip.id,follow)) return;
                         onSelect([clip.id],!follow);
-                        setDrag({ followLinks:follow, clipId: clip.id, clipIds: [clip.id], mode: "trim-start", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                        setDrag({ followLinks:follow, clipId: clip.id, clipIds: [clip.id], mode: "trim-start", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0,bypass:bypassSnap(e,gestures) });
                       }}
                     />
                     {preferences.showWaveforms && clip.kind === "audio" && waveforms[clip.src] && (
@@ -402,7 +416,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
                         const follow = preferences.linkedSelection && !e.altKey && !(isolatedSelection && selectedIds.includes(clip.id));
                         if (!editable(clip.id,follow)) return;
                         onSelect([clip.id],!follow);
-                        setDrag({ followLinks:follow, clipId: clip.id, clipIds: [clip.id], mode: "trim-end", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
+                        setDrag({ followLinks:follow, clipId: clip.id, clipIds: [clip.id], mode: "trim-end", ripple: tool === "ripple", startX: e.clientX, startY: e.clientY, dx: 0, dy: 0,bypass:bypassSnap(e,gestures) });
                       }}
                     />
                   </div>
@@ -410,6 +424,7 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
               })}
             </div>
           ))}
+          {snapCue?.point!==null&&snapCue?.point!==undefined&&<div className="timeline-snap-guide" aria-label="Punto de imán" style={{left:snapCue.point*pxPerFrame}}><span>Imán · {formatTimecode(snapCue.point,project.fps)}</span></div>}
           <div className="playhead" role="slider" tabIndex={0} data-no-marquee aria-label="Cabezal del timeline" aria-valuemin={0} aria-valuemax={duration-1} aria-valuenow={frame} aria-valuetext={formatTimecode(frame,project.fps)} title="Arrastra el cabezal desde cualquier altura" style={{left:frame*pxPerFrame}} onPointerDown={scrubStart} onPointerMove={scrubMove} onPointerUp={scrubEnd} onPointerCancel={scrubEnd}/>
           {tool === "razor" && cutFrame !== null && <div className="razor-guide" style={{ left: cutFrame * pxPerFrame }} />}
           {marquee.box && <div className="selection-marquee" aria-hidden style={{ left: marquee.box.x, top: marquee.box.y, width: marquee.box.width, height: marquee.box.height }} />}

@@ -21,9 +21,9 @@ function pairs(project: Project) {
 test("pistas genéricas consecutivas conservan IDs antiguos y aceptan añadir más", () => {
   let project = createEmptyProject();
   for (let i = 0; i < 3; i++) { project = ops.addTrack(project, "video"); project = ops.addTrack(project, "audio"); }
-  assert.deepEqual(project.tracks.filter((t) => t.kind === "video").map((t) => t.name), ["B1", "B2", "B3", "B4", "B5"]);
+  assert.deepEqual(project.tracks.filter((t) => t.kind !== "audio").map((t) => t.name), ["B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
   assert.deepEqual([...project.tracks].reverse().filter((t) => t.kind === "audio").map((t) => t.name), ["Audio 1", "Audio 2", "Audio 3", "Audio 4", "Audio 5", "Audio 6"]);
-  assert.equal(ops.resolveTrackId(project, "B4"), "V4"); assert.equal(ops.resolveTrackId(project, "Audio 4"), "A3");
+  assert.equal(ops.resolveTrackId(project, "B6"), "V4"); assert.equal(ops.resolveTrackId(project, "Audio 4"), "A3");
   const legacy = { ...project, tracks: project.tracks.map((t) => t.id === "V2" ? { ...t, name: "V2 B-roll" } : t) };
   assert.equal(normalizeProject(legacy).tracks.find((t) => t.id === "V2")!.name, "B2");
   assert.equal(new Set(normalizeProject(legacy).tracks.map((t) => t.id)).size, project.tracks.length);

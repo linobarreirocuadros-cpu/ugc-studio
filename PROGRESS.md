@@ -1,5 +1,52 @@
 # Progreso
 
+## 2026-10-21 — Imán del cabezal, huellas de inserción y pistas visuales mixtas
+
+**Entregado:** arrastrar cabezal ajusta a bordes/cortes, cero y marcadores; umbral de entrada
+8 px y salida 13 px, independiente del zoom. No suelta el puntero. Guía ámbar y tiempo del
+punto, con confirmación breve al soltar. Usa el imán existente (S por defecto); ignorarlo con
+Shift por defecto, modificador editable en Atajos → Mouse y rueda. También se aplica al
+movimiento/recorte manual. No añade comandos con teclas fijas ni preferencias al Project.
+
+`timelineSnap.ts` y `mediaPlacement.ts` comparten cálculo entre preview y colocación. Proyecto y monitores usan puntero dentro del mismo documento; el fallback entre ventanas
+registra el payload antes de la protección HTML5. Conservan
+captura, cancelación y autoscroll. Las siluetas muestran cada pieza, duración y pistas adicionales;
+el ancho temporal incluye el material entrante. El preview es puro, sin historial; solo soltar
+aplica una transacción. Se valida sesión, candados y destino, se transfiere foco y se selecciona
+solo lo insertado, excluyendo extremos conservados. Selection Follows Playhead ya no pisa esa
+selección por el mero cambio del documento. Solo video conserva audio anterior, y solo audio
+conserva imagen; se desenlaza la pareja afectada si hay que recortarla independientemente.
+
+**Pistas:** todas las visuales se llaman B1, B2… y aceptan video/texto/subtítulos/gráficos;
+Audio 1, 2… siguen separadas. Se conservan IDs y tipos antiguos para compatibilidad. Se amplían
+validación, guardado, destinos, movimiento, duplicado, pegado, secuencias individuales y rangos.
+Generar subtítulos no borra contenido de otro tipo en S1 y reutiliza su salida alternativa;
+la navegación entre subtítulos mira el clip, no el antiguo tipo de pista. Origen respeta el
+tiempo solicitado mientras carga/seek y descarta eventos de seeks anteriores (también audio).
+
+**Verificado:** 116/116 pruebas, typecheck y build. En QA 5174: Origen I/O 2:00–3:29
+inserta 60 frames como ambos/imagen/audio; mini selección e iconos. Programa conserva imagen,
+ajuste y audio como capas editables, con variantes de solo imagen/audio. Deshacer recupera cada
+montaje. Cabezal cerca del corte: imán 7:06, sin imán 7:04. Inserción selecciona dos piezas nuevas,
+no los extremos sobrescritos. Video en T1/B3 se guardó y reabrió por la UI: 8 clips y B3 intacto.
+Copia de QA: `~/Downloads/Prueba pistas y audio visible.ugcproj (4).json`.
+Capturas: `ugc-timeline-iman-2026-10-21.png` y `ugc-timeline-pistas-genericas-2026-10-21.png`
+en la carpeta de evidencias de Codex `2026/10/20/01a156a1-e17c-7d80-bb46-7854e62306d8`.
+Entrega principal comprobada: «Prueba Chat Ollama», 27 clips y siete elementos de medios en
+readyState 4 sin error. Se conservó su vista y montaje; QA se cerró al terminar.
+
+**Proyecto verificado en UI:** gráfico de 150 frames en B2, video completo de 783 frames en
+S1/B4 con snap a 216 y pareja de audio. Tras soltar, foco Timeline; Backspace elimina solo la
+colocación. Ctrl+clic selecciona dos entradas y arrastrarlas coloca video/audio y gráfico
+consecutivo (3 clips nuevos). Mover gráfico a una carpeta temporal, abrirla y Deshacer recupera
+la organización; clic simple/doble y selección múltiple conservados. Un primer intento HTML5
+no llegó al destino; se reemplazó dentro del documento por el controlador de puntero probado.
+
+**Límites:** validar con el mouse de Lino Escape/modificadores durante arrastre,
+trayectos entre ventanas y comodidad del umbral. Esta ronda no reexporta ni revisa escucha
+editorial/IA; el exportador ya probado en la ronda anterior no cambió. Build conserva advertencia
+de chunks >500 kB. Durante QA cayó la API local: se reinició en 3001 y Origen cargó readyState 4.
+
 ## 2026-10-21 — Pestañas, ventanas y segunda fiscalización
 
 **Entregado:** grupos de pestañas (centro al arrastrar o menú Posición), extraer/acoplar,

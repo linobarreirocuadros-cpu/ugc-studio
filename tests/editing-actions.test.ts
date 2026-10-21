@@ -46,8 +46,8 @@ test("elementos gráficos editables sobreviven copia, rangos, secuencias y valid
   let {p}=fixture();for(const shape of ["solid","rectangle","adjustment"] as const)p=ops.addGraphic(p,shape,30,90);
   assertProject(p);const ids=p.tracks.filter(t=>t.kind==="graphic").flatMap(t=>t.clips.map(c=>c.id));
   const copied=ops.copyClips(p,ids);const pasted=ops.pasteClips(createEmptyProject(),copied,0);assert.equal(pasted.tracks.filter(t=>t.kind==="graphic").length,3);assertProject(pasted);
-  const range=ops.copyTimelineRange(p,30,90);const placed=ops.placeTimelineRange(createEmptyProject(),range,"V1",0);assert.equal(placed.tracks.filter(t=>t.kind==="graphic").length,3);assertProject(placed);
-  const sequence=ops.createSequence(p,ids,"Diseño"),id=Object.keys(sequence.sequences!)[0];const individual=ops.placeSequence(sequence,id,"V2",300,false);assert.equal(individual.tracks.filter(t=>t.kind==="graphic").flatMap(t=>t.clips).length,6);assertProject(individual);
+  const range=ops.copyTimelineRange(p,30,90);const placed=ops.placeTimelineRange(createEmptyProject(),range,"V1",0);assert.equal(placed.tracks.flatMap(t=>t.clips).filter(c=>c.kind==="graphic").length,3);assertProject(placed);
+  const sequence=ops.createSequence(p,ids,"Diseño"),id=Object.keys(sequence.sequences!)[0];const individual=ops.placeSequence(sequence,id,"V2",300,false);assert.equal(individual.tracks.flatMap(t=>t.clips).filter(c=>c.kind==="graphic").length,6);assertProject(individual);
   const invalid=structuredClone(p);(invalid.tracks.at(-1)!.clips[0] as {brightness:number}).brightness=NaN;assert.throws(()=>assertProject(invalid));
 });
 test("anidar sustituye selección, conserva capas, permite editar y evita ciclos",()=>{

@@ -142,6 +142,25 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   `assistant.css`: apertura 220 ms, saludo de sombrero 320 ms, sin bucle en reposo y con
   `prefers-reduced-motion`. Acabado del personaje/movimiento pendiente del criterio de Lino.
 
+### Timeline: actualización 2026-10-21
+- Toda pista no Audio es visual genérica B1… y acepta video/texto/caption/graphic. Mantener IDs
+  y tipos heredados, usar `trackFamily`/`trackAcceptsClip` en compatibilidad y `nameTracks` en raíz
+  y secuencias. El renderer decide por clip.kind. No recuperar exclusividad T/S/G por accidente.
+  Generar subtítulos conserva otros tipos de clip en S1 y reutiliza salida alternativa.
+- `timelineSnap.ts`: umbrales físicos 8/13 px con histéresis, bordes/cortes/marcadores; cabezal
+  acotado al último frame y material entrante alineable por inicio/final. `gesturePreferences`
+  guarda snapBypass (Shift por defecto), editable; usar `bypassSnap`, sin teclas fijas adicionales.
+- `mediaPlacement.ts`: misma operación pura para huellas y soltar; dry run valida destino/candados,
+  luego el plan vacío obtiene solo piezas entrantes. Preview nunca llama history.apply. Proyecto
+  usa puntero dentro del documento, con selección simple/múltiple y salida a carpetas;
+  conservar fallback HTML5 entre ventanas y payload antes de dragover. `useMonitorDrag` comparte
+  snap, foco y sesión con monitores. Al capturar Project, suprimir el click generado después de
+  un drag para que no robe foco al Timeline; un clic sin movimiento conserva Ctrl/Shift/doble clic. Selection Follows Playhead no debe reemplazar selección nueva por un simple edit.
+  Al soltar seleccionar solo piezas nuevas, no fragmentos conservados por sobrescritura.
+- Inserción explícita de una señal conserva la otra: destinationOnly corta solo destinos y
+  desenlaza víctimas afectadas. La colocación normal A/V conserva la sobrescritura de parejas.
+  Origen usa el seek pendiente para I/O aun antes de metadata; ignorar seeked atrasados.
+
 ## Regla de oro de la arquitectura
 **El proyecto es un JSON (`src/project/types.ts`). Todo cambio pasa por funciones puras en
 `src/project/ops.ts`.** La línea de tiempo usa esas funciones, y el chat de IA (Fase 2) las

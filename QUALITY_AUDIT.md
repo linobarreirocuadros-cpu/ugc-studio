@@ -192,3 +192,22 @@ No se hicieron llamadas a IA de pago. Archivo de salida y capturas en PROGRESS.m
 - Sigue siendo alfa funcional; el criterio de MVP es un anuncio UGC real completo, guardado,
   reabierto, corregido y exportado, con escucha y revisión editorial de Lino, pruebas de fallo
   y rendimiento sostenido, más resolución del alcance comercial del motor ya registrada.
+
+## 2026-10-21 — Alcance: interacción del timeline y compatibilidad visual
+
+- 116 pruebas pasan; typecheck y build correctos. Nuevas regresiones: histéresis por píxel,
+  extremos y zoom; huella igual a colocación; IO y sus offsets; modos parciales sin borrar otra
+  señal; candados; consecutivos Proyecto; rangos multicapa Programa; pistas mixtas/JSON;
+  selección sin fragmentos sobrescritos; migración del modificador y subtítulos no destructivos.
+- QA UI en 5174: Origen y Programa, rangos de dos segundos, tres variantes; el rango de Programa
+  mantiene video/ajuste/audio. Deshacer en un paso. Snap 216 frames frente a 214 sin imán.
+  Video en antigua T1/B3 visible, guardado y reabierto: 8 clips, incluido video de 60 frames en B3.
+- No se usa 5173 para editar datos de QA. La API se reinició al detectar ECONNREFUSED; Origen
+  volvió a readyState 4. Se corrigió además I/O inmediato durante carga/seek en SourceMonitor.
+- Proyecto usa el controlador de puntero dentro del documento, tras un primer gesto HTML5 no
+  completado. UI: gráfico en B2 (150 frames), video en B4 (783) con audio y snap a 216; foco
+  Timeline y Backspace elimina lo colocado. Ctrl+clic de dos entradas coloca tres piezas
+  consecutivas y Deshacer revierte. Mover a carpeta, abrirla y dos Deshacer restaura estructura.
+  Quedan gesto físico/umbrales/modificadores y HTML5 entre ventanas con Lino.
+- No se repite exportación ni validación editorial de IA/sonido en esta ronda. El renderer no
+  cambia; la advertencia de chunks grandes sigue abierta. No se declara auditoría exhaustiva.

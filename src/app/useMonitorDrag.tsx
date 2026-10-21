@@ -1,38 +1,47 @@
 import {useEffect,useRef,useState,type PointerEvent} from "react";
+import type {Project} from "../project/types";
 import type {MediaDrag} from "./Timeline";
+import {snapTimeline,type SnapHit} from "./timelineSnap";
+import {bypassSnap,type GesturePreferences} from "./gesturePreferences";
+import {dropDuration} from "./mediaPlacement";
 
-type Guide={left:number;top:number;width:number;height:number;label:string};
-type Options={pxPerFrame:number;session:number;root:()=>HTMLElement|null;onDrop:(payload:MediaDrag,track:string,at:number)=>void;onActivate:(element:HTMLElement)=>void};
-
-/** Arrastre interno con puntero: funciona con mouse/táctil sin depender del drag HTML5. */
+export type MediaHover={payload:MediaDrag;trackId:string;at:number;snap:SnapHit};
+type Options={gestures:GesturePreferences;project:Project;snapping:boolean;playhead:number;pxPerFrame:number;session:number;root:()=>HTMLElement|null;onDrop:(payload:MediaDrag,track:string,at:number)=>void;onActivate:(element:HTMLElement)=>void};
+/** Proyecto y monitores comparten hover/colocación. El proyecto solo cambia al soltar. */
 export function useMonitorDrag(options:Options){
   const latest=useRef(options);latest.current=options;
-  const cleanup=useRef<(()=>void)|null>(null),[guide,setGuide]=useState<Guide|null>(null);
+  const cleanup=useRef<(()=>void)|null>(null),hoverRef=useRef<MediaHover|null>(null);
+  const [active,setActive]=useState<MediaDrag|null>(null),[hover,setHover]=useState<MediaHover|null>(null);
+  const clearHover=()=>{hoverRef.current=null;setHover(null);};
+  const cancel=()=>{cleanup.current?.();setActive(null);clearHover();};
+  useEffect(()=>cancel(),[options.session]);
   useEffect(()=>()=>cleanup.current?.(),[]);
-  const start=(event:PointerEvent,payload:MediaDrag,onClick?:()=>void)=>{
+  const resolve=(payload:MediaDrag,trackId:string,raw:number,bypass=false)=>{const o=latest.current;return snapTimeline(o.project,raw,o.pxPerFrame,o.snapping&&!bypass,{duration:dropDuration(payload),playhead:o.playhead,previous:hoverRef.current?.trackId===trackId?hoverRef.current.snap:null});};
+  const update=(payload:MediaDrag,trackId:string,raw:number,bypass=false)=>{const snap=resolve(payload,trackId,raw,bypass),next={payload,trackId,at:snap.frame,snap};const old=hoverRef.current;hoverRef.current=next;if(!old||old.payload!==payload||old.trackId!==trackId||old.at!==next.at||old.snap.point!==snap.point)setHover(next);return next;};
+  const beginNative=(payload:MediaDrag)=>{cleanup.current?.();clearHover();setActive(payload);};
+  const dropNative=(payload:MediaDrag,track:string,raw:number,bypass=false)=>{const hit=resolve(payload,track,raw,bypass);cancel();const target=[...latest.current.root()?.querySelectorAll<HTMLElement>("[data-track-id]")??[]].find(e=>e.dataset.trackId===track);if(target)latest.current.onActivate(target);latest.current.onDrop(payload,track,hit.frame);};
+  const start=(event:PointerEvent,payload:MediaDrag,onClick?:(()=>void),onOutsideDrop?:((x:number,y:number)=>void),onMoved?:()=>void)=>{
     if(event.button!==0)return;
-    cleanup.current?.();event.preventDefault();event.stopPropagation();
-    const node=event.currentTarget as HTMLElement;node.focus({preventScroll:true});node.setPointerCapture(event.pointerId);
-    const session=latest.current.session,origin={x:event.clientX,y:event.clientY};let point=origin,moved=false,animation=0;
+    cleanup.current?.();event.preventDefault();event.stopPropagation();setActive(payload);
+    const node=event.currentTarget as HTMLElement,doc=node.ownerDocument,win=doc.defaultView??window;
+    node.focus({preventScroll:true});node.setPointerCapture(event.pointerId);
+    const session=latest.current.session,origin={x:event.clientX,y:event.clientY};let point=origin,moved=false,animation=0,bypass=bypassSnap(event,latest.current.gestures);
     const target=()=>{
-      const root=latest.current.root(),viewport=root?.querySelector<HTMLElement>(".timeline-scroll"),track=document.elementFromPoint(point.x,point.y)?.closest<HTMLElement>("[data-track-id]");
-      if(!viewport||!track||!viewport.contains(track)||track.classList.contains("locked"))return null;
-      const kind=track.dataset.trackKind;if(kind!=="video"&&kind!=="audio"||kind==="video"&&(payload.kind==="audio"||payload.mode==="audio")||kind==="audio"&&payload.mode==="video")return null;
-      const rect=viewport.getBoundingClientRect();if(point.x<rect.left||point.x>=rect.right||point.y<rect.top||point.y>=rect.bottom)return null;
-      return {viewport,track,at:Math.max(0,Math.round((point.x-rect.left+viewport.scrollLeft)/latest.current.pxPerFrame))};
+      const viewport=latest.current.root()?.querySelector<HTMLElement>(".timeline-scroll");if(!viewport||viewport.ownerDocument!==doc)return null;
+      const r=viewport.getBoundingClientRect();if(point.x<r.left||point.x>=r.right||point.y<r.top||point.y>=r.bottom)return null;
+      // Capturar el puntero cambia event.target; la geometría real de pistas sigue siendo válida.
+      const track=[...viewport.querySelectorAll<HTMLElement>("[data-track-id]")].find(t=>{const b=t.getBoundingClientRect();return point.y>=b.top&&point.y<b.bottom;});
+      if(!track||track.classList.contains("locked"))return null;
+      return{viewport,track,raw:Math.max(0,(point.x-r.left+viewport.scrollLeft)/latest.current.pxPerFrame)};
     };
-    const update=()=>{
-      const hit=target();let next:Guide|null=null;
-      if(hit){const viewport=hit.viewport.getBoundingClientRect(),track=hit.track.getBoundingClientRect(),left=viewport.left+hit.at*latest.current.pxPerFrame-hit.viewport.scrollLeft;next={left,top:Math.max(track.top,viewport.top),width:Math.max(2,Math.min((payload.outFrame-payload.inFrame)*latest.current.pxPerFrame,viewport.right-left)),height:Math.min(track.bottom,viewport.bottom)-Math.max(track.top,viewport.top),label:payload.mode==="video"?"Solo video":payload.mode==="audio"?"Solo audio":"Video y audio"};}
-      setGuide(old=>JSON.stringify(old)===JSON.stringify(next)?old:next);
-    };
-    const stop=()=>{cancelAnimationFrame(animation);window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);window.removeEventListener("pointercancel",cancel);window.removeEventListener("blur",cancel);window.removeEventListener("keydown",key,true);if(node.hasPointerCapture(event.pointerId))node.releasePointerCapture(event.pointerId);document.body.classList.remove("monitor-range-dragging");setGuide(null);cleanup.current=null;};
-    const move=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};if(Math.hypot(point.x-origin.x,point.y-origin.y)>4){moved=true;document.body.classList.add("monitor-range-dragging");update();}};
-    const up=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};const hit=target();stop();if(latest.current.session!==session)return;if(moved){if(hit){latest.current.onActivate(hit.track);latest.current.onDrop(payload,hit.track.dataset.trackId!,hit.at);}}else onClick?.();};
-    const cancel=()=>stop();
+    const preview=()=>{const hit=target();if(hit)update(payload,hit.track.dataset.trackId!,hit.raw,bypass);else clearHover();};
+    const stop=()=>{win.cancelAnimationFrame(animation);win.removeEventListener("pointermove",move,true);win.removeEventListener("pointerup",up,true);win.removeEventListener("pointercancel",abort,true);win.removeEventListener("blur",abort);win.removeEventListener("keydown",key,true);if(node.hasPointerCapture(event.pointerId))node.releasePointerCapture(event.pointerId);doc.body.classList.remove("monitor-range-dragging");setActive(null);clearHover();cleanup.current=null;};
+    const move=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};bypass=bypassSnap(e,latest.current.gestures);if(Math.hypot(point.x-origin.x,point.y-origin.y)>4){moved=true;doc.body.classList.add("monitor-range-dragging");preview();}};
+    const up=(e:globalThis.PointerEvent)=>{point={x:e.clientX,y:e.clientY};const hit=target(),snap=hit?resolve(payload,hit.track.dataset.trackId!,hit.raw,bypassSnap(e,latest.current.gestures)):null;stop();if(latest.current.session!==session)return;if(moved){onMoved?.();if(hit&&snap){latest.current.onActivate(hit.track);latest.current.onDrop(payload,hit.track.dataset.trackId!,snap.frame);}else onOutsideDrop?.(point.x,point.y);}else onClick?.();};
+    const abort=()=>stop();
     const key=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();stop();}};
-    const scroll=()=>{if(moved){const viewport=latest.current.root()?.querySelector<HTMLElement>(".timeline-scroll");if(viewport){const r=viewport.getBoundingClientRect();if(point.x>=r.left-16&&point.x<=r.right+16&&point.y>=r.top-16&&point.y<=r.bottom+16){const speed=(v:number,low:number,high:number)=>v<low+18?-7:v>high-18?7:0;viewport.scrollLeft+=speed(point.x,r.left,r.right);viewport.scrollTop+=speed(point.y,r.top,r.bottom);update();}}}animation=requestAnimationFrame(scroll);};
-    cleanup.current=stop;window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);window.addEventListener("pointercancel",cancel);window.addEventListener("blur",cancel);window.addEventListener("keydown",key,true);animation=requestAnimationFrame(scroll);
+    const scroll=()=>{if(moved){const hit=target();if(hit){const r=hit.viewport.getBoundingClientRect(),speed=(v:number,a:number,b:number)=>v<a+20?-8:v>b-20?8:0;hit.viewport.scrollLeft+=speed(point.x,r.left,r.right);hit.viewport.scrollTop+=speed(point.y,r.top,r.bottom);preview();}}animation=win.requestAnimationFrame(scroll);};
+    cleanup.current=stop;win.addEventListener("pointermove",move,true);win.addEventListener("pointerup",up,true);win.addEventListener("pointercancel",abort,true);win.addEventListener("blur",abort);win.addEventListener("keydown",key,true);animation=win.requestAnimationFrame(scroll);
   };
-  return {start,overlay:guide&&<div className="monitor-range-drop-preview" role="status" style={{left:guide.left,top:guide.top,width:guide.width,height:guide.height}}>{guide.label}</div>};
+  return{start,active,hover,update,clearHover,beginNative,dropNative,cancel};
 }

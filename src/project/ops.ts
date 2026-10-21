@@ -6,7 +6,7 @@ import {
   sourceFrame, availableFrames, createEmptyProject,
   type GraphicClip,
   type LibraryMedia, type ProjectLibrary, type LibraryMetadata,
-  destinationTrack,
+  destinationTrack, trackFamily, trackAcceptsClip,
   nameTracks,
   trackOutputEnabled,
   DEFAULT_CAPTION_STYLE,
@@ -73,9 +73,10 @@ export const addProjectElement = (p:Project,type:LibraryElementType,name:string,
   const clip:GraphicClip|import("./types").TextClip=type==="text"?{id,kind:"text",text:name,from:0,durationInFrames:duration,style:{...DEFAULT_TEXT_STYLE}}:{id,kind:"graphic",shape:type==="adjustment"?"adjustment":type==="rectangle"?"rectangle":"solid",name,from:0,durationInFrames:duration,color:type==="black"?"#000000":color,x:.5,y:.5,width:.3,height:Math.min(1,.3*p.width/p.height),opacity:type==="transparent"?0:1,brightness:1,contrast:1,saturation:1};
   return {...p,library:{...l,elements:[...l.elements,{id,name,folderId,clip}]}};
 };
-export const placeProjectElement = (p:Project,id:string,at:number,hostId?:string):Project => {
+export const placeProjectElement = (p:Project,id:string,at:number,hostId?:string,trackId?:string):Project => {
   const item=projectLibrary(p).elements.find(e=>e.id===id);if(!item)return p;
   const clip={...item.clip,projectItemId:id,labelColor:item.labelColor};
+  if(trackId){const target=p.tracks.find(t=>t.id===trackId);if(!target||target.locked||!trackAcceptsClip(target,clip)||!Number.isSafeInteger(at)||at<0)return p;const placed={...clip,id:newId(),from:at};return overwritePlaced(p,mapTracks(p,t=>t.id===trackId?{...t,clips:[...t.clips,placed]}:t),[placed.id],true);}
   const track:Track={id:clip.kind==="text"?"T1":`G-item-${id}`,kind:clip.kind,name:item.name,clips:[clip]};
   return pasteClips(p,{...p,tracks:[track]},at,hostId);
 };
@@ -165,10 +166,11 @@ export const nestClips = (p: Project, ids: string[], name: string, hostId?: stri
   const placed=placeSequence(next,sequenceId,target.id,Math.min(...clips.map(c=>c.from)),true,hostId);
   return placed===next ? p : placed;
 };
-export const addGraphic = (p: Project, shape: GraphicClip["shape"], at: number, duration = p.fps*5): Project => {
+export const addGraphic = (p: Project, shape: GraphicClip["shape"], at: number, duration = p.fps*5,trackId?:string): Project => {
   if (!Number.isFinite(at) || !Number.isFinite(duration)) return p;
   const clip: GraphicClip={id:newId(),kind:"graphic",name:shape==="adjustment"?"Capa de ajuste":shape==="solid"?"Sólido":"Cuadrado",from:Math.max(0,Math.round(at)),durationInFrames:Math.max(1,Math.round(duration)),shape,color:"#ffffff",x:.5,y:.5,width:.3,height:Math.min(1,.3*p.width/p.height),opacity:1,brightness:1,contrast:1,saturation:1};
-  return {...p,tracks:[...p.tracks,{id:`G-${newId()}`,kind:"graphic",name:clip.name,clips:[clip]}]};
+  if(trackId){const target=p.tracks.find(t=>t.id===trackId);if(!target||target.locked||target.kind==="audio")return p;return overwritePlaced(p,mapTracks(p,t=>t.id===trackId?{...t,clips:[...t.clips,clip]}:t),[clip.id],true);}
+  return nameTracks({...p,tracks:[...p.tracks,{id:`G-${newId()}`,kind:"graphic",name:clip.name,clips:[clip]}]});
 };
 /** Velocidad constante, sin ripple: extender sobrescribe el destino como cualquier recorte. */
 export const setClipSpeed = (p: Project, ids: string[], rate: number): Project => {
@@ -286,7 +288,7 @@ const containsSequence = (project: Project, id: string, sought: string, visited 
 export const placeSequence = (project: Project, sequenceId: string, trackId: string, at: number, nested: boolean, hostId?: string): Project => {
   if (hostId && containsSequence(project, sequenceId, hostId)) return project;
   const sequence = project.sequences?.[sequenceId], target = project.tracks.find((t) => t.id === trackId);
-  if (!sequence || !target || target.kind !== "video" || target.locked || sequence.fps !== project.fps || !Number.isFinite(at)) return project;
+  if (!sequence || !target || trackFamily(target.kind) !== "video" || target.locked || sequence.fps !== project.fps || !Number.isFinite(at)) return project;
   const from = Math.max(0, Math.round(at));
   if (nested) {
     const videoId = newId(), audioId = newId(), audioTrack = destinationTrack(project, "audio");
@@ -300,14 +302,13 @@ export const placeSequence = (project: Project, sequenceId: string, trackId: str
   }
   let next = project;
   const destinations = new Map<string, string>();
-  for (const kind of ["video", "audio", "text", "caption", "graphic"] as const) {
-    const sources = sequence.tracks.filter((t) => t.kind === kind && t.clips.length);
-    const list = () => { const tracks = next.tracks.filter((t) => t.kind === kind); return kind === "audio" ? tracks.reverse() : tracks; };
+  for (const kind of ["video", "audio"] as const) {
+    const sources = sequence.tracks.filter((t) => trackFamily(t.kind) === kind && t.clips.length);
+    const list = () => { const tracks = next.tracks.filter((t) => trackFamily(t.kind) === kind); return kind === "audio" ? tracks.reverse() : tracks; };
     let targets = list();
     const anchor = kind === "video" ? trackId : kind === "audio" ? destinationTrack(next, "audio") : targets[0]?.id;
     const offset = Math.max(0, targets.findIndex((t) => t.id === anchor));
     while (targets.length < offset + sources.length && (kind === "video" || kind === "audio")) { next = addTrack(next, kind); targets = list(); }
-    while(kind==="graphic"&&targets.length<offset+sources.length){next={...next,tracks:[...next.tracks,{id:`G-${newId()}`,kind:"graphic",name:"Gráficos",clips:[]}]};targets=list();}
     for (const [i, source] of sources.entries()) {
       const destination = targets[offset + i];
       if (!destination || destination.locked) return project;
@@ -336,7 +337,7 @@ export const linkClips = (project: Project, ids: string[], linked: boolean): Pro
 export const setTrackState = (project: Project, id: string, patch: Partial<Pick<Track, "locked" | "hidden" | "muted" | "solo" | "targeted" | "syncLock">>): Project => {
   const track = project.tracks.find((t) => t.id === id);
   if (!track) return project;
-  return mapTracks(project, (t) => ({ ...t, ...(patch.targeted && t.kind === track.kind ? { targeted: false } : {}), ...(t.id === id ? patch : {}) }));
+  return mapTracks(project, (t) => ({ ...t, ...(patch.targeted && trackFamily(t.kind) === trackFamily(track.kind) ? { targeted: false } : {}), ...(t.id === id ? patch : {}) }));
 };
 
 type Range = { start: number; end: number };
@@ -411,7 +412,7 @@ const rippleFollowers = (before: Project, after: Project, anchors: Set<string>, 
 const preserveLocked = (before: Project, after: Project): Project => before.tracks.some((t) => t.locked && JSON.stringify(t.clips) !== JSON.stringify(after.tracks.find((n) => n.id === t.id)?.clips)) ? before : after;
 
 /** Sobrescribe únicamente lo ocupado en las pistas destino; no desplaza el resto del montaje. */
-const overwritePlaced = (before: Project, placed: Project, ids: string[]): Project => {
+const overwritePlaced = (before: Project, placed: Project, ids: string[],destinationOnly=false): Project => {
   const incoming = new Set(ids), cuts = new Map<string, Range[]>();
   if (!clipsEditable(placed, ids)) return before;
   for (const track of placed.tracks) for (const clip of track.clips.filter((c) => incoming.has(c.id))) {
@@ -419,10 +420,10 @@ const overwritePlaced = (before: Project, placed: Project, ids: string[]): Proje
       if (incoming.has(victim.id) || victim.from >= clip.from + clip.durationInFrames || victim.from + victim.durationInFrames <= clip.from) continue;
       const range = { start: clip.from, end: clip.from + clip.durationInFrames };
       if (!clipsEditable(placed, [victim.id])) return before;
-      for (const id of linkedIds(placed, [victim.id])) cuts.set(id, [...cuts.get(id) ?? [], range]);
+      for (const id of destinationOnly?[victim.id]:linkedIds(placed, [victim.id])) cuts.set(id, [...cuts.get(id) ?? [], range]);
     }
   }
-  return cuts.size ? cutClipRanges(placed, cuts) : placed;
+  return cuts.size ? cutClipRanges(destinationOnly?linkClips(placed,[...cuts.keys()],false):placed, cuts) : placed;
 };
 
 const alignLinkedChanges = (before: Project, after: Project): Project => {
@@ -457,7 +458,7 @@ export const addTrack = (project: Project, kind: "video" | "audio"): Project => 
   const number = Math.max(kind === "video" ? 0 : -1, ...project.tracks.map((t) => new RegExp(`^${prefix}(\\d+)$`).exec(t.id)).filter((m) => m !== null).map((m) => Number(m![1]))) + 1;
   const track: Track = { id: `${prefix}${number}`, kind, name: "", clips: [] };
   const tracks = [...project.tracks];
-  const index = kind === "audio" ? 0 : tracks.findIndex((t) => t.kind === "text" || t.kind === "caption");
+  const index = kind === "audio" ? 0 : tracks.length;
   tracks.splice(index < 0 ? tracks.length : index, 0, track);
   return nameTracks({ ...project, tracks });
 };
@@ -490,7 +491,7 @@ export const addVideoClip = (
   from?: number,
   videoOnly = false,
 ): Project => {
-  const track = project.tracks.find((t) => t.id === trackId && t.kind === "video");
+  const track = project.tracks.find((t) => t.id === trackId && trackFamily(t.kind) === "video");
   return track ? addSourceRange(project, media, trackId, from ?? trackEnd(track), 0, media.durationInFrames, videoOnly) : project;
 };
 
@@ -511,24 +512,25 @@ export const addSourceRange = (
   inFrame = 0,
   outFrame = media.durationInFrames,
   videoOnly = false,
+  destinationOnly = false,
 ): Project => {
   let addedId: string | undefined;
   const next = mapTracks(project, (track) => {
-    if (track.id !== trackId || track.locked || (track.kind !== "video" && track.kind !== "audio")) return track;
-    if (track.kind === "video" && media.kind === "audio") return track;
+    if (track.id !== trackId || track.locked) return track;
+    if (trackFamily(track.kind) === "video" && media.kind === "audio") return track;
     const start = Math.max(0, Math.min(media.durationInFrames - 1, Math.round(inFrame)));
     const end = Math.max(start + 1, Math.min(media.durationInFrames, Math.round(outFrame)));
     const common = {
       id: newId(), src: media.src, name: media.name, from: Math.max(0, Math.round(from)),
       trimStart: start, durationInFrames: end - start, sourceDurationInFrames: media.durationInFrames,
     };
-    const clip: VideoClip | AudioClip = track.kind === "video"
+    const clip: VideoClip | AudioClip = track.kind !== "audio"
       ? { ...common, kind: "video", proxySrc: media.proxySrc, volume: videoOnly ? 0 : 1, audioMode: videoOnly || media.hasAudio === false ? "none" : "embedded" }
       : { ...common, kind: "audio", volume: 1, fadeIn: 0, fadeOut: 0 };
     addedId = clip.id;
     return { ...track, clips: [...track.clips, clip] };
   });
-  const overwritten = addedId ? overwritePlaced(project, next, [addedId]) : project;
+  const overwritten = addedId ? overwritePlaced(project, next, [addedId],destinationOnly) : project;
   if (addedId && media.hasAudio === true && !videoOnly && findClip(overwritten, addedId)?.clip.kind === "video") {
     const target = destinationTrack(project, "audio");
     if (!target) return project;
@@ -552,7 +554,7 @@ export const duplicateClipsWithSelection = (project: Project, ids: string[], del
   const clips = project.tracks.flatMap(t => t.clips).filter(c => selected.has(c.id));
   if (!clips.length || !Number.isFinite(deltaFrames) || !Number.isInteger(trackOffset)) return unchanged;
   if (project.tracks.some(t => t.locked && t.clips.some(c => selected.has(c.id)))) return unchanged;
-  const offset = project.tracks.every((t,i) => !t.clips.some(c => vertical.has(c.id)) || project.tracks[i+trackOffset]?.kind === t.kind) ? trackOffset : 0;
+  const offset = project.tracks.every((t,i) => !t.clips.some(c => vertical.has(c.id)) || project.tracks[i+trackOffset] && trackFamily(project.tracks[i+trackOffset].kind) === trackFamily(t.kind)) ? trackOffset : 0;
   if (project.tracks.some((t,i) => t.clips.some(c => vertical.has(c.id)) && project.tracks[i+offset]?.locked)) return unchanged;
   const start = Math.min(...clips.map(c => c.from)), delta = Math.max(-start,Math.round(deltaFrames));
   if (!delta && !offset) return unchanged;
@@ -570,7 +572,7 @@ export const duplicateClipsWithSelection = (project: Project, ids: string[], del
 export const duplicateClips = (project:Project,ids:string[],deltaFrames:number,trackOffset=0,followLinks=true):Project => duplicateClipsWithSelection(project,ids,deltaFrames,trackOffset,followLinks).project;
 
 /** Pega en las mismas pistas, manteniendo offsets y remapeando las relaciones de los clips. */
-export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string, origin?: number): Project => {
+export const pasteClips = (project: Project, clipboard: Project, at: number, hostId?: string, origin?: number,destinationOnly=false): Project => {
   const clips = clipboard.tracks.flatMap(t => t.clips);
   if (!clips.length || clipboard.fps !== project.fps || !Number.isFinite(at)) return project;
   // No crear referencias perdidas o recursivas entre secuencias al pegar entre montajes.
@@ -578,7 +580,7 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
   let next = project;
   const destinations = new Map<string,string>();
   for (const source of clipboard.tracks.filter(t => t.clips.length)) {
-    let target = next.tracks.find(t => t.id === source.id && t.kind === source.kind);
+    let target = next.tracks.find(t => t.id === source.id && trackFamily(t.kind) === trackFamily(source.kind));
     if (!target && (source.kind === "audio" || source.kind === "video")) { next = addTrack(next, source.kind); target = next.tracks.find(t => !project.tracks.some(old => old.id === t.id) && ![...destinations.values()].includes(t.id)); }
     if(!target && source.kind==="graphic") {const id=`G-${newId()}`;next={...next,tracks:[...next.tracks,{id,kind:"graphic",name:source.name,clips:[]}]};target=next.tracks.at(-1);}
     target ??= next.tracks.find(t => t.kind === source.kind && ![...destinations.values()].includes(t.id));
@@ -594,7 +596,7 @@ export const pasteClips = (project: Project, clipboard: Project, at: number, hos
     if (clip.kind === "audio" && clip.derivedFrom) { const parent = identities.get(clip.derivedFrom.clipId); clip.derivedFrom = parent ? { ...clip.derivedFrom, clipId: parent } : undefined; }
     return clip;
   }))] }));
-  return overwritePlaced(project,placed,[...identities.values()]);
+  return overwritePlaced(project,placed,[...identities.values()],destinationOnly);
 };
 
 /** Copia I/O de Programa sin tocar originales; conserva capas, huecos, trim y palabras. */
@@ -623,25 +625,21 @@ export const copyTimelineRange=(project:Project,start:number,end:number,mode:"au
 /** Coloca las capas del rango en pistas compatibles desde el destino, en un solo paso. */
 export const placeTimelineRange=(project:Project,clipboard:Project,trackId:string,at:number,mode:"auto"|"video"|"audio"="auto",hostId?:string):Project=>{
   const target=project.tracks.find(t=>t.id===trackId);
-  if(!target||target.locked||!(target.kind==="video"||target.kind==="audio")||!Number.isFinite(at)||clipboard.fps!==project.fps||target.kind==="video"&&mode==="audio"||target.kind==="audio"&&mode==="video")return project;
+  if(!target||target.locked||!Number.isFinite(at)||clipboard.fps!==project.fps||target.kind!=="audio"&&mode==="audio"||target.kind==="audio"&&mode==="video")return project;
   const content=copyTimelineRange(clipboard,0,getProjectDuration(clipboard),target.kind==="audio"?"audio":mode);
-  let next=project;
-  const mapped:Track[]=[],used=new Set<string>();
-  const ordered=(p:Project,kind:Track["kind"])=>kind==="audio"?p.tracks.filter(t=>t.kind===kind).reverse():p.tracks.filter(t=>t.kind===kind);
-  for(const kind of ["video","audio","text","caption","graphic"] as const){
+  let next=project;const mapped:Track[]=[];
+  const ordered=(p:Project,kind:"video"|"audio")=>{const tracks=p.tracks.filter(t=>trackFamily(t.kind)===kind);return kind==="audio"?tracks.reverse():tracks;};
+  for(const kind of ["video","audio"] as const){
     const sources=ordered(content,kind).filter(t=>t.clips.length);if(!sources.length)continue;
-    const base=kind===target.kind?trackId:kind==="video"||kind==="audio"?destinationTrack(next,kind):undefined;
-    let offset=base?ordered(next,kind).findIndex(t=>t.id===base):0;
-    if((kind==="video"||kind==="audio")&&!base)return project;
-    for(const source of sources){
-      let destination=kind==="video"||kind==="audio"?ordered(next,kind)[offset++]:next.tracks.find(t=>t.id===source.id&&t.kind===kind&&!used.has(t.id))??next.tracks.find(t=>t.kind===kind&&!used.has(t.id));
-      if(!destination&&(kind==="video"||kind==="audio")){next=addTrack(next,kind);destination=ordered(next,kind)[offset-1];}
-      if(!destination&&kind==="graphic"){const id=`G-${newId()}`;next={...next,tracks:[...next.tracks,{id,kind:"graphic",name:source.name,clips:[]}]};destination=next.tracks.at(-1);}
+    const base=kind===trackFamily(target.kind)?trackId:destinationTrack(next,kind);if(!base)return project;
+    let offset=ordered(next,kind).findIndex(t=>t.id===base);
+    for(const source of sources){let destination=ordered(next,kind)[offset++];
+      if(!destination){next=addTrack(next,kind);destination=ordered(next,kind)[offset-1];}
       if(!destination||destination.locked)return project;
-      used.add(destination.id);mapped.push({...source,id:destination.id});
+      mapped.push({...source,id:destination.id});
     }
   }
-  const placed=pasteClips(next,{...content,tracks:mapped},at,hostId,0);
+  const placed=pasteClips(next,{...content,tracks:mapped},at,hostId,0,mode!=="auto"||target.kind==="audio");
   return placed===next?project:placed;
 };
 
@@ -649,11 +647,11 @@ export const placeTimelineRange=(project:Project,clipboard:Project,trackId:strin
 export const insertSourceRange = (project: Project, media: Parameters<typeof addSourceRange>[1], trackId: string, from: number, inFrame = 0, outFrame = media.durationInFrames, videoOnly = false): Project => {
   if (![from,inFrame,outFrame,media.durationInFrames].every(Number.isFinite) || outFrame <= inFrame) return project;
   const target = project.tracks.find(t => t.id === trackId);
-  if (!target || target.locked || !(target.kind === "video" || target.kind === "audio")) return project;
+  if (!target || target.locked) return project;
   const start = Math.max(0,Math.min(media.durationInFrames-1,Math.round(inFrame))), end = Math.max(start+1,Math.min(media.durationInFrames,Math.round(outFrame)));
   const at = Math.max(0,Math.round(from)), length = end-start;
-  const audio = target.kind === "video" && !videoOnly && media.hasAudio === true ? destinationTrack(project,"audio") : undefined;
-  if (target.kind === "video" && !videoOnly && media.hasAudio === true && !audio) return project;
+  const audio = target.kind !== "audio" && !videoOnly && media.hasAudio === true ? destinationTrack(project,"audio") : undefined;
+  if (target.kind !== "audio" && !videoOnly && media.hasAudio === true && !audio) return project;
   const affected = new Set(project.tracks.filter(t => t.id === trackId || t.id === audio || t.syncLock && !t.locked).map(t => t.id));
   // Incluir parejas aunque su pista no tenga syncLock, sin eludir candados.
   let changed = true;
@@ -673,28 +671,11 @@ export const insertSourceRange = (project: Project, media: Parameters<typeof add
   return preserveLocked(project,withMarkers);
 };
 
-export const addTextClip = (
-  project: Project,
-  opts: { text: string; from: number; durationInFrames: number; style?: Partial<TextStyle>; id?: string },
-  trackId = "T1",
-): Project =>
-  mapTracks(project, (track) => {
-    if (track.id !== trackId || track.locked) return track;
-    return {
-      ...track,
-      clips: [
-        ...track.clips,
-        {
-          id: opts.id ?? newId(),
-          kind: "text",
-          text: opts.text,
-          from: opts.from,
-          durationInFrames: opts.durationInFrames,
-          style: { ...DEFAULT_TEXT_STYLE, ...opts.style },
-        },
-      ],
-    };
-  });
+export const addTextClip = (project:Project,opts:{text:string;from:number;durationInFrames:number;style?:Partial<TextStyle>;id?:string},trackId="T1"):Project=>{
+  const target=project.tracks.find(t=>t.id===trackId);if(!target||target.locked||target.kind==="audio")return project;
+  const clip:import("./types").TextClip={id:opts.id??newId(),kind:"text",text:opts.text,from:opts.from,durationInFrames:opts.durationInFrames,style:{...DEFAULT_TEXT_STYLE,...opts.style}};
+  return overwritePlaced(project,mapTracks(project,t=>t.id===trackId?{...t,clips:[...t.clips,clip]}:t),[clip.id],true);
+};
 
 export const updateClip = (project: Project, clipId: string, patch: Partial<Clip>): Project => {
   if (!clipsEditable(project, [clipId])) return project;
@@ -761,7 +742,7 @@ export const restoreOriginalAudio = (project: Project, clipId: string): Project 
 export const moveClip = (project: Project, clipId: string, from: number, toTrackId?: string): Project => {
   const found = findClip(project, clipId);
   if (!found) return project;
-  const target = project.tracks.findIndex((t) => t.id === toTrackId && t.kind === found.track.kind);
+  const target = project.tracks.findIndex((t) => t.id === toTrackId && trackFamily(t.kind) === trackFamily(found.track.kind));
   return moveClips(project, [clipId], from - found.clip.from, target < 0 ? 0 : target - project.tracks.indexOf(found.track));
 };
 
@@ -774,7 +755,7 @@ export const moveClips = (project: Project, ids: string[], deltaFrames: number, 
   const clips = project.tracks.flatMap((t) => t.clips).filter((c) => selected.has(c.id));
   if (!clips.length || !clipsEditable(project, ids) || !Number.isFinite(deltaFrames) || !Number.isInteger(trackOffset)) return project;
   const delta = Math.max(-Math.min(...clips.map((c) => c.from)), Math.round(deltaFrames));
-  const validOffset = project.tracks.every((track, index) => !track.clips.some((c) => vertical.has(c.id)) || project.tracks[index + trackOffset]?.kind === track.kind) ? trackOffset : 0;
+  const validOffset = project.tracks.every((track, index) => !track.clips.some((c) => vertical.has(c.id)) || project.tracks[index + trackOffset] && trackFamily(project.tracks[index + trackOffset].kind) === trackFamily(track.kind)) ? trackOffset : 0;
   if (project.tracks.some((t, i) => t.clips.some((c) => vertical.has(c.id)) && project.tracks[i + validOffset]?.locked)) return project;
   if (!delta && !validOffset) return project;
   const placed = { ...project, tracks: project.tracks.map((track, index) => ({ ...track, clips: !validOffset ? track.clips.map((c) => selected.has(c.id) ? { ...c, from: c.from + delta } : c) : [
@@ -951,7 +932,7 @@ export const relinkMedia = (project: Project, oldSrc: string, newSrc: string, pr
 const ensureCaptionTrack = (project: Project): Project =>
   project.tracks.some((t) => t.id === "S1")
     ? project
-    : { ...project, tracks: [...project.tracks, { id: "S1", kind: "caption", name: "SUB", clips: [] }] };
+    : nameTracks({ ...project, tracks: [...project.tracks, { id: "S1", kind: "caption", name: "", clips: [] }] });
 
 export const setTranscript = (project: Project, src: string, words: Word[], info?: NonNullable<Project["transcriptInfo"]>[string]): Project => ({
   ...project,
@@ -1020,11 +1001,12 @@ export type CaptionOptions = {
 
 export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = { maxWords: 3, maxChars: 18, breakOnPauseFrames: 12 };
 
-/** Reemplaza la pista de subtítulos con bloques generados desde las transcripciones de V1. */
+/** Genera subtítulos desde la pista visual de destino con video, sin borrar otros tipos de clip. */
 export const generateCaptions = (project: Project, opts: CaptionOptions = DEFAULT_CAPTION_OPTIONS): Project => {
   if (project.tracks.find((t) => t.id === "S1")?.locked) return project;
   const p = ensureCaptionTrack(project);
-  const video = p.tracks.find((t) => t.id === "V1");
+  const preferred=destinationTrack(p,"video");
+  const video = p.tracks.find(t=>t.id===preferred&&t.clips.some(c=>c.kind==="video"))??p.tracks.find(t=>t.clips.some(c=>c.kind==="video"));
   if (!video) return p;
   const words = video.clips
     .filter((c): c is VideoClip => c.kind === "video")
@@ -1061,7 +1043,9 @@ export const generateCaptions = (project: Project, opts: CaptionOptions = DEFAUL
       style,
     };
   });
-  return mapTracks(p, (t) => (t.id === "S1" ? { ...t, clips } : t));
+  let output=p;let target=p.tracks.find(t=>t.id==="S1");
+  if(target?.clips.some(c=>c.kind!=="caption")){target=p.tracks.find(t=>t.id!=="S1"&&t.kind==="caption"&&!t.locked&&t.clips.every(c=>c.kind==="caption"));if(!target){target={id:`S-${newId()}`,kind:"caption",name:"",clips:[]};output=nameTracks({...p,tracks:[...p.tracks,target]});}}
+  return mapTracks(output,t=>t.id===target?.id?{...t,clips}:t);
 };
 
 /** Cambia el estilo de todos los subtítulos a la vez. */

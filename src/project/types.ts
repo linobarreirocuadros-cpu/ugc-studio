@@ -105,6 +105,10 @@ export type Track = {
   syncLock?: boolean;
 };
 
+/** Las pistas visuales antiguas siguen siendo compatibles: solo se separa audio de imagen. */
+export const trackFamily = (kind: Track["kind"]): "audio" | "video" => kind === "audio" ? "audio" : "video";
+export const trackAcceptsClip = (track: Track, clip: Clip): boolean => (track.kind === "audio") === (clip.kind === "audio");
+
 export type LibraryMetadata = {folderId?:string;labelColor?:string;notes?:string};
 export type LibraryMedia = LibraryMetadata & {src:string;name:string;originalName?:string;durationInFrames:number;proxySrc?:string;kind?:"video"|"audio";hasAudio?:boolean};
 export type ProjectFolder = {id:string;name:string;parentId?:string;labelColor?:string;notes?:string};
@@ -135,10 +139,10 @@ export const trackOutputEnabled = (project: Project, track: Track): boolean => {
 };
 
 export const destinationTrack = (project: Project, kind: "video" | "audio"): string | undefined => {
-  const targeted = project.tracks.find((t) => t.kind === kind && t.targeted);
+  const targeted = project.tracks.find((t) => trackFamily(t.kind) === kind && t.targeted);
   if (targeted) return targeted.locked ? undefined : targeted.id;
   const tracks = kind === "audio" ? [...project.tracks].reverse() : project.tracks;
-  return tracks.find((t) => t.kind === kind && !t.locked)?.id;
+  return tracks.find((t) => trackFamily(t.kind) === kind && !t.locked)?.id;
 };
 
 export const clipAtPlayhead = (project: Project, frame: number): Clip | undefined => {
@@ -176,8 +180,8 @@ const DEFAULT_TRACKS: Omit<Track, "clips">[] = [
   { id: "A0", kind: "audio", name: "Audio 1" },
   { id: "V1", kind: "video", name: "B1" },
   { id: "V2", kind: "video", name: "B2" },
-  { id: "T1", kind: "text", name: "T1" },
-  { id: "S1", kind: "caption", name: "SUB" },
+  { id: "T1", kind: "text", name: "B3" },
+  { id: "S1", kind: "caption", name: "B4" },
 ];
 
 export const createEmptyProject = (): Project => ({
@@ -199,14 +203,15 @@ export const normalizeProject = (project: Project): Project => {
     const index = tracks.findIndex((t) => later.includes(t.id));
     tracks.splice(index < 0 ? tracks.length : index, 0, { ...track, clips: [] });
   }
-  return nameTracks(missing.length ? { ...project, tracks } : project);
+  const next=nameTracks(missing.length ? { ...project, tracks } : project);
+  return next.sequences?{...next,sequences:Object.fromEntries(Object.entries(next.sequences).map(([id,s])=>[id,{...s,tracks:nameTracks(s).tracks}]))}:next;
 };
 
 /** IDs antiguos se conservan; los nombres visibles son genéricos y consecutivos. */
 export function nameTracks(project: Project): Project {
   let video = 0, audio = project.tracks.filter((t) => t.kind === "audio").length, changed = false;
   const tracks = project.tracks.map((t) => {
-    const name = t.kind === "video" ? `B${++video}` : t.kind === "audio" ? `Audio ${audio--}` : t.name;
+    const name = t.kind === "audio" ? `Audio ${audio--}` : `B${++video}`;
     if (name === t.name) return t;
     changed = true; return { ...t, name };
   });
