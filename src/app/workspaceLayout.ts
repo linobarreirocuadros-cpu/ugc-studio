@@ -2,7 +2,7 @@ export const PANELS = ["bin", "monitor", "inspector", "timeline", "meter"] as co
 export type Panel = typeof PANELS[number];
 export type Edge = "left" | "right" | "top" | "bottom" | "center";
 export type DockTarget = Panel | "workspace" | { group: string };
-export type DockNode = { type: "panel"; panel: Panel } | { type: "split"; id: string; axis: "x" | "y"; ratio: number; first: DockNode; second: DockNode };
+export type DockNode = { type: "panel"; panel: Panel } | {type:"tabs";panels:Panel[];active:Panel} | { type: "split"; id: string; axis: "x" | "y"; ratio: number; first: DockNode; second: DockNode };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Divider = Rect & { id: string; axis: "x" | "y"; ratio: number; area: Rect; first: string; second: string };
 export const PANEL_LABEL: Record<Panel, string> = { bin: "Proyecto", monitor: "Monitores", inspector: "Inspector", timeline: "Timeline", meter: "Audio · dBFS" };
@@ -13,7 +13,9 @@ const split = (id: string, axis: "x" | "y", ratio: number, first: DockNode, seco
 export const defaultLayout = (): DockNode => split("rows", "y", .56,
   split("library", "x", .2, leaf("bin"), split("inspector", "x", .72, leaf("monitor"), leaf("inspector"))),
   split("audio", "x", .91, leaf("timeline"), leaf("meter")));
-export const panelsIn = (node: DockNode): Panel[] => node.type === "panel" ? [node.panel] : [...panelsIn(node.first), ...panelsIn(node.second)];
+export const panelsIn = (node: DockNode): Panel[] => node.type === "panel" ? [node.panel] : node.type==="tabs"?[...node.panels]:[...panelsIn(node.first), ...panelsIn(node.second)];
+export const tabGroups=(node:DockNode):Extract<DockNode,{type:"tabs"}>[]=>node.type==="tabs"?[node]:node.type==="split"?[...tabGroups(node.first),...tabGroups(node.second)]:[];
+export const activateTab=(node:DockNode,panel:Panel):DockNode=>node.type==="tabs"?node.panels.includes(panel)?{...node,active:panel}:node:node.type==="split"?{...node,first:activateTab(node.first,panel),second:activateTab(node.second,panel)}:node;
 
 export function normalizeLayout(value: unknown, width = 1280, height = 720): DockNode {
   const seen = new Set<string>(), ids = new Set<string>();
@@ -21,6 +23,7 @@ export function normalizeLayout(value: unknown, width = 1280, height = 720): Doc
     if (!v || typeof v !== "object" || depth > 12) return false;
     const n = v as Record<string, unknown>;
     if (n.type === "panel" && PANELS.includes(n.panel as Panel) && !seen.has(n.panel as string)) { seen.add(n.panel as string); return true; }
+    if(n.type==="tabs"&&Array.isArray(n.panels)&&n.panels.length>=2&&n.panels.includes(n.active)&&n.panels.every(p=>PANELS.includes(p)&&!seen.has(p))&&new Set(n.panels).size===n.panels.length){n.panels.forEach(p=>seen.add(p));return true;}
     if (n.type !== "split" || typeof n.id !== "string" || !n.id || ids.has(n.id) || !["x", "y"].includes(n.axis as string) || typeof n.ratio !== "number" || !Number.isFinite(n.ratio) || n.ratio < .02 || n.ratio > .98) return false;
     ids.add(n.id); return valid(n.first, depth + 1) && valid(n.second, depth + 1);
   }
@@ -38,21 +41,27 @@ export function normalizeLayout(value: unknown, width = 1280, height = 720): Doc
   }
   return defaultLayout();
 }
-function remove(node: DockNode, panel: Panel): DockNode | null {
+export function removePanel(node: DockNode, panel: Panel): DockNode | null {
   if (node.type === "panel") return node.panel === panel ? null : node;
-  const first = remove(node.first, panel), second = remove(node.second, panel);
+  if(node.type==="tabs"){const panels=node.panels.filter(p=>p!==panel);return panels.length===1?leaf(panels[0]):panels.length?{...node,panels,active:panels.includes(node.active)?node.active:panels[0]}:null;}
+  const first = removePanel(node.first, panel), second = removePanel(node.second, panel);
   return !first ? second : !second ? first : { ...node, first, second };
 }
 function mapTarget(node: DockNode, target: DockTarget, fn: (n: DockNode) => DockNode): DockNode {
-  if (typeof target === "object" ? node.type === "split" && node.id === target.group : node.type === "panel" && node.panel === target) return fn(node);
-  return node.type === "panel" ? node : { ...node, first: mapTarget(node.first, target, fn), second: mapTarget(node.second, target, fn) };
+  if (typeof target === "object" ? node.type === "split" && node.id === target.group : node.type !== "split" && panelsIn(node).includes(target as Panel)) return fn(node);
+  return node.type !== "split" ? node : { ...node, first: mapTarget(node.first, target, fn), second: mapTarget(node.second, target, fn) };
+}
+export function groupPanel(tree:DockNode,source:Panel,target:Panel):DockNode{
+  if(source===target||!panelsIn(tree).includes(source)||!panelsIn(tree).includes(target))return tree;
+  if(tabGroups(tree).some(g=>g.panels.includes(source)&&g.panels.includes(target)))return activateTab(tree,source);
+  const rest=removePanel(tree,source);return rest?mapTarget(rest,target,n=>({type:"tabs",panels:[...panelsIn(n),source],active:source})):tree;
 }
 /** Destinos calculados después de retirar el origen: una región conserva sus vecinos. */
 export function dockTargets(tree: DockNode, source: Panel): { target: DockTarget; panels: Panel[]; label: string }[] {
-  const rest=remove(tree,source);if(!rest)return [];
+  const rest=removePanel(tree,source);if(!rest)return [];
   const result:ReturnType<typeof dockTargets>=[];
   const visit=(node:DockNode,root=false)=>{
-    if(node.type==="panel")result.push({target:node.panel,panels:[node.panel],label:PANEL_LABEL[node.panel]});
+    if(node.type!=="split")result.push({target:node.type==="panel"?node.panel:node.active,panels:panelsIn(node),label:panelsIn(node).map(p=>PANEL_LABEL[p]).join(" + ")});
     else {visit(node.first);visit(node.second);if(!root){const panels=panelsIn(node);result.push({target:{group:node.id},panels,label:panels.map(p=>PANEL_LABEL[p]).join(" + ")});}}
   };
   visit(rest,true);result.push({target:"workspace",panels:panelsIn(rest),label:"Todo el espacio"});return result;
@@ -61,10 +70,11 @@ export const dockScopes=(tree:DockNode,source:Panel,over:Panel)=>dockTargets(tre
 export function dockPanel(tree: DockNode, source: Panel, target: DockTarget, edge: Edge): DockNode {
   if (!panelsIn(tree).includes(source) || source === target || typeof target !== "string" && edge === "center" || target === "workspace" && edge === "center" || typeof target === "string" && target !== "workspace" && !panelsIn(tree).includes(target)) return tree;
   if (edge === "center" && typeof target === "string" && target !== "workspace") {
-    const swap = (node: DockNode): DockNode => node.type === "panel" ? leaf(node.panel === source ? target : node.panel === target ? source : node.panel) : { ...node, first: swap(node.first), second: swap(node.second) };
+    const change=(p:Panel)=>p===source?target:p===target?source:p;
+    const swap = (node: DockNode): DockNode => node.type === "panel" ? leaf(change(node.panel)) : node.type==="tabs"?{...node,panels:node.panels.map(change),active:change(node.active)}:{ ...node, first: swap(node.first), second: swap(node.second) };
     return swap(tree);
   }
-  const rest = remove(tree, source); if (!rest) return tree;
+  const rest = removePanel(tree, source); if (!rest) return tree;
   if(typeof target==="object"&&!dockTargets(tree,source).some(t=>typeof t.target==="object"&&t.target.group===target.group))return tree;
   const ids = new Set<string>(); const collect = (n: DockNode) => { if (n.type === "split") { ids.add(n.id); collect(n.first); collect(n.second); } }; collect(rest);
   let i = 0; while (ids.has(`dock-${i}`)) i++;
@@ -73,17 +83,18 @@ export function dockPanel(tree: DockNode, source: Panel, target: DockTarget, edg
   return target === "workspace" ? insert(rest) : mapTarget(rest, target, insert);
 }
 export function setSplitRatio(node: DockNode, id: string, ratio: number): DockNode {
-  if (node.type === "panel" || !Number.isFinite(ratio)) return node;
+  if (node.type !== "split" || !Number.isFinite(ratio)) return node;
   return node.id === id ? { ...node, ratio: clamp(ratio, .02, .98) } : { ...node, first: setSplitRatio(node.first, id, ratio), second: setSplitRatio(node.second, id, ratio) };
 }
 function minimum(node: DockNode, axis: "x" | "y"): number {
+  if(node.type==="tabs")return Math.max(...node.panels.map(panel=>minimum(leaf(panel),axis)))+(axis==="y"?24:0);
   if (node.type === "panel") return axis === "x" ? node.panel === "meter" ? 72 : node.panel === "timeline" ? 280 : node.panel === "monitor" ? 240 : 160 : node.panel === "meter" ? 130 : 150;
   return node.axis === axis ? minimum(node.first, axis) + minimum(node.second, axis) + GAP : Math.max(minimum(node.first, axis), minimum(node.second, axis));
 }
 export function layoutRects(tree: DockNode, width: number, height: number) {
   const panels = {} as Record<Panel, Rect>, dividers: Divider[] = [];
   const visit = (n: DockNode, r: Rect) => {
-    if (n.type === "panel") { panels[n.panel] = r; return; }
+    if (n.type !== "split") { for(const panel of panelsIn(n))panels[panel]=r;return; }
     const length = n.axis === "x" ? r.width : r.height, gap = Math.min(GAP, length), room = Math.max(0, length - gap);
     const a = minimum(n.first, n.axis), b = minimum(n.second, n.axis);
     const first = a + b <= room ? clamp(room * n.ratio, a, room - b) : room * a / (a + b);
@@ -95,4 +106,14 @@ export function layoutRects(tree: DockNode, width: number, height: number) {
   };
   visit(tree, { x: 0, y: 0, width: Math.max(0, width), height: Math.max(0, height) });
   return { panels, dividers };
+}
+
+export type FloatingPanels=Partial<Record<Panel,Rect>>;
+export function constrainFloating(r:Rect,width:number,height:number):Rect{
+  const w=Math.max(0,width),h=Math.max(0,height),fw=clamp(r.width,Math.min(180,w),w),fh=clamp(r.height,Math.min(140,h),h);
+  return{x:clamp(r.x,0,w-fw),y:clamp(r.y,0,h-fh),width:fw,height:fh};
+}
+export function normalizeFloating(value:unknown):FloatingPanels{
+  if(!value||typeof value!=="object")return{};const out:FloatingPanels={};
+  for(const panel of PANELS){const r=(value as FloatingPanels)[panel];if(r&&[r.x,r.y,r.width,r.height].every(Number.isFinite)&&r.width>0&&r.height>0)out[panel]={x:r.x,y:r.y,width:r.width,height:r.height};}return out;
 }

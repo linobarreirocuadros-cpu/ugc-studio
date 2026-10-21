@@ -1,4 +1,4 @@
-# Control de calidad — 2026-10-20
+# Control de calidad — actualizado 2026-10-21
 
 ## Conclusión
 
@@ -11,7 +11,7 @@ La prioridad recomendada es estabilizar un flujo completo y repetirlo con trabaj
 antes de ampliar efectos, generación o interfaces. El MVP es terminar un anuncio, revisarlo,
 reabrirlo y corregirlo con seguridad, con edición manual y por chat coherentes entre sí.
 
-## Alcance de esta revisión
+## Alcance de la revisión inicial (2026-10-20)
 
 - Base revisada: `fd13cc0`, AGENTS/ROADMAP/PROGRESS del repositorio, no las capturas antiguas.
 - Lectura de interfaz, comandos/foco, historial, modelo/operaciones, reproducción, exportación,
@@ -148,3 +148,47 @@ el encaje de licencia del render, antes de considerar el editor apto para sustit
   duración 26.109417 s; la lista no usa los FPS del proxy para esta información.
 - Pendientes: colecciones grandes, arrastre físico mixto y criterio de Lino. No se reexportó un
   anuncio completo en esta entrega, ni se implementaron todas las opciones de Proyecto de Premiere.
+
+## Segunda fiscalización — 2026-10-21
+
+Base de partida `a174a18`. Origen QA aislado 5174: montaje vertical de 15 s, tres parejas
+AV y un ajuste (7 clips), medios reales AssortedTapes. Se preservó el montaje de Lino en 5173.
+Esta tabla distingue ejecución UI, inspección de código y pruebas puras; no certifica cada
+combinación ni todas las opciones históricas de Premiere.
+
+| Área | Hallazgo/cambio | Evidencia |
+|---|---|---|
+| Paneles | Grupos de pestañas, float interno y ventana nativa; mover DOM sin desmontar React | Borrador conservado entre pestañas, popup y recuperación. Resize interno por mouse/teclas; cerrar/acoplar recupera |
+| Pantallas/presets | Destino por etiqueta/geometría relativa; fallback visible sin sobrescribir preset; aviso por bloqueo | PXP 27G/Kamvas 13 detectadas; guardar doble → simple → doble devuelve Inspector a Kamvas. Pruebas de cambio de origen/orden y ausencia/reconexión |
+| Contexto en popup | Portal/diálogo/menu/fullscreen antes dependían del documento principal | UiDocument y entrada global compartida; foco estructural sin instanceof entre ventanas; pagehide cierra secundarias |
+| Ondas | La amplitud no reflejaba ganancia | +6 dB: escala 1.58204→3.15659 con ancho/offset iguales; Undo restaura. Barra preview y una transacción al soltar |
+| Menús | Reservas aparecían como opciones; habilitación divergente y cambio mouse hover/clic ambiguo | Ocho menús inspeccionados: Archivo 8, Edición 12, Clip 20, Secuencia 14, Marcadores 14, Gráficos 4, Ventana 13, Ayuda 1. Reservas se consultan en Atajos; edición comparte editAvailability |
+| Edición contextual | Compatible con parejas/candados; ganancia captura IDs y documento | Gain/Left WAV/nest (abrir y volver)/speed 200 %/tres freeze, agrupar/desagrupar, desenlazar y Undo ejecutados. WAV Left conserva channelSource original |
+| Menús de edición/gráficos | Nest/congelados y gráficos faltaban en menús superiores | Sólido, ajuste, rectángulo, texto: 7→8→7; corte en 1 s:7→9→7. Copiar/Pegar por menú y Undo |
+| Foco/borrado | Prevenir edición de selección antigua desde Proyecto/Origen y atajos del timeline sobre Inspector/medidor, o borrado al escribir | Texto Backspace conserva 7; click clip transfiere foco timeline; Backspace 7→5, Undo 7. Delete y candados cubiertos en UI/pruebas previas |
+| Programa/Origen | Revisar respuesta/estado de iconos y resoluciones | Play/pause, ±frame, cortes, I/O 2–4 s, goIn/goOut, limpiar, marcador, localizar Origen, mute/loop/guías/mano/fullscreen, zoom/regla. 1/16 video 68×120 readyState4; Full restaurado. Marcar selección Origen 0–26 s |
+| Timeline separado | Pointer capturado no atraviesa ventanas | HTML5 para documentos distintos, payload guardado y epoch; clic Origen con Timeline popup amplía 15→26 s, Undo 15 s/7 clips. Arrastre físico entre ventanas pendiente |
+| Render | Verificar que cambios de UI no afecten documento/salida | Export UI 15 s H.264 1080×1920, AAC 48 kHz estéreo; contenedor 15.019 s; decodificación completa con rawvideo/pcm explícitos, sin errores |
+
+Pruebas finales: **105/105**, `npm run typecheck`, `npm run build` correctos. Vite mantiene
+advertencia de chunks >500 kB; queda para medir/optimizar carga, no impidió compilar/exportar.
+No se hicieron llamadas a IA de pago. Archivo de salida y capturas en PROGRESS.md.
+
+### Límites concretos de esta entrega
+
+- El navegador puede impedir abrir varias ventanas o detectar pantallas; la UI informa y
+  conserva paneles accesibles. Detectar y Aplicar son interacciones explícitas. API consultada:
+  [Window Management (Chrome)](https://developer.chrome.com/docs/capabilities/web-apis/window-management),
+  [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API/Using).
+- Desconectar/reconectar cable, cambiar DPI físico y arrastrar entre ventanas del sistema no
+  se ejecutaron físicamente. La prueba de preset real sí retornó a la pantalla Kamvas; no se
+  promete posición exacta en píxeles si el navegador/sistema ajusta límites.
+- No se pulsó manualmente cada uno de los 137 comandos adaptados (229 con 92 reservas),
+  ni todas sus combinaciones de foco/candados/tipos. Se revisaron rutas de código comunes,
+  habilitación y acciones representativas de alto impacto, además de regresiones automáticas.
+- Esta ronda no vuelve a validar IA/escucha editorial/transcripción, micrófono o todos los
+  codecs/montajes largos. HMR de desarrollo pudo quedar blanco al cambiar hooks; recarga limpia
+  comprobada. No confundir ese cambio de código en vivo con fallo del proyecto guardado.
+- Sigue siendo alfa funcional; el criterio de MVP es un anuncio UGC real completo, guardado,
+  reabierto, corregido y exportado, con escucha y revisión editorial de Lino, pruebas de fallo
+  y rendimiento sostenido, más resolución del alcance comercial del motor ya registrada.

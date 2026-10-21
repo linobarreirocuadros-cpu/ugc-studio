@@ -26,7 +26,10 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   Son preferencias de vista: no cambiar Project ni la resolución de exportación. Tipografía de
   overlays permanece nítida; no es un render rasterizado de toda la composición a baja resolución.
   I/O puede arrastrarse desde imagen, selección de la minirregla o iconos de video/audio/ambos.
-  `useMonitorDrag.tsx` usa puntero, guía y autoscroll; clic/Enter coloca en el cabezal. Origen
+  `useMonitorDrag.tsx` usa puntero, guía y autoscroll; clic/Enter coloca en el cabezal.
+  Entre documentos se permite drag HTML5 con payload original, no puntero capturado; el
+  arrastre de Origen captura epoch y Programa mantiene su guardia de documento. Validación
+  física de ese arrastre OS pendiente; clic hacia Timeline separado y Deshacer comprobados. Origen
   coloca medios; Programa copia capas/cortes mediante copyTimelineRange/placeTimelineRange.
   No aplanar el Programa a un archivo ni cambiar el proyecto al iniciar/cancelar el arrastre.
 - Nombres aprobados el 2026-10-20: B1, B2… y Audio 1, Audio 2…; pistas genéricas y ampliables.
@@ -47,16 +50,24 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - El 2026-10-20 Lino aprobó herramientas a la izquierda del timeline y medidor a la derecha,
   y pidió paneles maleables y responsivos. El espacio usa un árbol de divisiones con cinco
   paneles: Proyecto, Monitores, Inspector, Timeline y Audio/dBFS independiente. Arrastrar el
-  agarre divide en bordes o intercambia en el centro; un borde exterior ocupa todo ese lado.
-  Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 2
-  con migración de las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
-  Ventanas flotantes y separación de pestañas siguen pendientes.
+  agarre divide en bordes o agrupa en pestañas en el centro; un borde exterior ocupa todo ese lado.
+  Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 3
+  con migración de versión 2 y las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
+  Pestañas separables, flotantes internos y ventanas independientes implementados el 2026-10-21.
+  PanelHost conserva el mismo portal/estado al mover su DOM; UiDocument dirige diálogos, menús
+  y pantalla completa al documento correcto. Las ventanas secundarias reenvían entrada global
+  al mapa central de comandos y se recuperan al cerrar; pagehide cierra sus ventanas.
+  Ventana → Presets de ventanas guarda árbol, flotantes y destino/rectángulo de cada ventana.
+  Detectar pantallas usa permiso Window Management; identidad por etiqueta y geometría relativa,
+  con fallback visible a la principal sin sobrescribir el destino del preset. Aplicar es explícito
+  por restricciones del navegador; avisar si bloquea ventanas/detección. Probado destino Kamvas 13
+  y retorno desde preset de un monitor; desconexión física y arrastre entre ventanas pendientes.
   Acoplamiento parcial: `dockTargets`/`dockScopes` ofrecen panel individual, conjuntos contiguos
   del árbol y todo el espacio. Durante arrastre en un borde, rueda abajo amplía el alcance y
   arriba lo reduce; la guía muestra la geometría final y el conjunto. El menú Posición ofrece
   los mismos destinos por nombre. `dockPanel` acepta `{group:splitId}` calculado tras retirar
   el origen y conserva las ramas externas. Permite timeline bajo Proyecto+Monitores, con chat
-  lateral independiente. Son preferencias versión 2; no cambia el montaje ni su historial.
+  lateral independiente. Son preferencias versión 3; no cambia el montaje ni su historial.
   Panel activo: glow azul sutil por clic/foco, fuera del JSON, sin pulso ni cambio por hover.
   Regla del timeline fuera del scroll vertical; sincronizar X con pistas e Y con cabeceras,
   compensando barras. El cabezal se puede agarrar a toda su altura y debe ganar al recuadro.
@@ -64,7 +75,7 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   en Ventana/Edición → Atajos. Preferencias locales versionadas fuera de Project JSON; rótulos
   US/ES y captura por posición física. No añadir listeners o hints con teclas fijas. Ver ATAJOS.md.
   Preset de Premiere 2026 auditado: 629 asignaciones de Edición/Color, consultables como referencia;
-  solo 129 comandos adaptados están disponibles y 93 están reservados por funciones pendientes.
+  solo 137 comandos adaptados están disponibles y 92 están reservados por funciones pendientes.
   Shift+L pertenece a reproducción lenta, no a selección enlazada. Rueda del timeline: horizontal,
   Ctrl vertical y Alt zoom bajo el puntero; combinaciones editables. J inversa es sin audio.
   Con Selección: Alt+clic aísla imagen/audio temporalmente, conservando su enlace; el movimiento
@@ -92,6 +103,9 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
 - `labelColor` y `groupId` son metadatos de clips; remapear grupos al duplicar/pegar. La barra
   horizontal de cada AudioClip controla volumen constante 0..4 en una transacción al soltar,
   no automatización por keyframes. Ganancia no debe aplicarse dos veces a una pareja.
+  La onda escala con volumen y muestra preview durante el arrastre; no regenerar sus tiempos
+  ni crear historial por movimiento. editAvailability comparte habilitación de menús/acciones.
+  Los menús de trabajo ocultan reservas pendientes; permanecen consultables en Atajos.
 - `playbackRate` constante 0.25..4 en medios originales; `sourceFrame`/`availableFrames` mantienen
   recortes, cortes, ondas y transcripción. Velocidad de referencias anidadas y rampas pendientes.
   `freezeFrame` es absoluto al origen: mantener clip completo, cola desde cabezal o insertar

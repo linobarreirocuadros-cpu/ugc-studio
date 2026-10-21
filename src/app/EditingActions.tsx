@@ -1,3 +1,5 @@
+import {editAvailable} from "./editAvailability";
+import {useUiDocument} from "./UiDocument";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GraphicClip, Project } from "../project/types";
@@ -10,22 +12,23 @@ export type EditDialogKind = "add"|"newSequence"|"nest"|"speed"|"channels"|"hold
 export const LABEL_COLORS = [{name:"Azul",color:"#487ab0"},{name:"Violeta",color:"#8761ad"},{name:"Cian",color:"#329aa0"},{name:"Verde",color:"#528b68"},{name:"Ámbar",color:"#bd9846"},{name:"Rosa",color:"#b46587"},{name:"Rojo",color:"#af5757"}];
 
 export function EditContextMenu({x,y,ids,project,onAction,onLabel,onClose}: {x:number;y:number;ids:string[];project:Project;onAction:(action:EditAction)=>void;onLabel:(color?:string)=>void;onClose:()=>void}) {
+  const uiDoc=useUiDocument(),uiWindow=uiDoc.defaultView??window;
   const ref=useRef<HTMLDivElement>(null),[position,setPosition]=useState({x,y});
-  useLayoutEffect(()=>{const box=ref.current?.getBoundingClientRect();if(box)setPosition({x:Math.max(4,Math.min(x,window.innerWidth-box.width-4)),y:Math.max(4,Math.min(y,window.innerHeight-box.height-4))});},[x,y]);
-  useEffect(()=>{ref.current?.focus();const close=(e:PointerEvent)=>{if(!ref.current?.contains(e.target as Node))onClose();};window.addEventListener("pointerdown",close,true);window.addEventListener("blur",onClose);return()=>{window.removeEventListener("pointerdown",close,true);window.removeEventListener("blur",onClose);};},[onClose]);
+  useLayoutEffect(()=>{const box=ref.current?.getBoundingClientRect();if(box)setPosition({x:Math.max(4,Math.min(x,uiWindow.innerWidth-box.width-4)),y:Math.max(4,Math.min(y,uiWindow.innerHeight-box.height-4))});},[x,y]);
+  useEffect(()=>{ref.current?.focus();const close=(e:PointerEvent)=>{if(!ref.current?.contains(e.target as Node))onClose();};uiWindow.addEventListener("pointerdown",close,true);uiWindow.addEventListener("blur",onClose);return()=>{uiWindow.removeEventListener("pointerdown",close,true);uiWindow.removeEventListener("blur",onClose);};},[onClose]);
   const clips=ids.map(id=>ops.findClip(project,id)?.clip),video=clips.find(c=>c?.kind==="video"&&!c.sequenceId),media=clips.some(c=>c?.kind==="audio"||c?.kind==="video"),locked=!ops.clipsEditable(project,ids);
-  const item=(id:EditAction,label:string,disabled=false)=><button key={id} role="menuitem" disabled={disabled} onClick={()=>{onClose();onAction(id);}}>{label}</button>;
-  return createPortal(<div ref={ref} role="menu" aria-label="Opciones de edición" tabIndex={-1} data-command-ui className="edit-context-menu" style={{left:position.x,top:position.y}} onKeyDown={e=>{if(e.key==="Escape"){e.stopPropagation();onClose();}if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const buttons=[...ref.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];const i=buttons.indexOf(document.activeElement as HTMLButtonElement);buttons[(i+(e.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length]?.focus();}}}>
+  const item=(id:EditAction,label:string,disabled=false)=><button key={id} role="menuitem" disabled={disabled||!editAvailable(project,ids,id)} onClick={()=>{onClose();onAction(id);}}>{label}</button>;
+  return createPortal(<div ref={ref} role="menu" aria-label="Opciones de edición" tabIndex={-1} data-command-ui className="edit-context-menu" style={{left:position.x,top:position.y}} onKeyDown={e=>{if(e.key==="Escape"){e.stopPropagation();onClose();}if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const buttons=[...ref.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];const i=buttons.indexOf(uiDoc.activeElement as HTMLButtonElement);buttons[(i+(e.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length]?.focus();}}}>
     {item("add","Añadir…")}
     {ids.length>0&&<><hr/>{item("cut","Cortar",locked)}{item("copy","Copiar")}{item("delete","Borrar",locked)}{item("rippleDelete","Eliminar y cerrar hueco",locked)}<hr/>
       {item("link",clips.some(c=>c&&(c.kind==="video"||c.kind==="audio")&&c.linkedClipId)?"Desenlazar":"Enlazar video y audio",locked||!media)}
       {item("group","Agrupar",locked||ids.length<2)}{item("ungroup","Desagrupar",locked||!clips.some(c=>c?.groupId))}{item("nest","Anidar…",locked)}
       <details><summary>Etiqueta de color</summary><div className="label-swatches">{LABEL_COLORS.map(c=><button role="menuitem" key={c.color} disabled={locked} title={c.name} aria-label={`Etiqueta ${c.name}`} style={{background:c.color}} onClick={()=>{onLabel(c.color);onClose();}}/>)}<button role="menuitem" disabled={locked} onClick={()=>{onLabel();onClose();}}>Quitar</button></div></details>
       <hr/>{item("speed","Velocidad / duración…",locked||!media||clips.some(c=>c&&((c.kind!=="video"&&c.kind!=="audio")||c.sequenceId||c.kind==="video"&&c.freezeFrame!==undefined)))}
-      {item("gain","Ganancia de audio…",locked||!media)}{item("channels","Canales de audio…",locked||!clips.some(c=>c?.kind==="audio"&&!c.sequenceId))}
+      {item("gain","Ganancia de audio…",locked||!media)}{item("channels","Canales de audio…",!editAvailable(project,ids,"channels"))}
       <hr/>{item("hold","Opciones de congelado…",locked||!video)}{item("holdTail","Congelar desde el cabezal",locked||!video)}{item("holdInsert","Insertar segmento congelado…",locked||!video)}{video?.kind==="video"&&video.freezeFrame!==undefined&&item("unfreeze","Quitar congelado",locked)}
     </>}
-  </div>,document.body);
+  </div>,uiDoc.body);
 }
 
 export function EditingDialog({kind,project,ids,at,hostId,trackId,onApply,onClose}: {kind:EditDialogKind;project:Project;ids:string[];at:number;hostId?:string;trackId?:string;onApply:(fn:(p:Project)=>Project)=>void;onClose:()=>void}) {

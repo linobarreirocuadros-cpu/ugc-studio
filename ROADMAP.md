@@ -107,6 +107,10 @@ Detalle y evidencias en `QUALITY_AUDIT.md`. Alfa funcional: completar controles 
 a estar validado para entregas de agencia.
 
 - [x] Primera pasada de auditoría: código, 69 pruebas y flujos de UI en proyecto aislado
+- [x] Segunda fiscalización (2026-10-21): 105 pruebas, tipos/build, ocho menús, edición contextual,
+      controles de monitor y exportación vertical real de 15 s decodificada completa
+- [x] Escalar ondas con ganancia/volumen y preview de barra, manteniendo una transacción
+- [x] Compartir disponibilidad entre menús y clic derecho; ocultar reservas sin implementación
 - [x] Corregir foco de selección para Backspace/Delete; avisar cuando un candado bloquea borrado
 - [x] Estados activos visibles en monitores, I/O con tiempo y mute/fullscreen; conservar punto
       de Origen al cambiar resolución
@@ -160,7 +164,7 @@ a estar validado para entregas de agencia.
 - [x] Menús Archivo/Edición/Clip/Secuencia/Marcadores/Gráficos/Ventana/Ayuda; teclado visual
       editable con búsqueda, ámbitos, conflictos, varias combinaciones, persistencia y presets JSON
 - [x] Auditar preset Windows de Premiere 2026: 629 asignaciones consultables; mapa adaptado con
-      129 comandos disponibles y 93 pendientes identificados; rueda del timeline configurable
+      137 comandos disponibles y 92 pendientes identificados; rueda del timeline configurable
 - [x] Conectar atajos de Origen, inserción por ripple, portapapeles interno, recortes Q/W,
       navegación, transporte y marcadores con historial y respeto de enlaces/candados
 - [ ] Validar mouse físico, puntuación del teclado, arrastre de comandos y traslado de presets con Lino
@@ -180,7 +184,9 @@ a estar validado para entregas de agencia.
 - [x] Anchos internos del timeline ajustables: herramientas y cabeceras de pistas con separadores;
       herramientas compactas en una/dos/tres columnas, sobrante en menú sin scroll de columna,
       cabeceras responsivas y tipografía/iconos reducidos; preferencias locales persistentes
-- [ ] Validar con Lino comodidad de zonas/guía y cancelación de arrastre; ventanas flotantes y pestañas separables
+- [x] Agrupar/separar pestañas y flotar paneles dentro del editor o en ventanas independientes
+- [x] Presets de ventanas con identidad de pantalla, fallback visible y restauración explícita
+- [ ] Validar con Lino comodidad de zonas/guía, arrastre entre ventanas y desconectar/reconectar monitores
 - [x] Monitores Origen y Programa visibles por defecto, con opción de pestañas
 - [x] Zoom de imagen con rueda/porcentajes, pan con Mano o botón central y doble clic para Ajustar;
       controles externos, timecode editable, regla navegable, rango visible, I/O y márgenes seguros

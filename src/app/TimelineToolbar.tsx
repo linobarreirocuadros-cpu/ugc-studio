@@ -1,3 +1,4 @@
+import {useUiDocument} from "./UiDocument";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Project, TimelineMarker } from "../project/types";
@@ -14,6 +15,7 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
   onCreateSequence: (name: string) => void; hasSelection: boolean;
   hint:(id:string)=>string;
 }) {
+  const uiDoc=useUiDocument(),uiWindow=uiDoc.defaultView??window;
   const [settings, setSettings] = useState(false);
   const [markersOpen, setMarkersOpen] = useState(false);
   const [draft, setDraft] = useState<TimelineMarker | null>(null);
@@ -26,9 +28,9 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
     if ((!settings && !markersOpen) || !toolbar.current) return;
     const rect = toolbar.current.getBoundingClientRect();
     if (!rect.width || !rect.height) { setSettings(false); setMarkersOpen(false); return; }
-    const below = window.innerHeight - rect.bottom - 12;
+    const below = uiWindow.innerHeight - rect.bottom - 12;
     const height = Math.max(100, Math.min(400, below >= 240 ? below : rect.top - 12));
-    const next = { left: Math.max(12, Math.min(rect.left + 132, window.innerWidth - Math.min(420, window.innerWidth - 24) - 12)), top: below >= 240 ? rect.bottom : Math.max(12, rect.top - height), maxHeight: height };
+    const next = { left: Math.max(12, Math.min(rect.left + 132, uiWindow.innerWidth - Math.min(420, uiWindow.innerWidth - 24) - 12)), top: below >= 240 ? rect.bottom : Math.max(12, rect.top - height), maxHeight: height };
     setPosition((current) => current.left === next.left && current.top === next.top && current.maxHeight === next.maxHeight ? current : next);
   });
   const markers = project.markers ?? [];
@@ -63,7 +65,7 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
       <button disabled={!hasSelection} onClick={() => { onCreateSequence(sequenceName); setSettings(false); }}>Crear secuencia de la selección</button>
       <button onClick={() => onPreferences(DEFAULT_TIMELINE_PREFERENCES)}>Restablecer ajustes del timeline</button>
       <button onClick={() => setSettings(false)}>Cerrar ajustes</button>
-    </section>, document.body)}
+    </section>, uiDoc.body)}
     {markersOpen && createPortal(<section className="timeline-popover" style={position} aria-label="Marcadores del timeline">
       {draft ? <form onSubmit={(e) => { e.preventDefault(); onMarker(draft); setDraft(null); }}>
         <label>Nombre del marcador <input aria-label="Nombre del marcador" maxLength={160} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })}/></label>
@@ -75,6 +77,6 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
         {markers.map((m) => <div className="marker-row" key={m.id}><button style={{ borderLeft: `3px solid ${m.color}` }} onClick={() => onSeek(m.frame)}>{formatTimecode(m.frame, project.fps)} · {m.label}</button><button aria-label={`Editar marcador ${m.label}`} onClick={() => setDraft(m)}>Editar</button><button aria-label={`Eliminar marcador ${m.label}`} onClick={() => onDeleteMarker(m.id)}>×</button></div>)}
       </>}
       <button onClick={() => setMarkersOpen(false)}>Cerrar marcadores</button>
-    </section>, document.body)}
+    </section>, uiDoc.body)}
   </div>;
 }

@@ -27,6 +27,7 @@ type Drag = {
 };
 
 export type MediaDrag = {
+  documentEpoch?: number;
   src: string;
   kind: "video" | "audio";
   inFrame: number;
@@ -77,6 +78,7 @@ const SNAP_PX = 8;
 export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
+  const [volumePreview,setVolumePreview]=useState<Record<string,number>>({});
   const selectionIds = (ids: string[], follow = preferences.linkedSelection) => follow ? groupedIds(project, ids) : ids;
   const editable = (id: string, follow = preferences.linkedSelection) => follow ? clipsEditable(project, [id]) : !projectClip(project, id)?.track.locked;
   const [drag, setDragState] = useState<Drag | null>(null);
@@ -386,10 +388,10 @@ export function Timeline({ project, onContextMenu, onVolume, onOpenSequence, rev
                         src={waveforms[clip.src]}
                         alt=""
                         draggable={false}
-                        style={{ width: clip.sourceDurationInFrames * pxPerFrame / (clip.playbackRate??1), left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame / (clip.playbackRate??1) }}
+                        style={{transform:`scaleY(${volumePreview[clip.id]??clip.volume})`,transformOrigin:"center center",width: clip.sourceDurationInFrames * pxPerFrame / (clip.playbackRate??1), left: -(preview.kind === "audio" ? preview.trimStart : clip.trimStart) * pxPerFrame / (clip.playbackRate??1) }}
                       />
                     )}
-                    {clip.kind==="audio"&&<VolumeRubberBand name={clip.name} volume={clip.volume} height={TRACK_H-8} disabled={Boolean(track.locked)} onChange={v=>onVolume(clip.id,v)}/>}
+                    {clip.kind==="audio"&&<VolumeRubberBand name={clip.name} volume={clip.volume} height={TRACK_H-8} disabled={Boolean(track.locked)} onChange={v=>onVolume(clip.id,v)} onPreview={v=>setVolumePreview(s=>{const next={...s};if(v===null)delete next[clip.id];else next[clip.id]=v;return next;})}/>}
                     {preferences.showNames && <span className="clip-label">{(clip.kind === "video" || clip.kind === "audio") && clip.sequenceId ? "▤ " : ""}{clipLabel(clip)}{dragging && drag?.mode === "slip" && (preview.kind === "video" || preview.kind === "audio") ? ` · Origen ${(preview.trimStart / project.fps).toFixed(2)} s` : ""}</span>}
                     {(() => { if ((clip.kind !== "video" && clip.kind !== "audio") || !clip.linkedClipId) return null; const mate = projectClip(project, clip.linkedClipId)?.clip; if (!mate || (mate.kind !== "video" && mate.kind !== "audio")) return null; const offset = clip.from - clip.trimStart - mate.from + mate.trimStart; return offset ? <span className="clip-sync-warning" title="Diferencia de sincronía con su pareja">{offset > 0 ? "+" : ""}{offset} f</span> : null; })()}
                     <div

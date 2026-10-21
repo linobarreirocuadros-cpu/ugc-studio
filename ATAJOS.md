@@ -109,7 +109,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   No se distribuye el XML .kys original ni se requiere instalar Premiere para usar UGC Studio.
   **Referencia Premiere 2026** permite buscar todas esas asignaciones. Son referencia; no se
   anuncian como funciones ejecutables de UGC Studio.
-- El mapa operativo/adaptado contiene **222 comandos: 129 disponibles y 93 pendientes**.
+- El mapa operativo/adaptado contiene **229 comandos: 137 disponibles y 92 pendientes**.
   Los pendientes se distinguen por color y explicación; no ejecutan una función diferente.
   El contexto local tiene prioridad sobre el general. Una reserva pendiente también bloquea
   un comando general para evitar que una combinación haga algo inesperado.
@@ -136,7 +136,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   o reasignar. Los presets JSON de UGC Studio no importan/exportan archivos .kys personalizados.
 - Pendiente validar Alt/Ctrl/Shift+rueda con el mouse físico de Lino, distribución de teclado
   y comodidad del editor; también arrastre de comandos a teclas y traslado de presets entre equipos.
-  No se probó cada uno de los 129 comandos disponibles manualmente.
+  No se probó cada uno de los 137 comandos disponibles manualmente.
 
 ## Para continuar el desarrollo
 
@@ -152,7 +152,7 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   expone controles de Origen; `useShuttle.ts` gestiona transporte. `copyClips`, `pasteClips` e
   `insertSourceRange` son operaciones puras de `src/project/ops.ts`, una transacción de historial.
 - Siguiente paso: contrastar la sensación de rueda/puntuación con Lino y priorizar funciones
-  faltantes del catálogo. No convertir 93 reservas o 629 referencias en promesas de funciones.
+  faltantes del catálogo. No convertir 92 reservas o 629 referencias en promesas de funciones.
 
 ## Edición con clic derecho
 
@@ -181,3 +181,19 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
 - El contexto del panel decide qué se elimina; escribir nombres/notas/búsqueda nunca borra clips.
 - Pie → **Nuevo elemento** reúne secuencia, ajuste, sólidos/negro/transparente, texto y cuadrado.
   Propiedades muestra datos del original, notas y botones para localizar sus usos en secuencias.
+
+## Paneles y menús — 2026-10-21
+
+- Ventana → Presets de ventanas permite guardar distribuciones con pestañas, flotantes internos
+  y ventanas en pantallas identificadas. Detectar pantallas solicita el permiso del navegador.
+  Aplicar distribución abre/mueve las ventanas; el bloqueo de popups muestra una alternativa.
+- Nuevas entradas operativas: Anidar, tres variantes de congelado, Sólido, Ajuste, Rectángulo y
+  Presets de ventanas. No se asignaron teclas fijas fuera del mapa central. Las 92 reservas
+  siguen en la referencia/edición de atajos, y se ocultan en los menús de trabajo.
+- La disponibilidad de ganancia/canales/velocidad/anidar/grupos se comparte con clic derecho;
+  una selección incompatible o protegida se deshabilita. No editar una selección antigua del
+  timeline desde el panel Proyecto. Marcadores de archivo Origen siguen sin implementarse.
+- Marcar selección en Origen marca su archivo completo; las marcas I/O son preferencias de
+  ese visor. El foco y la entrada de las ventanas secundarias usan el mismo mapa de comandos.
+- Recorrido real: ocho menús inspeccionados; acciones de edición y monitor descritas en
+  QUALITY_AUDIT.md. No se ejecutó manualmente cada combinación de los 137 comandos.

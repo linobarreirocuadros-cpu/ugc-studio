@@ -1,3 +1,4 @@
+import {useUiDocument} from "./UiDocument";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type DragEvent, type PointerEvent } from "react";
 import { formatTimecode } from "./Timeline";
 import type { PreviewQuality } from "./usePreviewQuality";
@@ -24,15 +25,16 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
   onSeek:(f:number)=>void;onCommand:(id:string)=>void;actions?:MonitorAction[];hint:(id:string)=>string;
   marks?:{start:number|null;end:number|null};markers?:{id:string;frame:number;label:string;color:string}[];
   onRangeDrag?:(e:DragEvent,mode:MonitorDragMode)=>void;onRangePlace?:(mode:MonitorDragMode)=>void;rangeKinds?:{video:boolean;audio:boolean};
-  onRangePointerDown?:(e:PointerEvent,mode:MonitorDragMode,clickToPlace?:boolean)=>void;
+  onRangePointerDown?:(e:PointerEvent,mode:MonitorDragMode,clickToPlace?:boolean)=>boolean|void;
   children:(style:CSSProperties)=>ReactNode;
 }) {
+  const uiDoc=useUiDocument(),uiWindow=uiDoc.defaultView??window;
   const root=useRef<HTMLDivElement>(null),stage=useRef<HTMLDivElement>(null);
   const [size,setSize]=useState({w:1,h:1}),[zoom,setZoom]=useState<number|"fit">("fit"),[pan,setPan]=useState({x:0,y:0}),[hand,setHand]=useState(false);
   const [time,setTime]=useState<string|null>(null),[timeError,setTimeError]=useState("");
   const [safe,setSafe]=useState(false),[fullscreen,setFullscreen]=useState(false),[viewError,setViewError]=useState("");
-  useEffect(()=>{const changed=()=>setFullscreen(document.fullscreenElement===root.current);document.addEventListener("fullscreenchange",changed);return()=>document.removeEventListener("fullscreenchange",changed);},[]);
-  const toggleFullscreen=async()=>{try{setViewError("");if(document.fullscreenElement===root.current)await document.exitFullscreen();else await root.current?.requestFullscreen();}catch{setViewError("El navegador no permitió la pantalla completa.");}};
+  useEffect(()=>{const changed=()=>setFullscreen(uiDoc.fullscreenElement===root.current);uiDoc.addEventListener("fullscreenchange",changed);return()=>uiDoc.removeEventListener("fullscreenchange",changed);},[uiDoc]);
+  const toggleFullscreen=async()=>{try{setViewError("");if(uiDoc.fullscreenElement===root.current)await uiDoc.exitFullscreen();else await root.current?.requestFullscreen();}catch{setViewError("El navegador no permitió la pantalla completa.");}};
   const [windowRange,setWindowRange]=useState({start:0,end:1});
   const fit=Math.min(size.w/width,size.h/height),scale=zoom==="fit"?fit:zoom;
   const bound=(p:{x:number;y:number},s=scale)=>({x:clamp(p.x,-Math.max(0,(width*s-size.w)/2),Math.max(0,(width*s-size.w)/2)),y:clamp(p.y,-Math.max(0,(height*s-size.h)/2),Math.max(0,(height*s-size.h)/2))});
@@ -52,7 +54,7 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
   const setAt=(clientX:number,node:HTMLElement)=>{const r=node.getBoundingClientRect();onSeek(Math.round(lo+clamp((clientX-r.left)/r.width,0,1)*range));};
   const jump=()=>{if(time===null)return false;const parts=time.split(":").map(Number);if(!/^\d+:\d{2}:\d{2}:\d{2}$/.test(time)||parts[1]>59||parts[2]>59||parts[3]>=fps){setTimeError("Usa HH:MM:SS:FF.");return false;}const at=((parts[0]*60+parts[1])*60+parts[2])*fps+parts[3];if(at>=duration){setTimeError("Ese tiempo está fuera del video.");return false;}onSeek(at);setTime(null);setTimeError("");return true;};
   return <div className="monitor-viewer" ref={root}>
-    <div className={`monitor-stage ${hand?"pan-tool":""} ${onRangeDrag&&!hand?"range-draggable":""}`} ref={stage} aria-label={`Imagen de ${name}`} title="Arrastrar: colocar rango en timeline · Rueda: zoom · Botón central o Mano: desplazar · Doble clic: ajustar" draggable={Boolean(onRangeDrag&&!onRangePointerDown&&!hand)} onDragStart={e=>{if(onRangeDrag&&!hand)onRangeDrag(e,rangeKinds.video?"auto":"audio");else e.preventDefault();}}
+    <div className={`monitor-stage ${hand?"pan-tool":""} ${onRangeDrag&&!hand?"range-draggable":""}`} ref={stage} aria-label={`Imagen de ${name}`} title="Arrastrar: colocar rango en timeline · Rueda: zoom · Botón central o Mano: desplazar · Doble clic: ajustar" draggable={Boolean(onRangeDrag&&!hand)} onDragStart={e=>{if(onRangeDrag&&!hand)onRangeDrag(e,rangeKinds.video?"auto":"audio");else e.preventDefault();}}
       onDoubleClick={()=>{setZoom("fit");setPan({x:0,y:0});}}
       onPointerDown={e=>{if(e.button!==1&&!(hand&&e.button===0)){if(e.button===0)onRangePointerDown?.(e,rangeKinds.video?"auto":"audio");return;}e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);e.currentTarget.dataset.panX=String(e.clientX-pan.x);e.currentTarget.dataset.panY=String(e.clientY-pan.y);}}
       onPointerMove={e=>{if((e.buttons===4||hand)&&e.currentTarget.hasPointerCapture(e.pointerId))setPan(bound({x:e.clientX-Number(e.currentTarget.dataset.panX),y:e.clientY-Number(e.currentTarget.dataset.panY)}));}}
@@ -67,7 +69,7 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
           <option value="fit">Ajustar</option>{zoom!=="fit"&&!zooms.includes(zoom)&&<option value={zoom}>{Math.round(zoom*100)}%</option>}{zooms.map(z=><option key={z} value={z}>{z*100}%</option>)}
         </select>
         {onRangeDrag&&<div className="monitor-range-drags" role="group" aria-label={`Colocar rango de ${name}`}>
-          {(["video","audio","auto"] as const).map(mode=>{const label=mode==="auto"?"video y audio":mode==="video"?"solo video":"solo audio";return <button key={mode} type="button" draggable={!onRangePointerDown} onPointerDown={e=>onRangePointerDown?.(e,mode,true)} disabled={mode==="video"?!rangeKinds.video:mode==="audio"?!rangeKinds.audio:!rangeKinds.video||!rangeKinds.audio} aria-label={`Arrastrar ${label} de ${name}`} title={`Arrastra ${label} del rango marcado al timeline · Clic: colocar en el cabezal`} onDragStart={e=>onRangeDrag(e,mode)} onClick={e=>{if(!onRangePointerDown||e.detail===0)onRangePlace?.(mode);}}>{mode==="video"?monitorIcon(<><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 4v16M17 4v16M3 8h4m-4 8h4m10-8h4m-4 8h4"/></>):mode==="audio"?monitorIcon(<path d="M3 12h2m3-5v10m4-14v18m4-15v12m3-6h2"/>):monitorIcon(<><rect x="2" y="3" width="14" height="10" rx="1"/><path d="M6 3v10M2 7h4m-4 3h4m3 8h2m3-4v8m4-6v4m3-3v2"/></>)}</button>;})}
+          {(["video","audio","auto"] as const).map(mode=>{const label=mode==="auto"?"video y audio":mode==="video"?"solo video":"solo audio";return <button key={mode} type="button" draggable onPointerDown={e=>{e.currentTarget.dataset.nativeRange=String(onRangePointerDown?.(e,mode,true)===false);}} disabled={mode==="video"?!rangeKinds.video:mode==="audio"?!rangeKinds.audio:!rangeKinds.video||!rangeKinds.audio} aria-label={`Arrastrar ${label} de ${name}`} title={`Arrastra ${label} del rango marcado al timeline · Clic: colocar en el cabezal`} onDragStart={e=>onRangeDrag(e,mode)} onClick={e=>{if(!onRangePointerDown||e.detail===0||e.currentTarget.dataset.nativeRange==="true")onRangePlace?.(mode);}}>{mode==="video"?monitorIcon(<><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 4v16M17 4v16M3 8h4m-4 8h4m10-8h4m-4 8h4"/></>):mode==="audio"?monitorIcon(<path d="M3 12h2m3-5v10m4-14v18m4-15v12m3-6h2"/>):monitorIcon(<><rect x="2" y="3" width="14" height="10" rx="1"/><path d="M6 3v10M2 7h4m-4 3h4m3 8h2m3-4v8m4-6v4m3-3v2"/></>)}</button>;})}
         </div>}
         <select aria-label={`Resolución de ${name}`} title="Resolución de vista previa. No cambia la exportación." value={quality} onChange={e=>onQuality(Number(e.target.value) as PreviewQuality)}>{[1,2,4,8,16].map(q=><option key={q} value={q}>{q===1?"Full":`1/${q}`}</option>)}</select>
         <span className="monitor-duration" title="Duración total">{formatTimecode(duration,fps)}</span>
@@ -79,7 +81,7 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
         onPointerDown={e=>{if(e.button!==0)return;e.currentTarget.setPointerCapture(e.pointerId);setAt(e.clientX,e.currentTarget);}}
         onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))setAt(e.clientX,e.currentTarget);}}
         onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}>
-        {marks&&(marks.start!==null||marks.end!==null)&&<div className={`monitor-range ${onRangeDrag?"range-draggable":""}`} aria-label={`Arrastrar rango marcado de ${name}`} title="Arrastra el rango marcado al timeline" draggable={Boolean(onRangeDrag&&!onRangePointerDown)} onPointerDown={e=>{e.stopPropagation();onRangePointerDown?.(e,rangeKinds.video?"auto":"audio");}} onMouseDown={e=>e.stopPropagation()} onDragStart={e=>{e.stopPropagation();onRangeDrag?.(e,rangeKinds.video?"auto":"audio");}} style={{left:`${clamp(pct(marks.start??0),0,100)}%`,right:`${100-clamp(pct((marks.end??duration)-1),0,100)}%`}}/>}
+        {marks&&(marks.start!==null||marks.end!==null)&&<div className={`monitor-range ${onRangeDrag?"range-draggable":""}`} aria-label={`Arrastrar rango marcado de ${name}`} title="Arrastra el rango marcado al timeline" draggable={Boolean(onRangeDrag)} onPointerDown={e=>{e.stopPropagation();onRangePointerDown?.(e,rangeKinds.video?"auto":"audio");}} onMouseDown={e=>e.stopPropagation()} onDragStart={e=>{e.stopPropagation();onRangeDrag?.(e,rangeKinds.video?"auto":"audio");}} style={{left:`${clamp(pct(marks.start??0),0,100)}%`,right:`${100-clamp(pct((marks.end??duration)-1),0,100)}%`}}/>}
         {[0,.25,.5,.75,1].map(v=><span key={v} className="monitor-tick" style={{left:`${v*100}%`}}>{formatTimecode(Math.round(lo+range*v),fps)}</span>)}
         {markers.filter(m=>m.frame>=lo&&m.frame<=hi).map(m=><button key={m.id} aria-label={`Ir a marcador ${m.label}`} title={m.label} className="monitor-marker" style={{left:`${pct(m.frame)}%`,color:m.color}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onSeek(m.frame)}>◆</button>)}
         {frame>=lo&&frame<=hi&&<i className="monitor-playhead" style={{left:`${pct(frame)}%`}}/>}

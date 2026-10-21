@@ -1,7 +1,57 @@
 # Progreso
 
+## 2026-10-21 — Pestañas, ventanas y segunda fiscalización
+
+**Entregado:** grupos de pestañas (centro al arrastrar o menú Posición), extraer/acoplar,
+flotantes internos movibles/redimensionables y ventanas independientes por panel. Portal estable
+conserva chat/borrador; UiDocument y bridge de entrada mantienen diálogos, foco, atajos y drags
+locales en la ventana correspondiente. Cerrar recupera el panel; recargar cierra las secundarias.
+Preferencias de espacio v3 migran v2. El árbol completo conserva el lugar de paneles separados.
+
+**Presets:** Ventana → Presets de ventanas → Detectar pantallas → Guardar/Aplicar distribución.
+Guarda grupos, flotantes y ventanas con identidad de pantalla y geometría relativa. Si falta una
+pantalla usa la principal sin cambiar el destino guardado. Se detectaron PXP 27G (principal) y
+Kamvas 13: Inspector se movió a Kamvas, se guardó «QA dos monitores», se aplicó «QA un monitor
+con pestañas» y se volvió al preset doble; la ventana regresó a Kamvas. El navegador puede
+ajustar límites/tamaño y bloquear apertura; se informa sin perder paneles. No hay apertura
+automática al cargar: Aplicar requiere interacción del usuario.
+
+**Correcciones de calidad:** ondas escalan con volumen/ganancia (incluido preview al arrastrar
+la barra, un solo commit al soltar); habilitación compartida de selección/candados; menús solo
+muestran funciones disponibles, con las reservas en Atajos; cambio de menú con mouse estable.
+Ganancia captura selección/documento al abrir; congelar cola avisa si el cabezal está fuera.
+Marcar selección de Origen funciona; marcadores de archivo no se ofrecen como implementados.
+Anidar/congelados/sólido/ajuste/rectángulo también accesibles desde menús. Catálogo 229:137/92.
+El drag I/O usa HTML5 cuando Timeline y Monitor pertenecen a documentos diferentes; se
+conserva puntero/guía/autoscroll dentro del documento, y guardia de documento al arrastrar Origen.
+
+**Verificado:** 105/105 pruebas, typecheck y build. QA UI solo en localhost:5174 (5173 intacto).
+Chat mantiene borrador al cambiar pestaña, flotar y recuperar ventana. Origen/Inspector/medidor no heredan atajos destructivos de una selección vieja. Gain +6 dB escala onda
+1.58204→3.15659 y Deshacer restaura. Canales Left generó WAV real con channelSource original;
+Anidar abre contenido/retorna; velocidad 200 % y tres congelados; agrupar/desagrupar, desenlazar,
+copiar/pegar por menú, gráficos y corte, con recuperación. Delete/Backspace borran pareja
+7→5→7, escribir Backspace en chat conserva 7 clips. Timeline independiente recibió clic de
+Origen (15→26 s) y Deshacer volvió a 15 s/7 clips. Ocho menús inspeccionados (86 entradas
+operativas), controles de Programa ejecutados: transporte/cortes, I/O, localizar en Origen,
+marcador, mute/bucle/guías/mano/fullscreen, zoom/regla y las cinco resoluciones; 1/16 cargó
+68×120 real y se volvió a Full. Exportación UI del montaje 15 s:
+`~/UGC Studio/Exportaciones/Prueba_pistas_y_audio_visible_mvi9vlxv.mp4`, H.264 1080×1920,
+AAC estéreo 48 kHz; ffprobe 15.019 s contenedor, decodificación video/audio completa correcta.
+La primera verificación null falló por encoder por defecto ausente del FFmpeg empaquetado;
+con rawvideo/pcm explícitos decodificó bien: no era fallo del archivo ni del exportador.
+
+**Pendiente:** desconexión/reconexión física de pantallas y arrastre OS entre ventanas (la API
+no expone la popup para esa prueba automatizada); reconocimiento/posición se cubren con pruebas
+puras y destino real de dos pantallas. No se ejecutó cada atajo/combinación ni otros proveedores
+IA, micrófono, montajes largos o todos los codecs en esta ronda. Validar con Lino el anuncio
+UGC completo, escucha/continuidad, reabrir/revisar y recuperación antes de sustituir Premiere.
+El HMR de desarrollo puede requerir recarga al cambiar hooks; carga limpia comprobada.
+Evidencias PNG en `.codex/visualizations/2026/10/20/01a156a1-e17c-7d80-bb46-7854e62306d8/`:
+`ugc-presets-dos-monitores-2026-10-21.png`, `ugc-paneles-pestanas-flotante-2026-10-21.png`.
+
+
 ## Estado actual
-Primera auditoría de fiabilidad realizada el 2026-10-20: ver `QUALITY_AUDIT.md` para alcance,
+Auditorías de fiabilidad del 2026-10-20 y 2026-10-21: ver `QUALITY_AUDIT.md` para alcance,
 fallos corregidos, evidencias y condiciones de MVP. Estado: alfa funcional; aún no validado como
 editor único de agencia. No dar por solucionado el bucle en todos los videos por pasar esta prueba.
 Fase 2 (chat con IA) construida, con primera visión local y limpieza de audio integradas.
@@ -20,7 +70,7 @@ por defecto, hasta tres al ensanchar y menú de sobrante cuando falta altura, si
 Regla del timeline fija durante scroll vertical, cabezal arrastrable a cualquier altura y glow sutil
 del panel activo. Rangos I/O de Origen/Programa arrastrables como video, audio o ambos, con guía.
 Menús superiores y editor visual de atajos Windows con conflictos, ámbitos, presets JSON y rueda
-configurable. 129 comandos disponibles, 93 reservas pendientes y 629 asignaciones de Premiere 2026
+configurable. 137 comandos disponibles, 92 reservas pendientes y 629 asignaciones de Premiere 2026
 auditadas/consultables como referencia. Ver ATAJOS.md para uso, fuentes y límites.
 Chat simplificado con IA/modelo y cuenta en vistas secundarias; mascota/logo vectoriales basados
 en el personaje de Lino. Apertura animada y conversación/borrador conservados al ocultar el panel.

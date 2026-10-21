@@ -1,3 +1,5 @@
+import {createPortal} from "react-dom";
+import {useUiDocument} from "./UiDocument";
 import { useEffect, useRef, useState } from "react";
 import { COMMANDS, KEY_ROWS, SCOPE_LABEL, ambiguousBindings, browserReservation, chordLabel, conflicts, eventChord, keyLabel, validChord } from "./commands";
 import { DEFAULT_GESTURES, GESTURE_ACTIONS, WHEEL_MODIFIERS } from "./gesturePreferences";
@@ -5,6 +7,7 @@ import { normalizeShortcutSettings, type ShortcutSettings } from "./useShortcuts
 import { PremiereReference } from "./PremiereReference";
 
 export function ShortcutEditor({settings,onSave,onClose}:{settings:ShortcutSettings;onSave:(s:ShortcutSettings)=>void;onClose:()=>void}) {
+  const uiDoc=useUiDocument();
   const [draft,setDraft]=useState<ShortcutSettings>(()=>normalizeShortcutSettings(structuredClone(settings)));
   const [query,setQuery]=useState(""),[scope,setScope]=useState("all"),[status,setStatus]=useState("all"),[keyFilter,setKeyFilter]=useState<string|null>(null);
   const [selected,setSelected]=useState("shortcuts"),[candidate,setCandidate]=useState<string|null>(null),[recording,setRecording]=useState(false),[modifiers,setModifiers]=useState<string[]>([]),[tab,setTab]=useState("keyboard"),[error,setError]=useState("");
@@ -12,7 +15,7 @@ export function ShortcutEditor({settings,onSave,onClose}:{settings:ShortcutSetti
   const command=COMMANDS.find(c=>c.id===selected)!;
   const collisions=candidate?conflicts(draft.bindings,selected,candidate):[];
   const visible=COMMANDS.filter(c=>(scope==="all"||c.scope===scope)&&(status==="all"||(status==="pending")===Boolean(c.pending))&&(!keyFilter||draft.bindings[c.id].includes(keyFilter))&&`${c.label} ${c.category} ${c.id} ${draft.bindings[c.id].map(k=>chordLabel(k,draft.layout)).join(" ")}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-  useEffect(()=>{ const previous=document.activeElement as HTMLElement|null; dialog.current?.showModal(); return()=>previous?.focus();},[]);
+  useEffect(()=>{ const previous=uiDoc.activeElement as HTMLElement|null; dialog.current?.showModal(); return()=>previous?.focus();},[]);
   useEffect(()=>{if(recording)capture.current?.focus();},[recording]);
   const assign=(removeConflicts:boolean)=>{
     if(!candidate)return;
@@ -23,7 +26,7 @@ export function ShortcutEditor({settings,onSave,onClose}:{settings:ShortcutSetti
   const importPreset=async(files:FileList|null)=>{try{const file=files?.[0];if(!file)return;if(file.size>256000)throw new Error("El archivo supera 256 KB.");const data=JSON.parse(await file.text());if(data.version!==1||!data.bindings||typeof data.bindings!=="object")throw new Error("Selecciona un preset JSON de UGC Studio (versión 1), no un archivo .kys.");setDraft(normalizeShortcutSettings(data));setError("");setCandidate(null);}catch(e){setError(e instanceof Error?e.message:String(e));}finally{if(importRef.current)importRef.current.value="";}};
   const chooseKey=(code:string)=>{const mod=code.startsWith("Control")?"Ctrl":code.startsWith("Alt")?"Alt":code.startsWith("Shift")?"Shift":null;if(mod){setModifiers(m=>["Ctrl","Alt","Shift"].filter(k=>k===mod?!m.includes(k):m.includes(k)));return;}if(code.startsWith("Meta"))return;const key=[...modifiers,code].join("+");if(recording){setCandidate(key);setRecording(false);}else setKeyFilter(current=>current===key?null:key);};
   const save=()=>{const ambiguities=ambiguousBindings(draft.bindings);if(ambiguities.length){setError(`Resuelve primero estos conflictos del mismo panel: ${ambiguities.slice(0,4).join("; ")}`);return;}onSave(draft);onClose();};
-  return <dialog ref={dialog} className="shortcut-dialog" aria-labelledby="shortcuts-title" data-command-ui onCancel={e=>{e.preventDefault();if(recording){setRecording(false);setCandidate(null);}else onClose();}} onKeyDown={e=>{if(e.key==="Escape"&&recording){e.preventDefault();e.stopPropagation();setRecording(false);setCandidate(null);} }}>
+  return createPortal(<dialog ref={dialog} className="shortcut-dialog" aria-labelledby="shortcuts-title" data-command-ui onCancel={e=>{e.preventDefault();if(recording){setRecording(false);setCandidate(null);}else onClose();}} onKeyDown={e=>{if(e.key==="Escape"&&recording){e.preventDefault();e.stopPropagation();setRecording(false);setCandidate(null);} }}>
     <header><div><h2 id="shortcuts-title">Atajos de teclado</h2><span>Base Premiere · Windows · {COMMANDS.filter(c=>!c.pending).length} comandos disponibles · {COMMANDS.filter(c=>c.pending).length} pendientes</span></div><button aria-label="Cerrar atajos sin guardar" onClick={onClose}>×</button></header>
     <div className="shortcut-tabs"><button className={tab==="keyboard"?"active":""} onClick={()=>setTab("keyboard")}>Teclado</button><button className={tab==="mouse"?"active":""} onClick={()=>setTab("mouse")}>Mouse y rueda</button><button className={tab==="reference"?"active":""} onClick={()=>setTab("reference")}>Referencia Premiere 2026</button><label>Rótulos <select aria-label="Distribución visual del teclado" value={draft.layout} onChange={e=>setDraft(s=>({...s,layout:e.target.value as "us"|"es"}))}><option value="us">QWERTY US</option><option value="es">Español ISO</option></select></label></div>
     {tab==="reference"?<PremiereReference layout={draft.layout}/>:tab==="keyboard"?<>
@@ -40,5 +43,5 @@ export function ShortcutEditor({settings,onSave,onClose}:{settings:ShortcutSetti
     </>:<div className="gesture-editor"><h3>Rueda sobre el timeline</h3><p>Windows: rueda horizontal, Ctrl cambia a vertical y Alt acerca/aleja bajo el puntero. Shift también se puede personalizar. Los gestos dependen de la zona y de la versión de Premiere.</p>{WHEEL_MODIFIERS.map(mod=><label key={mod}><kbd>{mod?`${mod} + `:""}Rueda ↑ / ↓</kbd><select aria-label={`Acción ${mod||"sin modificadores"} y rueda`} value={draft.gestures[mod]} onChange={e=>setDraft(s=>({...s,gestures:{...s.gestures,[mod]:e.target.value}}))}>{Object.entries(GESTURE_ACTIONS).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>)}<p>Alt + clic con Zoom aleja. Shift/Ctrl + clic permiten selección múltiple; Shift + cuchilla corta todas las pistas. La escala del monitor y el arrastre con Alt para duplicar quedan pendientes.</p><button onClick={()=>setDraft(s=>({...s,gestures:{...DEFAULT_GESTURES}}))}>Restablecer gestos</button></div>}
     {error&&<p className="error" role="alert">{error}</p>}
     <footer><button onClick={()=>{setDraft(normalizeShortcutSettings(null));setCandidate(null);setError("");}}>Restablecer base Premiere</button><button onClick={exportPreset}>Exportar preset</button><button onClick={()=>importRef.current?.click()}>Importar preset</button><input ref={importRef} type="file" accept=".json" hidden onChange={e=>void importPreset(e.target.files)}/><span/><button onClick={onClose}>Cancelar</button><button className="primary" onClick={save}>Guardar atajos</button></footer>
-  </dialog>;
+  </dialog>,uiDoc.body);
 }

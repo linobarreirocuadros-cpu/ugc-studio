@@ -21,7 +21,7 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart, onRangePointe
   fps: number;
   onInsert: (trackId: string, inFrame: number, outFrame: number, videoOnly: boolean) => void;
   onDragStart: (event: DragEvent, inFrame: number, outFrame: number, mode: MediaDrag["mode"]) => void;
-  onRangePointerDown:(event:PointerEvent,inFrame:number,outFrame:number,mode:MediaDrag["mode"],clickToPlace?:boolean)=>void;
+  onRangePointerDown:(event:PointerEvent,inFrame:number,outFrame:number,mode:MediaDrag["mode"],clickToPlace?:boolean)=>boolean|void;
   ref?:Ref<SourceHandle>; hint:(id:string)=>string;
   onActivate:()=>void;
 }) {
@@ -47,7 +47,7 @@ export function SourceMonitor({ media, fps, onInsert, onDragStart, onRangePointe
     if(id==="mute"){if(mediaRef.current){mediaRef.current.muted=!mediaRef.current.muted;setMuted(mediaRef.current.muted);}return true;}
     if(shuttle(id))return true;
     if(["markIn","markOut","clearIn","clearOut","clearMarks"].includes(id))setMarks(range=>updateMonitorRange(range,id,currentFrame(),media.durationInFrames));
-    else if(id==="markClip")setMarks({start:0,end:media.durationInFrames});
+    else if(id==="markClip"||id==="markSelection")setMarks({start:0,end:media.durationInFrames});
     else if(id==="goIn")seek(inFrame);
     else if(id==="goOut")seek(outFrame-1);
     else if(id==="start")seek(0);
