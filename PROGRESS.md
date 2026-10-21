@@ -40,6 +40,11 @@ AAC estéreo 48 kHz; ffprobe 15.019 s contenedor, decodificación video/audio co
 La primera verificación null falló por encoder por defecto ausente del FFmpeg empaquetado;
 con rawvideo/pcm explícitos decodificó bien: no era fallo del archivo ni del exportador.
 
+**Entrega local:** el Vite anterior en 5173 solo escuchaba en ::1; se dejó también Vite en
+127.0.0.1:5173 (sesión 40940), conservando API 3001. La pestaña principal estaba en una página
+interna de error y la herramienta bloqueó su control por política de URL; se solicitó a Lino
+recargarla. No se eludió el bloqueo ni se alteró su documento. QA 5174 se cerró al terminar.
+
 **Pendiente:** desconexión/reconexión física de pantallas y arrastre OS entre ventanas (la API
 no expone la popup para esa prueba automatizada); reconocimiento/posición se cubren con pruebas
 puras y destino real de dos pantallas. No se ejecutó cada atajo/combinación ni otros proveedores
