@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { defaultLayout, dockPanel, layoutRects, normalizeLayout, panelsIn, PANELS, setSplitRatio, type DockNode } from "../src/app/workspaceLayout";
+import { defaultLayout, dockPanel, dockTargets, dockScopes, layoutRects, normalizeLayout, panelsIn, PANELS, setSplitRatio, type DockNode } from "../src/app/workspaceLayout";
 
 test("el acoplamiento conserva cada panel una vez y permite bordes globales o de otro panel", () => {
   let tree = defaultLayout();
@@ -58,4 +58,39 @@ test("redimensionar modifica solo la división elegida y conserva el árbol orig
   assert.deepEqual(layoutRects(resized, 1200, 700).panels.monitor, layoutRects(tree, 1200, 700).panels.monitor);
   assert.equal((setSplitRatio(tree, "rows", 4) as Extract<DockNode, { type: "split" }>).ratio, .98);
   assert.equal(setSplitRatio(tree, "rows", NaN), tree);
+});
+
+test("timeline puede abarcar Proyecto y Monitores sin invadir el chat lateral",()=>{
+  const tree:DockNode={type:"split",id:"chat",axis:"x",ratio:.78,first:{type:"split",id:"left",axis:"x",ratio:.5,first:{type:"split",id:"library",axis:"y",ratio:.6,first:{type:"panel",panel:"bin"},second:{type:"split",id:"audio",axis:"x",ratio:.85,first:{type:"panel",panel:"timeline"},second:{type:"panel",panel:"meter"}}},second:{type:"panel",panel:"monitor"}},second:{type:"panel",panel:"inspector"}};
+  const original=JSON.stringify(tree),before=layoutRects(tree,1600,900);
+  const group=dockScopes(tree,"timeline","monitor").find(t=>typeof t.target==="object")!;
+  assert.deepEqual([...group.panels].sort(),["bin","meter","monitor"]);
+  let next=dockPanel(tree,"timeline",group.target,"bottom");next=dockPanel(next,"meter","timeline","right");
+  const {panels,dividers}=layoutRects(next,1600,900);
+  assert.deepEqual(panels.inspector,before.panels.inspector);assert.equal(panels.timeline.x,panels.bin.x);
+  assert.equal(panels.meter.x+panels.meter.width,panels.monitor.x+panels.monitor.width);
+  assert.equal(panels.timeline.y,panels.meter.y);assert.ok(panels.timeline.y>panels.monitor.y+panels.monitor.height);
+  const upper=dividers.find(d=>d.first==="Proyecto"&&d.second==="Monitores")!;
+  const resized=layoutRects(setSplitRatio(next,upper.id,.35),1600,900);
+  assert.deepEqual(resized.panels.timeline,panels.timeline);assert.deepEqual(resized.panels.meter,panels.meter);
+  assert.equal(JSON.stringify(tree),original);assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),next);
+});
+test("acoplar cada panel a conjuntos conserva regiones sin duplicados ni solapamientos",()=>{
+  let tree=dockPanel(defaultLayout(),"inspector","workspace","right");
+  for(const source of PANELS)for(const target of dockTargets(tree,source))for(const edge of ["left","right","top","bottom"] as const){
+    const next=dockPanel(tree,source,target.target,edge);assert.deepEqual([...panelsIn(next)].sort(),[...PANELS].sort());
+    assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(next))),next);
+    for(const [w,h] of [[1600,900],[640,380]]){
+      const rects=Object.values(layoutRects(next,w,h).panels);
+      for(const r of rects)assert.ok(r.x>=0&&r.y>=0&&r.x+r.width<=w+.0001&&r.y+r.height<=h+.0001);
+      for(const a of rects)for(const b of rects)if(a!==b)assert.ok(Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)<=.0001||Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y)<=.0001);
+    }
+  }
+});
+test("alcances de arrastre son progresivos y un destino de conjunto obsoleto no cambia la distribución",()=>{
+  const tree=dockPanel(defaultLayout(),"inspector","workspace","right"),scopes=dockScopes(tree,"timeline","bin");
+  assert.equal(scopes[0].target,"bin");assert.equal(scopes.at(-1)!.target,"workspace");
+  assert.ok(scopes.every((s,i)=>!i||s.panels.length>scopes[i-1].panels.length));
+  assert.equal(dockPanel(tree,"timeline",{group:"missing"},"bottom"),tree);
+  const group=scopes.find(s=>typeof s.target==="object")!;assert.equal(dockPanel(tree,"timeline",group.target,"center"),tree);
 });

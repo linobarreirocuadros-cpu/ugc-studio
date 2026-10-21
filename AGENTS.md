@@ -51,6 +51,12 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   Guía de destino, separadores por división, ampliar/restaurar y persistencia local versión 2
   con migración de las cuatro zonas antiguas. Medidor vertical/horizontal según su proporción.
   Ventanas flotantes y separación de pestañas siguen pendientes.
+  Acoplamiento parcial: `dockTargets`/`dockScopes` ofrecen panel individual, conjuntos contiguos
+  del árbol y todo el espacio. Durante arrastre en un borde, rueda abajo amplía el alcance y
+  arriba lo reduce; la guía muestra la geometría final y el conjunto. El menú Posición ofrece
+  los mismos destinos por nombre. `dockPanel` acepta `{group:splitId}` calculado tras retirar
+  el origen y conserva las ramas externas. Permite timeline bajo Proyecto+Monitores, con chat
+  lateral independiente. Son preferencias versión 2; no cambia el montaje ni su historial.
   Panel activo: glow azul sutil por clic/foco, fuera del JSON, sin pulso ni cambio por hover.
   Regla del timeline fuera del scroll vertical; sincronizar X con pistas e Y con cabeceras,
   compensando barras. El cabezal se puede agarrar a toda su altura y debe ganar al recuadro.

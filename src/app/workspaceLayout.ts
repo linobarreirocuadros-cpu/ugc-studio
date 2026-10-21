@@ -1,6 +1,7 @@
 export const PANELS = ["bin", "monitor", "inspector", "timeline", "meter"] as const;
 export type Panel = typeof PANELS[number];
 export type Edge = "left" | "right" | "top" | "bottom" | "center";
+export type DockTarget = Panel | "workspace" | { group: string };
 export type DockNode = { type: "panel"; panel: Panel } | { type: "split"; id: string; axis: "x" | "y"; ratio: number; first: DockNode; second: DockNode };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Divider = Rect & { id: string; axis: "x" | "y"; ratio: number; area: Rect; first: string; second: string };
@@ -42,21 +43,34 @@ function remove(node: DockNode, panel: Panel): DockNode | null {
   const first = remove(node.first, panel), second = remove(node.second, panel);
   return !first ? second : !second ? first : { ...node, first, second };
 }
-function mapPanel(node: DockNode, panel: Panel, fn: (n: DockNode) => DockNode): DockNode {
-  return node.type === "panel" ? node.panel === panel ? fn(node) : node : { ...node, first: mapPanel(node.first, panel, fn), second: mapPanel(node.second, panel, fn) };
+function mapTarget(node: DockNode, target: DockTarget, fn: (n: DockNode) => DockNode): DockNode {
+  if (typeof target === "object" ? node.type === "split" && node.id === target.group : node.type === "panel" && node.panel === target) return fn(node);
+  return node.type === "panel" ? node : { ...node, first: mapTarget(node.first, target, fn), second: mapTarget(node.second, target, fn) };
 }
-export function dockPanel(tree: DockNode, source: Panel, target: Panel | "workspace", edge: Edge): DockNode {
-  if (!panelsIn(tree).includes(source) || source === target || target === "workspace" && edge === "center" || target !== "workspace" && !panelsIn(tree).includes(target)) return tree;
-  if (edge === "center" && target !== "workspace") {
+/** Destinos calculados después de retirar el origen: una región conserva sus vecinos. */
+export function dockTargets(tree: DockNode, source: Panel): { target: DockTarget; panels: Panel[]; label: string }[] {
+  const rest=remove(tree,source);if(!rest)return [];
+  const result:ReturnType<typeof dockTargets>=[];
+  const visit=(node:DockNode,root=false)=>{
+    if(node.type==="panel")result.push({target:node.panel,panels:[node.panel],label:PANEL_LABEL[node.panel]});
+    else {visit(node.first);visit(node.second);if(!root){const panels=panelsIn(node);result.push({target:{group:node.id},panels,label:panels.map(p=>PANEL_LABEL[p]).join(" + ")});}}
+  };
+  visit(rest,true);result.push({target:"workspace",panels:panelsIn(rest),label:"Todo el espacio"});return result;
+}
+export const dockScopes=(tree:DockNode,source:Panel,over:Panel)=>dockTargets(tree,source).filter(t=>t.panels.includes(over)).sort((a,b)=>a.panels.length-b.panels.length);
+export function dockPanel(tree: DockNode, source: Panel, target: DockTarget, edge: Edge): DockNode {
+  if (!panelsIn(tree).includes(source) || source === target || typeof target !== "string" && edge === "center" || target === "workspace" && edge === "center" || typeof target === "string" && target !== "workspace" && !panelsIn(tree).includes(target)) return tree;
+  if (edge === "center" && typeof target === "string" && target !== "workspace") {
     const swap = (node: DockNode): DockNode => node.type === "panel" ? leaf(node.panel === source ? target : node.panel === target ? source : node.panel) : { ...node, first: swap(node.first), second: swap(node.second) };
     return swap(tree);
   }
   const rest = remove(tree, source); if (!rest) return tree;
+  if(typeof target==="object"&&!dockTargets(tree,source).some(t=>typeof t.target==="object"&&t.target.group===target.group))return tree;
   const ids = new Set<string>(); const collect = (n: DockNode) => { if (n.type === "split") { ids.add(n.id); collect(n.first); collect(n.second); } }; collect(rest);
   let i = 0; while (ids.has(`dock-${i}`)) i++;
   const insert = (n: DockNode) => split(`dock-${i}`, edge === "left" || edge === "right" ? "x" : "y", target === "workspace" ? edge === "left" || edge === "top" ? .28 : .72 : .5,
     edge === "left" || edge === "top" ? leaf(source) : n, edge === "left" || edge === "top" ? n : leaf(source));
-  return target === "workspace" ? insert(rest) : mapPanel(rest, target, insert);
+  return target === "workspace" ? insert(rest) : mapTarget(rest, target, insert);
 }
 export function setSplitRatio(node: DockNode, id: string, ratio: number): DockNode {
   if (node.type === "panel" || !Number.isFinite(ratio)) return node;

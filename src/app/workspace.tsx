@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { defaultLayout, dockPanel, GAP, layoutRects, normalizeLayout, PANEL_LABEL, PANELS, setSplitRatio, type Divider, type DockNode, type Edge, type Panel, type Rect } from "./workspaceLayout";
+import { defaultLayout, dockPanel, dockScopes, dockTargets, GAP, layoutRects, normalizeLayout, PANEL_LABEL, PANELS, setSplitRatio, type Divider, type DockNode, type DockTarget, type Edge, type Panel, type Rect } from "./workspaceLayout";
 
 const KEY = "ugc-studio:workspace";
-type Target = { panel: Panel | "workspace"; edge: Edge };
+type Target = { panel: DockTarget; edge: Edge; label: string; scope: number; count: number };
+type Hit = { panel: Panel | "workspace"; edge: Edge };
 const geometry = (r: Rect): CSSProperties => ({ left: r.x, top: r.y, width: r.width, height: r.height });
 const EDGE_LABEL = { left: "a la izquierda", right: "a la derecha", top: "arriba", bottom: "abajo", center: "Intercambiar" };
 function load() { try { const value = JSON.parse(localStorage.getItem(KEY) ?? "null"); return normalizeLayout(value?.version === 2 ? value.tree : value, window.innerWidth, window.innerHeight); } catch { return defaultLayout(); } }
@@ -28,15 +29,16 @@ export function useWorkspace() {
   useEffect(() => () => cleanup.current?.(), []);
   const layout = layoutRects(tree, size.width, size.height);
   const toggleMax = (panel: Panel) => setMaximized(value => value === panel ? null : panel);
-  const trackPointer = (move: (e: globalThis.PointerEvent) => void, finish: (cancel: boolean) => void) => {
+  const trackPointer = (move: (e: globalThis.PointerEvent) => void, finish: (cancel: boolean) => void, wheel?: (e: WheelEvent) => void) => {
     cleanup.current?.();
     const end = (cancel: boolean) => { stop(); finish(cancel); };
     const up = () => end(false), cancel = () => end(true), key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); } };
-    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur", cancel); window.removeEventListener("keydown", key, true); document.body.classList.remove("workspace-resizing", "workspace-dragging"); cleanup.current = null; };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur", cancel); window.removeEventListener("keydown", key, true); if(wheel)window.removeEventListener("wheel",wheel,true);document.body.classList.remove("workspace-resizing", "workspace-dragging"); cleanup.current = null; };
     cleanup.current = stop;
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel); window.addEventListener("blur", cancel); window.addEventListener("keydown", key, true);
+    if(wheel)window.addEventListener("wheel",wheel,{capture:true,passive:false});
   };
-  const hitTarget = (x: number, y: number, source: Panel): Target | null => {
+  const hitTarget = (x: number, y: number, source: Panel): Hit | null => {
     if (x < 0 || y < 0 || x > size.width || y > size.height) return null;
     const edges: [number, Edge][] = [[x, "left"], [size.width - x, "right"], [y, "top"], [size.height - y, "bottom"]];
     const nearest = edges.sort((a, b) => a[0] - b[0])[0];
@@ -56,12 +58,22 @@ export function useWorkspace() {
     event.preventDefault(); event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     const x = event.clientX, y = event.clientY;
-    let active = false, current: Target | null = null;
+    let active = false, current: Target | null = null, hit:Hit|null=null,scope=0,lastWheel=-Infinity;
+    const updateTarget=()=>{
+      if(!hit){current=null;setTarget(null);return;}
+      if(hit.panel==="workspace"||hit.edge==="center"){scope=0;current={...hit,label:hit.panel==="workspace"?"Todo el espacio":PANEL_LABEL[hit.panel],scope:0,count:1};}
+      else {const scopes=dockScopes(tree,panel,hit.panel);scope=Math.min(scope,scopes.length-1);const selected=scopes[scope];current={panel:selected.target,edge:hit.edge,label:selected.label,scope,count:scopes.length};}
+      setTarget(current);
+    };
     trackPointer(e => {
       if (!active && Math.hypot(e.clientX - x, e.clientY - y) < 5) return;
       active = true; setDragged(panel); document.body.classList.add("workspace-dragging");
-      const rect = canvasRef.current!.getBoundingClientRect(); current = hitTarget(e.clientX - rect.left, e.clientY - rect.top, panel); setTarget(current);
-    }, cancel => { if (!cancel && current) { const destination = current; setTree(t => dockPanel(t, panel, destination.panel, destination.edge)); } setDragged(null); setTarget(null); });
+      const rect = canvasRef.current!.getBoundingClientRect(),nextHit=hitTarget(e.clientX - rect.left, e.clientY - rect.top, panel);if(nextHit?.panel!==hit?.panel)scope=0;hit=nextHit;updateTarget();
+    }, cancel => { if (!cancel && current) { const destination = current; setTree(t => dockPanel(t, panel, destination.panel, destination.edge)); } setDragged(null); setTarget(null); },e=>{
+      if(!active)return;e.preventDefault();e.stopPropagation();
+      if(!hit||hit.panel==="workspace"||hit.edge==="center"||e.timeStamp-lastWheel<120||!e.deltaY)return;
+      lastWheel=e.timeStamp;const scopes=dockScopes(tree,panel,hit.panel);scope=Math.max(0,Math.min(scopes.length-1,scope+(e.deltaY>0?1:-1)));updateTarget();
+    });
   };
   const startResize = (divider: Divider, event: PointerEvent) => {
     if (event.button !== 0) return; event.preventDefault(); event.stopPropagation();
@@ -76,11 +88,14 @@ export function useWorkspace() {
   };
   const panelProps = (panel: Panel) => ({ "data-workspace-panel": panel, "data-active":activePanel===panel?"true":undefined, style: { ...geometry(maximized === panel ? { x: 0, y: 0, ...size } : layout.panels[panel]), display: maximized && maximized !== panel ? "none" : undefined } });
   const handle = (panel: Panel) => <div className="panel-dock-controls" data-no-marquee>
-    <button type="button" className="panel-grip" aria-label={`Mover panel ${PANEL_LABEL[panel]}`} title="Arrastra para acoplar; doble clic para ampliar" onPointerDown={e => startDrag(panel, e)} onDoubleClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>{[4, 8, 12].flatMap(y => [5, 10].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1"/>))}</svg></button>
-    <select aria-label={`Posición de ${PANEL_LABEL[panel]}`} title="Acoplar o intercambiar panel" value="" onChange={e => { const value = e.target.value; if (value === "maximize") toggleMax(panel); else { const [kind, destination] = value.split(":"); setMaximized(null); setTree(t => dockPanel(t, panel, kind === "edge" ? "workspace" : destination as Panel, kind === "edge" ? destination as Edge : "center")); } }}>
+    <button type="button" className="panel-grip" aria-label={`Mover panel ${PANEL_LABEL[panel]}`} title="Arrastra a un borde; rueda para cambiar el alcance; doble clic para ampliar" onPointerDown={e => startDrag(panel, e)} onDoubleClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>{[4, 8, 12].flatMap(y => [5, 10].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1"/>))}</svg></button>
+    <select aria-label={`Posición de ${PANEL_LABEL[panel]}`} title="Acoplar o intercambiar panel" value="" onChange={e => { const value = e.target.value; if (value === "maximize") toggleMax(panel); else if(value.startsWith("dock:")){const destination=JSON.parse(value.slice(5)) as {target:DockTarget;edge:Edge};setMaximized(null);setTree(t=>dockPanel(t,panel,destination.target,destination.edge));}else { const [kind, destination] = value.split(":"); setMaximized(null); setTree(t => dockPanel(t, panel, kind === "edge" ? "workspace" : destination as Panel, kind === "edge" ? destination as Edge : "center")); } }}>
       <option value="" disabled>Mover panel…</option>
       {(["left", "right", "top", "bottom"] as const).map(edge => <option key={edge} value={`edge:${edge}`}>Acoplar {EDGE_LABEL[edge]} del área</option>)}
       {PANELS.filter(p => p !== panel).map(p => <option key={p} value={`swap:${p}`}>Intercambiar con {PANEL_LABEL[p]}</option>)}
+      {dockTargets(tree,panel).filter(t=>t.target!=="workspace").map(t=><optgroup key={JSON.stringify(t.target)} label={t.panels.length>1?`Conjunto: ${t.label}`:`Solo ${t.label}`}>
+        {(["left","right","top","bottom"] as const).map(edge=><option key={edge} value={`dock:${JSON.stringify({target:t.target,edge})}`}>{edge==="top"?"Encima de":edge==="bottom"?"Debajo de":edge==="left"?"A la izquierda de":"A la derecha de"} {t.label}</option>)}
+      </optgroup>)}
       <option value="maximize">{maximized === panel ? "Restaurar tamaño" : "Ampliar panel"}</option>
     </select>
     <button type="button" className="panel-maximize" aria-label={`${maximized === panel ? "Restaurar" : "Ampliar"} panel ${PANEL_LABEL[panel]}`} title="Ampliar / restaurar panel" aria-pressed={maximized === panel} onClick={() => toggleMax(panel)}><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden><rect x="3" y="3" width="10" height="10" rx="1"/>{maximized === panel && <path d="M5 6h5v5"/>}</svg></button>
@@ -88,8 +103,8 @@ export function useWorkspace() {
   const preview = dragged && target ? layoutRects(dockPanel(tree, dragged, target.panel, target.edge), size.width, size.height).panels[dragged] : null;
   const overlays = <>
     {!maximized && layout.dividers.map(d => <div key={d.id} className={`dock-divider ${d.axis} ${resizing === d.id ? "active" : ""}`} style={geometry(d)} role="separator" aria-label={`Redimensionar ${d.first} / ${d.second}`} aria-orientation={d.axis === "x" ? "vertical" : "horizontal"} aria-valuemin={2} aria-valuemax={98} aria-valuenow={Math.round(d.ratio * 100)} tabIndex={0} onPointerDown={e => startResize(d, e)} onKeyDown={e => { const delta = d.axis === "x" ? e.key === "ArrowRight" ? .03 : e.key === "ArrowLeft" ? -.03 : 0 : e.key === "ArrowDown" ? .03 : e.key === "ArrowUp" ? -.03 : 0; if (delta) { e.preventDefault(); e.stopPropagation(); setTree(t => setSplitRatio(t, d.id, d.ratio + delta)); } }}/>) }
-    {dragged && <div className="dock-drag-instructions" role="status">Borde: dividir · Centro: intercambiar · Borde exterior: ocupar todo el lado · Esc: cancelar</div>}
-    {preview && target && <div className="dock-preview" style={geometry(preview)}><span>{target.edge === "center" ? "Intercambiar" : `Acoplar ${EDGE_LABEL[target.edge]}`} · {PANEL_LABEL[dragged!]}</span></div>}
+    {dragged && <div className="dock-drag-instructions" role="status">{target&&target.edge!=="center"?<><strong>Alcance: {target.label}</strong>{target.count>1&&<> · {target.scope+1}/{target.count} · Rueda ↓ ampliar / ↑ reducir</>}</>:"Borde: acoplar · Centro: intercambiar"} · Esc: cancelar</div>}
+    {preview && target && <div className="dock-preview" style={geometry(preview)}><span>{target.edge === "center" ? "Intercambiar" : `Acoplar ${EDGE_LABEL[target.edge]}`} · {PANEL_LABEL[dragged!]}<small>{target.label}</small></span></div>}
   </>;
   return { activatePanel, appRef, canvasRef, panelProps, handle, overlays, dragged, toggleMax, showPanel: (panel:Panel) => { if(maximized && maximized!==panel)setMaximized(null); }, style: { gridTemplateColumns: "minmax(0,1fr)", gridTemplateRows: "var(--ui-chrome-height,74px) auto minmax(0,1fr)", gridTemplateAreas: '"top" "status" "workspace"' } as CSSProperties, reset: () => { setTree(defaultLayout()); setMaximized(null); } };
 }

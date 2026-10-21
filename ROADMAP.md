@@ -170,6 +170,10 @@ a estar validado para entregas de agencia.
       persistencia de distribución y restablecimiento; criterio de distribución aprobado por Lino
 - [x] Acoplamiento por árbol de divisiones: bordes, centro para intercambiar y bordes exteriores
       a toda altura/anchura, guía de destino, separadores individuales, ampliar/restaurar y migración
+- [x] Acoplar con alcance parcial a conjuntos contiguos de paneles: guía de geometría final,
+      rueda durante arrastre para ampliar/reducir alcance y destinos por nombre en menú Posición;
+      timeline bajo Proyecto/Monitores sin ocupar la columna del chat y separadores locales
+- [ ] Validar con Lino tacto de la rueda para elegir alcance y comodidad del menú de destinos
 - [x] Medidor independiente vertical/horizontal, escala adaptable y comprobación en 72×150 px;
       adaptación por contenedor de biblioteca, monitores, inspector y timeline con popovers sin recorte
 - [x] Probar arrastre real, redimensión con mouse/teclado, doble clic y persistencia de distribución

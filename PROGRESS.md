@@ -11,6 +11,8 @@ Transcripción precisa local con faster-whisper large-v3 instalada y probada en 
 Selección múltiple con recuadro en timeline y Proyecto; movimiento/borrado conjunto reversible.
 Barra de herramientas y espacio con cinco paneles acoplables por bordes, guía de destino,
 separadores por división y ampliación/restauración. Medidor dBFS independiente, vertical/horizontal.
+Acoplamiento a conjuntos de paneles con guía y alcance ajustable mediante rueda o menú Posición;
+permite limitar timeline al ancho de Proyecto+Monitores y conservar chat lateral independiente.
 Monitores con zoom/pan, controles externos, regla y resolución Full/1/2/1/4/1/8/1/16 local;
 Alt+clic aísla audio/video y Alt+arrastrar copia, con validación física de este último pendiente.
 Timeline con anchos internos ajustables para herramientas y cabeceras; herramientas en una columna
@@ -43,6 +45,29 @@ Proyecto permite eliminar por papelera/Delete/Backspace/clic derecho, con aviso 
 carpetas, renombrado, etiquetas, búsqueda, columnas técnicas del original y elementos reutilizables.
 
 ## Registro
+
+### 2026-10-20 — Alcance parcial del acoplamiento de paneles (Codex)
+
+- Petición de Lino: extender timeline hasta debajo de Monitores sin invadir el chat, y poder
+  elegir límites equivalentes para cualquier panel. La limitación era que los destinos solo
+  admitían un panel o todo el espacio; se añadieron conjuntos contiguos del árbol de divisiones.
+- `dockTargets` calcula destinos tras retirar el panel de origen y `dockScopes` los ordena por
+  extensión bajo el puntero. `dockPanel` admite un conjunto por ID de división, conserva ramas
+  externas y rechaza destinos desaparecidos o intercambio central de un conjunto.
+- Arrastrar el agarre a un borde muestra la geometría final. Rueda abajo amplía el alcance y
+  arriba lo reduce; rótulo con nombres y nivel actual. El menú Posición ofrece las cuatro caras
+  de cada panel/conjunto por nombre, accesible también con teclado. Escape conserva cancelación.
+  El gesto de rueda solo se intercepta durante arrastre de panel; no cambia la rueda del timeline.
+- Continúa el formato local versión 2 y su migración, sin tocar Project JSON ni historial de
+  edición. No se sustituyó automáticamente la distribución personalizada del usuario.
+- UI aislada 5174: chat acoplado a la derecha, timeline debajo del conjunto Proyecto+Audio+Monitores,
+  medidor a la derecha del timeline. Los dos inferiores terminan al borde del chat. Al redimensionar
+  Proyecto/Monitores, el rectángulo completo del timeline permaneció idéntico. Recargar recuperó
+  todos los tamaños/posiciones; no apareció ninguna edición en Deshacer.
+- 98/98 pruebas totales, typecheck y build. Tres pruebas nuevas cubren el caso de la captura,
+  independencia del separador superior, regiones sin duplicados/solapamientos a varios tamaños,
+  alcances progresivos y destino obsoleto. Pendiente tacto de rueda/arrastre físico con Lino.
+  Ventanas flotantes y separación de pestañas no forman parte de esta entrega.
 
 ### 2026-10-20 — Gestión de Proyecto y eliminación reversible (Codex)
 
