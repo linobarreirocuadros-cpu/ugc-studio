@@ -1,5 +1,26 @@
 # Progreso
 
+## 2026-10-21 — Dibujar duración con el botón derecho
+
+En una zona vacía de una pista, mantener botón derecho y arrastrar horizontalmente dibuja
+un rango translúcido; al soltar abre el buscador Añadir con inicio/duración en frames.
+Admite ambos sentidos, mínimo un frame, imán/modificador configurado, zoom y scroll actuales,
+y autoscroll lateral. Un clic sin arrastre conserva el menú contextual. Escape, pérdida de
+foco/captura, soltar fuera y cambiar documento/secuencia cancelan sin editar el JSON.
+
+Texto, sólido, cuadrado, ajuste y plantillas reutilizadas ocupan el rango exacto y la pista
+elegida. Secuencias anidadas se recortan a la duración pedida o la disponible (sin estirar),
+con imagen/audio enlazados; en pista Audio se coloca solo sonido. Opciones visuales quedan
+deshabilitadas en Audio. Crear secuencia vacía no se ofrece como inserción de un rango.
+Operaciones puras, candados y sobrescritura conservados; elegir crea una sola transacción.
+
+Verificación: 135 pruebas aprobadas (7 nuevas, incluido ciclo de listeners/cancelación con
+puerto DOM), typecheck y build. En navegador aislado :5174 se verificó clic derecho normal,
+buscador, plantilla en pista elegida y un solo Deshacer; sin errores de consola. No se editó
+el proyecto principal de :5173. **Pendiente:** probar el arrastre físico derecho con Lino;
+la API de navegador disponible no admite drag con botón derecho. No se declara probado
+ese recorrido completo ni el acabado visual del recuadro a partir de las pruebas automáticas.
+
 ## 2026-10-21 — Mezclador, efectos, Texto y varios proyectos
 
 **Entregado:** siete paneles reales adicionales: Propiedades, Controles de efectos, Sonido

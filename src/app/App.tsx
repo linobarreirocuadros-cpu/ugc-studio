@@ -132,7 +132,7 @@ export function App() {
   const renderProject=useMemo(()=>{let p=project;if(effectDraft)p=ops.setClipEffects(p,effectDraft.ids,effectDraft.patch);if(mixDraft)p=mixDraft.id?ops.setTrackMix(p,mixDraft.id,{volume:mixDraft.volume}):ops.setMasterVolume(p,mixDraft.volume);return p;},[project,effectDraft,mixDraft]);
   const gainSelection=useRef<{ids:string[];epoch:number}>({ids:[],epoch:0});
   const [contextMenu,setContextMenu]=useState<{x:number;y:number;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
-  const [editingDialog,setEditingDialog]=useState<{kind:EditDialogKind;ids:string[];at:number;epoch:number;trackId?:string}|null>(null);
+  const [editingDialog,setEditingDialog]=useState<{kind:EditDialogKind;ids:string[];at:number;epoch:number;trackId?:string;rangeDuration?:number}|null>(null);
   const media=rootHistory.value.library!.media;
   const setMedia=useCallback((change:SetStateAction<MediaItem[]>)=>rootHistory.apply(p=>ops.setLibraryMedia(p,typeof change==="function"?change(p.library?.media??[]):change)),[rootHistory.apply]);
   const projectPanelRef=useRef<ProjectPanelHandle>(null),importFolder=useRef<string|undefined>(undefined);
@@ -749,6 +749,7 @@ export function App() {
         <Timeline key={`${rootHistory.bank.active}:${editingSequenceId??"root"}`}
           effectTarget={effectTarget}
           dragWheel={rangeDrag.wheelHandler}
+          onAddRange={(at,rangeDuration,trackId)=>{rawSetSelectedIds([]);setIsolatedSelection(false);activeScope.current="timeline";setContextMenu(null);setEditingDialog({kind:"add",ids:[],at,rangeDuration,trackId,epoch:documentEpoch.current});}}
           onContextMenu={(x,y,ids,at,trackId,isolated=false)=>{rawSetSelectedIds(ids);setIsolatedSelection(isolated);activeScope.current="timeline";setContextMenu({x,y,ids,at,trackId,epoch:documentEpoch.current});}}
           onOpenSequence={id=>switchTimeline(rootHistory.bank.active,id)}
           onVolume={(id,value)=>history.apply(p=>ops.setClipVolume(p,[id],value))}

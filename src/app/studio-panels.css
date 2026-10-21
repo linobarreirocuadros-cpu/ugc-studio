@@ -16,3 +16,10 @@
 
 .utility-fields{border:0;margin:0;padding:0;min-width:0}.monitor-mix-status{max-height:64px;overflow:auto;max-width:90%;font-size:8px;line-height:1.4}.monitor-mix-status button{font:inherit;margin-left:4px;min-height:18px}
 @container utility (max-height:300px){.mixer-strip{min-height:175px;padding:4px;gap:3px}.mixer-strip>.committed-number>input[type=range]{display:none}.mixer-fader-area{min-height:65px}.vertical-fader input[type=range]{min-height:25px}.mixer-scale{display:none}.mixer-status{font-size:7px;line-height:1.25}.master-strip>small{min-height:42px}}
+
+/* Rango provisional: nunca intercepta clips ni modifica el montaje. */
+.timeline-add-range{position:absolute;top:4px;bottom:4px;z-index:8;pointer-events:none;border:1px solid #9cccf2a8;border-radius:4px;background:linear-gradient(110deg,#6ba8d22e,#a89bda22);box-shadow:inset 0 0 12px #9ebfe216,0 0 5px #81b6e01c;box-sizing:border-box;overflow:hidden}
+.timeline-add-range.snapped{border-color:#e3c796b8}.timeline-add-range>span{position:relative;display:block;width:max-content;max-width:100%;padding:4px;color:#d8e8f7;font-size:8px;white-space:nowrap;box-sizing:border-box}
+.add-range-summary{font-variant-numeric:tabular-nums;color:#c4daf0}.add-range-summary>small{display:block;font-size:8px;color:#98aac0;margin-top:4px;line-height:1.5}
+
+.timeline.drawing-add-range,.timeline.drawing-add-range *{cursor:crosshair!important;user-select:none}

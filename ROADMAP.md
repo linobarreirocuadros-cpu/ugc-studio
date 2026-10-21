@@ -129,6 +129,9 @@ a estar validado para entregas de agencia.
 
 ## Herramientas de edición manual y gestión de medios (en curso)
 - [x] Regla temporal fija al desplazar pistas; cabeceras y regla sincronizadas en ambos ejes
+- [x] Dibujar rango en una pista vacía con botón derecho y abrir Añadir con inicio/duración;
+      preview translúcido, imán, autoscroll, cancelación y una transacción al elegir
+- [ ] Validar con Lino arrastre físico derecho y delicadeza del recuadro (API QA sin right-drag)
 - [x] Cabezal arrastrable desde cualquier altura del timeline, incluso sobre clips de audio/video
 - [x] Arrastrar I/O desde imagen/minirregla e iconos de Origen/Programa: video, audio o ambos;
       guía de destino, copia editable de capas/cortes del Programa y Deshacer en una operación

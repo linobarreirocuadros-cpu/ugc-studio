@@ -85,6 +85,12 @@ Ver `ROADMAP.md` para las fases y `PROGRESS.md` para el estado actual.
   abre búsqueda por nombre de secuencias y elementos, además de Texto/Sólido/Cuadrado/Ajuste.
   Espacio sigue reproduciendo. Secuencias vacías desde Proyecto, nombre editable, formato heredado;
   Anidar sustituye la selección por referencias editables; doble clic abre su contenido.
+- Añadir por rango (2026-10-21): botón derecho + arrastre horizontal desde hueco de una pista
+  abre Añadir con inicio/duración; preview/imán/autoscroll solo de vista. Clic derecho simple
+  conserva menú. `addRangeGesture.ts` usa el ownerDocument de su panel, limpia captura/listeners
+  y cancela en Escape/blur/salida/desmontaje. Texto/gráfico/plantilla llenan rango; secuencia se
+  recorta sin estirar y Audio acepta solo sonido. Edición al elegir vía ops, nunca al dibujar.
+  Prueba física right-drag pendiente; la API QA disponible no permite ese botón durante drag.
 - Proyecto (2026-10-20): `ProjectPanel.tsx` unifica medios, carpetas, secuencias y plantillas
   de texto/gráficos. Biblioteca global en `Project.library`, migrada desde `ProjectFile.media`;
   no duplicarla dentro de secuencias. Renombrar/mover/etiquetar/crear/eliminar pasan por ops y

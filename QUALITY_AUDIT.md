@@ -1,5 +1,16 @@
 # Control de calidad — actualizado 2026-10-21
 
+## Gesto Añadir por rango — 2026-10-21
+
+135 tests y typecheck/build aprobados. Controlador de puntero probado con eventos locales:
+normal/invertido, zoom/scroll/autoscroll, imán y bypass, umbral de clic, cancelaciones,
+candados y limpieza. Ops comprobadas para rango exacto, extremos conservados, plantillas
+sin modificar y parejas de secuencia recortadas. Navegador :5174: clic derecho → Añadir,
+reutilizar texto en destino y deshacer una vez; sin errores de consola. Proyecto :5173 intacto.
+Pendiente la prueba física del right-drag y su acabado: la herramienta UI solo ofrece drag
+izquierdo. Esto no equivale a una fiscalización nueva de todo el editor.
+
+
 ## Conclusión
 
 UGC Studio es una **alfa funcional**, con una arquitectura aprovechable para un editor

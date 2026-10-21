@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import type { Clip, Project, Track } from "../project/types";
 import { clipLabel, getProjectDuration, destinationTrack, trackOutputEnabled, trackFamily } from "../project/types";
 import {timelineExtent,timelineScale,timelineTicks} from "./timelineViewport";
+import {useAddRange} from "./useAddRange";
 import {snapTimeline,type SnapHit} from "./timelineSnap";
 import {previewMedia,type PlacementOptions} from "./mediaPlacement";
 import type {MediaHover} from "./useMonitorDrag";
@@ -48,6 +49,7 @@ export const MEDIA_DRAG_TYPE = "application/x-ugc-source";
 type Props = {
   project: Project;
   onContextMenu:(x:number,y:number,ids:string[],at:number,trackId?:string,isolated?:boolean)=>void;
+  onAddRange:(start:number,duration:number,trackId:string)=>void;
   onVolume:(id:string,value:number)=>void;
   onOpenSequence:(id:string)=>void;
   revealTrackId: string | null;
@@ -83,7 +85,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onAddRange, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const [volumePreview,setVolumePreview]=useState<Record<string,number>>({});
@@ -97,6 +99,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
     setDragState(d);
   };
   const scrollRef = useRef<HTMLDivElement>(null);
+  const addGesture=useAddRange({project,scale:pxPerFrame,snapping,bypass:e=>bypassSnap(e,gestures),viewport:scrollRef,onAdd:onAddRange,onMenu:(x,y,at,trackId)=>onContextMenu(x,y,[],at,trackId)});
   const timelineRef=useRef<HTMLDivElement>(null),rulerRef=useRef<HTMLDivElement>(null),headersRef=useRef<HTMLDivElement>(null);
   const [rulerViewport,setRulerViewport]=useState({left:0,width:800});
   const [scrollbars,setScrollbars]=useState({x:0,y:0});
@@ -137,7 +140,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
   const lastEnd = project.tracks.flatMap((t) => t.clips).reduce((end, c) => Math.max(end, c.from + c.durationInFrames), duration);
   const shapes=mediaHover?previewMedia(project,mediaHover.payload,mediaHover.trackId,mediaHover.at,placementOptions):[];
   const incomingEnd=shapes.reduce((end,{clip})=>Math.max(end,clip.from+clip.durationInFrames),lastEnd);
-  const width = timelineExtent(project.fps,lastEnd,incomingEnd)*pxPerFrame;
+  const width = timelineExtent(project.fps,lastEnd,Math.max(incomingEnd,addGesture.range?.end??0))*pxPerFrame;
 
   // Puntos de "imán": bordes de todos los clips y el cabezal de reproducción.
   const snapPoints = (excludeIds: string[]) => {
@@ -259,7 +262,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
     }
     if ((event.target as HTMLElement).closest(".ruler")) return;
     const at = frameFromX(event.clientX);
-    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); const factor=event.altKey ? 0.8 : 1.25; if(timelineScale(pxPerFrame,factor,scrollRef.current!.clientWidth,timelineExtent(project.fps,lastEnd,incomingEnd))===pxPerFrame)return; zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(factor); }
+    if (tool === "zoom") { event.preventDefault(); event.stopPropagation(); const factor=event.altKey ? 0.8 : 1.25; if(timelineScale(pxPerFrame,factor,scrollRef.current!.clientWidth,timelineExtent(project.fps,lastEnd,Math.max(incomingEnd,addGesture.range?.end??0)))===pxPerFrame)return; zoomAnchor.current = { frame: at, x: event.clientX - scrollRef.current!.getBoundingClientRect().left }; onZoom(factor); }
     else if (tool === "text") { event.preventDefault(); event.stopPropagation(); onAddText(at); }
     else if (tool === "razor") {
       event.preventDefault(); event.stopPropagation();
@@ -278,7 +281,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
   const scrubEnd=(e:PointerEvent<HTMLDivElement>)=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);scrubSnapRef.current=null;snapTimer.current=setTimeout(()=>setScrubSnap(null),800);};
 
   return (
-    <div ref={timelineRef} onContextMenu={e=>{e.preventDefault();const viewport=scrollRef.current;if(!viewport)return;const rect=viewport.getBoundingClientRect(),at=frameFromX(e.clientX),track=e.clientX>=rect.left&&e.clientY>=rect.top?displayed[Math.floor((e.clientY-rect.top+viewport.scrollTop)/TRACK_H)]:undefined;const clip=track?.clips.find(c=>c.from<=at&&c.from+c.durationInFrames>at);onContextMenu(e.clientX,e.clientY,clip?selectionIds(selectedIds.includes(clip.id)?selectedIds:[clip.id],!isolatedSelection&&preferences.linkedSelection):[],clip?frame:at,track?.id,Boolean(clip&&isolatedSelection&&selectedIds.includes(clip.id)));}} className={`timeline tool-${tool}`} style={{ "--track-height": `${TRACK_H}px`,"--timeline-scrollbar":`${scrollbars.x}px`,"--timeline-vertical-scrollbar":`${scrollbars.y}px` } as CSSProperties}>
+    <div ref={timelineRef} onPointerDownCapture={addGesture.onPointerDown} onContextMenuCapture={e=>{if(e.button===2&&addGesture.suppressContextMenu()){e.preventDefault();e.stopPropagation();}}} onContextMenu={e=>{e.preventDefault();const viewport=scrollRef.current;if(!viewport)return;const rect=viewport.getBoundingClientRect(),at=frameFromX(e.clientX),track=e.clientX>=rect.left&&e.clientY>=rect.top?displayed[Math.floor((e.clientY-rect.top+viewport.scrollTop)/TRACK_H)]:undefined;const clip=track?.clips.find(c=>c.from<=at&&c.from+c.durationInFrames>at);onContextMenu(e.clientX,e.clientY,clip?selectionIds(selectedIds.includes(clip.id)?selectedIds:[clip.id],!isolatedSelection&&preferences.linkedSelection):[],clip?frame:at,track?.id,Boolean(clip&&isolatedSelection&&selectedIds.includes(clip.id)));}} className={`timeline tool-${tool} ${addGesture.range?"drawing-add-range":""}`} style={{ "--track-height": `${TRACK_H}px`,"--timeline-scrollbar":`${scrollbars.x}px`,"--timeline-vertical-scrollbar":`${scrollbars.y}px` } as CSSProperties}>
       <div ref={headerPane.ref} className="timeline-headers" style={headerPane.style}>
         <div className="ruler-spacer" />
         <div className="track-headers-scroll" ref={headersRef}>{displayed.map((t) => (
@@ -336,6 +339,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
             >
               {drag?.duplicate && drag.mode === "move" && Math.abs(drag.dx)+Math.abs(drag.dy)>2 && project.tracks.flatMap(t=>t.clips).filter(c=>drag.clipIds.includes(c.id) && dragTargetTrack(c.id,drag)?.id===track.id).map(c=><div key={`copy-${c.id}`} className={`clip clip-${c.kind} clip-copy-preview`} aria-hidden style={{left:(c.from+moveDelta(drag))*pxPerFrame,width:Math.max(4,c.durationInFrames*pxPerFrame)}}><span className="clip-label">+ {clipLabel(c)}</span></div>)}
               {shapes.filter(s=>s.trackId===track.id).map(({clip},i)=><div key={`ghost-${i}`} className={`media-drop-ghost ghost-${clip.kind} ${mediaHover?.snap.point!==null?"snapped":""}`} aria-label={`Vista previa: ${clipLabel(clip)}`} style={{left:clip.from*pxPerFrame,width:Math.max(3,clip.durationInFrames*pxPerFrame)}}><span>{clipLabel(clip)}</span><small>{formatTimecode(clip.durationInFrames,project.fps)}{newTracks>0?` · +${newTracks} pistas`:""}</small></div>)}
+              {addGesture.range?.trackId===track.id&&<div className={`timeline-add-range ${addGesture.range.snap!==null?"snapped":""}`} role="status" aria-label="Rango para añadir" style={{left:addGesture.range.start*pxPerFrame,width:Math.max(2,(addGesture.range.end-addGesture.range.start)*pxPerFrame)}}><span style={{left:Math.max(0,rulerViewport.left-addGesture.range.start*pxPerFrame)}}>Añadir · {formatTimecode(addGesture.range.end-addGesture.range.start,project.fps)}</span></div>}
               {track.clips.map((clip) => {
                 const dragging = Boolean(drag && !drag.duplicate && (drag.mode === "move" ? drag.clipIds.includes(clip.id) : drag.clipId === clip.id));
                 const preview = projectClip(previewProject, clip.id)?.clip ?? clip;
