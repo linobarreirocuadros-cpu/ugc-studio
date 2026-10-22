@@ -59,7 +59,7 @@ export function MonitorViewer({name,width,height,frame,duration,fps,playing,qual
       onPointerDown={e=>{if(e.button!==1&&!(hand&&e.button===0)){if(e.button===0)onRangePointerDown?.(e,rangeKinds.video?"auto":"audio");return;}e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);e.currentTarget.dataset.panX=String(e.clientX-pan.x);e.currentTarget.dataset.panY=String(e.clientY-pan.y);}}
       onPointerMove={e=>{if((e.buttons===4||hand)&&e.currentTarget.hasPointerCapture(e.pointerId))setPan(bound({x:e.clientX-Number(e.currentTarget.dataset.panX),y:e.clientY-Number(e.currentTarget.dataset.panY)}));}}
       onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}>
-      <div className="monitor-image" style={{position:"absolute",left:"50%",top:"50%",width:width*scale,height:height*scale,transform:`translate(calc(-50% + ${pan.x}px),calc(-50% + ${pan.y}px))`,pointerEvents:"none"}}>{children({width:"100%",height:"100%",maxWidth:"none",maxHeight:"none"})}</div>
+      <div className="monitor-image" style={{position:"absolute",left:"50%",top:"50%",width,height,transform:`translate(calc(-50% + ${pan.x}px),calc(-50% + ${pan.y}px)) scale(${scale})`,transformOrigin:"center",pointerEvents:"none"}}>{children({width:"100%",height:"100%",maxWidth:"none",maxHeight:"none"})}</div>
       {safe&&<div className="monitor-safe-guides" aria-hidden style={{width:width*scale,height:height*scale,transform:`translate(calc(-50% + ${pan.x}px),calc(-50% + ${pan.y}px))`}}><i/><i/></div>}
     </div>
     <div className="monitor-controls">

@@ -58,7 +58,7 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
     {settings && createPortal(<section className="timeline-popover" style={position} aria-label="Ajustes del timeline">
       <strong>Visualización</strong>
       {([ ["showNames", "Nombres de clips"], ["showWaveforms", "Ondas de audio"], ["showMarkers", "Marcadores"] ] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={preferences[key]} onChange={(e) => onPreferences({ [key]: e.target.checked })}/>{label}</label>)}
-      <label>Altura de pistas <input aria-label="Altura de pistas" type="range" min="36" max="120" step="4" value={preferences.trackHeight} onChange={(e) => onPreferences({ trackHeight: Number(e.target.value) })}/>{preferences.trackHeight}px</label>
+      <label>Altura de pistas <input aria-label="Altura de pistas" type="range" min="36" max="120" step="4" value={preferences.trackHeight} onChange={(e) => onPreferences({ trackHeight: Number(e.target.value),trackHeights:{} })}/>{preferences.trackHeight}px</label>
       <button disabled={!canLink} onClick={() => onLink(true)}>Vincular imagen y audio seleccionados</button>
       <button disabled={!canUnlink} onClick={() => onLink(false)}>Desvincular selección</button>
       <label>Nombre de secuencia <input aria-label="Nombre de secuencia" value={sequenceName} maxLength={100} onChange={(e) => setSequenceName(e.target.value)}/></label>

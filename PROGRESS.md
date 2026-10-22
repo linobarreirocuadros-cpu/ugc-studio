@@ -1,5 +1,43 @@
 # Progreso
 
+## 2026-10-22 — Fiscalización de timeline, Texto y monitores
+
+- Selección de palabras en Texto con gesto de arrastre/Shift; una segunda pulsación sobre la
+  selección o su botón arrastra el tramo audiovisual editable. Se copian los clips hablados
+  y sus parejas, no overlays ajenos; reloj, cortes, velocidad y huecos se conservan. Misma
+  colocación/huella/imán y un solo Deshacer. Se evita el drag nativo accidental durante la
+  selección y el reflow de su barra. Escape cancela gestos/corrección sin aplicar texto.
+- Timeline dividido en subtítulos fijados, video y audio. X compartida; Y independiente,
+  cabeceras sincronizadas y scroll por vista guardado. Pistas genéricas: una pista mixta que
+  contiene captions se fija completa, sin duplicar contenido ni cambiar apilamiento del render.
+- Alt+rueda sobre cabecera cambia solo esa altura (24–180 px); sobre clips conserva zoom.
+  Modificador editable en Atajos. Ctrl+rueda desplaza la zona bajo el cursor; rueda normal
+  mueve X. Alturas por documento/secuencia/pista son preferencias, fuera del proyecto/Undo.
+  Gestos/selección usan ownerDocument en ventanas separadas.
+- Huellas A/V se dibujan también en Audio; se revela la pareja cuando está fuera de vista y
+  se muestran pistas entrantes nuevas. Captura/soltar detectan la zona real. Mover entre zonas
+  conserva preview; pistas delgadas admiten desplazamiento vertical con umbral físico de 4 px.
+- Regla con subdivisiones virtualizadas hasta frames y etiquetas NDF sin segundos duplicados.
+  Programa/Origen amplían mediante transform, conservando tamaño nativo del reproductor.
+- Cuadros en bordes visuales: clic añade/quita disolución; arrastre ajusta duración y Escape
+  cancela. El corte contiguo comparte una sola transición. Operación pura y candados respetados.
+- Proyecto conserva doble clic tras captura para arrastrar; lista usable en paneles pequeños.
+  Texto/Buscar/generación de captions comparten transcriptSource para no perder diálogo al
+  cambiar canales a un WAV derivado. Los originales no se modifican.
+
+Verificación: 169 tests, typecheck/build; npm audit de producción sin vulnerabilidades conocidas.
+UI aislada :5175: frase de cinco palabras → pareja A/V → un Undo; Delete/Undo, disolución por
+arrastre, ganancia +6 dB/onda ×1,995/Undo, ocho menús, Origen I/O exacto por clic y arrastre,
+scroll independiente/fijo y zoom con rueda sin cambiar frame/tamaño nativo. Seis MP4 reales de
+un segundo, tres versiones × dos formatos, con audio AAC estéreo 48 kHz; seis copias JSON
+válidas y dos SRT. Captions HyperFrames permanecen editables; frames inspeccionados por versión.
+
+Pendientes de prueba real: anuncio completo y escucha, rendimiento sostenido/proyectos largos,
+combinaciones físicas Alt/Ctrl+rueda y arrastre OS entre monitores. La API de QA no ofrece rueda
+con modificadores: rutas/preferencias se prueban en tests y rueda normal en UI. No se ejercitaron
+cuentas externas, LLM, micrófono ni una nueva transcripción Whisper en esta sesión. Ver alcance
+preciso en QUALITY_AUDIT.md; no se declara certificación de todas las combinaciones del software.
+
 ## 2026-10-21 — Secuencias configurables y exportación de entregas
 
 Lino confirmó Completa (con captions/overlays), RAW (cortes/audio, sin captions/overlays) y

@@ -220,3 +220,16 @@ Referencia de flujo: [ampliación en los monitores de Adobe](https://helpx.adobe
   de Undo ni la conversación del proveedor. No confundir sesión local con guardar un .ugcproj.
 - Los 629 atajos de referencia siguen siendo consulta. Catálogo adaptado actual: 233 comandos,
   144 implementados y 89 reservas. No se comprobó manualmente cada combinación.
+
+## Rueda y altura de pistas (2026-10-22)
+
+- Rueda sobre el contenido: desplazamiento horizontal compartido.
+- Ctrl+rueda: desplazamiento vertical solo de Video, Audio o Subtítulos bajo el cursor.
+- Alt+rueda sobre cabecera/nombre de pista: altura individual (24–180 px).
+- Alt+rueda sobre clips/regla: zoom bajo el puntero, también durante arrastres internos.
+- El modificador de altura de cabecera se cambia en el editor de Atajos → Gestos.
+- Alturas y scroll son preferencias de vista; no entran en el montaje ni su historial.
+- Texto: arrastra entre palabras para seleccionar; vuelve a arrastrar la selección o su botón
+  al timeline. Shift extiende selección; doble clic corrige una palabra y Escape cancela.
+
+Referencia de flujo: [edición por texto de Adobe](https://helpx.adobe.com/premiere/desktop/edit-projects/edit-video-using-text-based-editing/edit-sequences-using-text-based-editing.html). Las asignaciones efectivas son las configuradas en UGC Studio.

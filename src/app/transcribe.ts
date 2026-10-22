@@ -1,3 +1,4 @@
+import {transcriptSource} from "../project/transcript";
 // Transcripción con Whisper corriendo dentro del navegador (WASM): gratis y sin claves de API.
 // El modelo se descarga una sola vez y queda guardado en el navegador.
 import {
@@ -56,7 +57,7 @@ const STEP_LABEL: Record<TranscribeStep, string> = {
   transcribiendo: "Transcribiendo",
 };
 
-export const transcriptionSources=(project:Project):[string,string][]=>[...new Map(project.tracks.flatMap(t=>t.clips).flatMap(c=>(c.kind==="video"||c.kind==="audio")&&!c.sequenceId?[[c.kind==="audio"&&c.derivedFrom?c.derivedFrom.src:c.src,c.name] as [string,string]]:[])).entries()];
+export const transcriptionSources=(project:Project):[string,string][]=>[...new Map(project.tracks.flatMap(t=>t.clips).flatMap(c=>(c.kind==="video"||c.kind==="audio")&&!c.sequenceId?[[transcriptSource(c),c.name] as [string,string]]:[])).entries()];
 /** Originales del montaje que todavía requieren transcripción (sin duplicar parejas/stems). */
 export const pendingTranscripts = (project: Project): [string, string][] => {
   const preferences = whisperPrefs();

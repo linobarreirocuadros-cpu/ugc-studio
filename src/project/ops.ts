@@ -1,3 +1,4 @@
+import {transcriptSource} from "./transcript";
 import {retimeStandaloneClip,retimeProject,validSequenceSettings,type SequenceSettings} from "./sequenceSettings";
 import {assertProject} from "./projectFile";
 import {DEFAULT_MOTION,validMotion,sliceMotion,motionSupported,hyperframesSupported,type ClipMotion,type RenderEngine} from "./motion";
@@ -1001,7 +1002,7 @@ export const keepTimelineRanges = (project: Project, ranges: { start: number; en
 
 /** Palabras de un clip de video, ya convertidas a frames de la línea de tiempo. */
 export const wordsOnTimeline = (project: Project, clip: VideoClip|AudioClip): Word[] => {
-  const words = project.transcripts?.[clip.kind==="audio"&&clip.derivedFrom?clip.derivedFrom.src:clip.src] ?? [];
+  const words = project.transcripts?.[transcriptSource(clip)] ?? [];
   if (clip.kind==="video"&&clip.freezeFrame !== undefined) return [];
   const rate = clip.playbackRate ?? 1, inEnd = sourceFrame(clip, clip.durationInFrames);
   return words
@@ -1241,4 +1242,16 @@ export function setSequenceSettings(p:Project,settings:SequenceSettings,libraryF
  if(!validSequenceSettings(settings))throw new Error("Tamaño o FPS fuera de rango");
  if(p.tracks.some(t=>t.locked&&t.clips.length)&&p.fps!==settings.fps)throw new Error("Desbloquea las pistas antes de cambiar la base temporal");
  return {...retimeProject(p,settings.fps),...(p.library?{library:{...p.library,media:p.library.media.map(m=>({...m,frameBase:m.frameBase??libraryFps})),elements:p.library.elements.map(e=>({...e,frameBase:e.frameBase??libraryFps}))}}:{}),width:settings.width,height:settings.height,audioSampleRate:settings.audioSampleRate??p.audioSampleRate??48000,...(settings.name?.trim()?{name:settings.name.trim().slice(0,100)}:{})};
+}
+
+/** Control de borde del timeline: editar/quitar una disolución en una transacción. */
+export function setClipDissolve(p:Project,id:string,edge:"start"|"end",frames:number):Project {
+ const found=findClip(p,id);if(!found||found.track.locked||found.clip.kind==="audio"||found.clip.kind==="graphic"&&found.clip.shape==="adjustment")return p;
+ if(!Number.isSafeInteger(frames)||frames<0||frames>Math.floor(p.fps*10))throw new Error("Duración de disolución inválida");
+ const next=edge==="end"?adjacentNext(found.track,found.clip):undefined;
+ if(next?.kind==="graphic"&&next.shape==="adjustment")return p;
+ if(frames){const current=edge==="start"?found.clip.transitionIn:next?.transitionIn??found.clip.transitionOut;if(current?.type==="dissolve"&&current.frames===frames)return p;return applyEffectPreset(p,[id],"cross-dissolve",frames,edge); }
+ const target=next??found.clip,key=edge==="start"||next?"transitionIn":"transitionOut";
+ if(!target[key])return p;
+ return mapTracks(p,t=>({...t,clips:t.clips.map(c=>c.id===target.id?{...c,[key]:undefined}:c)}));
 }

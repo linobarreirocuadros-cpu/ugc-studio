@@ -9,6 +9,8 @@ export type PlacementOptions={media:LibraryMedia[];mediaFps?:number;hostId?:stri
 export function placeMedia(project:Project,payload:MediaDrag,trackId:string,at:number,options:PlacementOptions):Project{
   const target=project.tracks.find(t=>t.id===trackId);
   if(!target||target.locked||!Number.isSafeInteger(at)||at<0)return project;
+  if(target.kind!=="audio"&&(payload.kind==="audio"||payload.mode==="audio"))return project;
+  if(target.kind==="audio"&&payload.mode==="video")return project;
   if(payload.timelineRange)return ops.placeTimelineRange(project,retimeProject(payload.timelineRange.project,project.fps),trackId,at,payload.mode,options.hostId);
   let next=project,cursor=at;
   for(const item of payload.items??[payload]){

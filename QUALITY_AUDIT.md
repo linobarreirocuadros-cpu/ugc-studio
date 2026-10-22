@@ -1,5 +1,61 @@
 # Control de calidad — actualizado 2026-10-21
 
+## Fiscalización previa al primer anuncio real — 2026-10-22
+
+**Resultado:** corregidos los fallos reproducidos y superadas las rutas descritas abajo.
+Es apto para una prueba controlada de un anuncio; no certifica aún entregas profesionales
+sin revisión de imagen, texto y escucha ni todas las combinaciones de herramientas/paneles.
+
+### Correcciones
+- Zoom de visor por transform sobre tamaño nativo fijo: evita redimensionar Remotion en cada
+  rueda. Pausado en frame 120, zoom de 20 % a 200 % y 364 % mantuvo video.currentTime = 4,
+  readyState = 4 y lienzo interno 640×360. No se midió cada frame de sesiones largas en GPU.
+- Texto: selección estable sin mover las palabras ni iniciar HTML drag involuntario. Copia
+  audiovisual por diálogo, enlaces, velocidad y reloj; selección de audio no cae en video.
+- Video/audio desplazan Y por separado; captions quedan en zona superior y la regla no baja.
+  X y cabeceras se sincronizan. Alturas locales individuales; no se modifica el montaje.
+- Huellas entrantes representan A/V, revelan Audio y admiten filas nuevas; gestos detectan la
+  zona real. Selección rectangular/arrastre usan el documento propietario. Mover una pista de
+  24 px ya no se interpreta como clic por el umbral de altura antigua.
+- Regla virtualizada con rayas menores hasta frames enteros y rótulos NDF subsegundo.
+- Control directo de disolución en bordes, duración por arrastre y eliminación por clic.
+  Una sola operación por gesto; el corte usa la entrada del clip siguiente, sin duplicación.
+- Doble clic de Proyecto tras pointer capture; listas pequeñas conservan una fila visible.
+- Canales derivados conservan transcripción en Texto, Buscar, generación y solicitudes de
+  transcripción. Escape de corrección no confirma el texto por el blur del campo.
+
+### Evidencia
+- **169 tests**: batería previa completa + 9 regresiones de diálogo/rangos, pareja A/V,
+  canales, disolución/candados, regla, alturas y contexto de rueda. Typecheck y build pasan.
+- Browser aislado :5175, documento sintético, sin editar proyectos de :5173/:5174. Selección
+  de cinco palabras, colocación A/V y un Deshacer; Delete conserva pareja y Undo la restaura.
+- Disolución: arrastre de cuadro → 30 frames, ambos lados muestran la misma transición.
+  Ganancia contextual +6 dB → onda scaleY(1.99526), ganancia aplicada una sola vez a la pareja, Undo → 1.
+- Ocho menús superiores revisados en UI y rutas de comandos contrastadas en código. Las
+  reservas de Premiere siguen fuera de los menús de trabajo. Esto no equivale a ejecutar
+  individualmente cada una de las 145 acciones disponibles ni las 629 referencias de Adobe.
+- Origen: entrada 30/salida 60 exclusiva, colocación por botón y arrastre, A/V de 30 frames;
+  Undo recupera ambas pistas. Texto usa el mismo controlador y plan de colocación.
+- Scroll de Video 351→0 no cambió Audio (11), captions ni regla; cabeceras siguieron su zona.
+  Rueda normal desplazó X=97 en regla/captions/video/audio/barra. Regla detallada: 57 marcas
+  visibles. Consola sin errores tras esas acciones.
+- Cola real: seis MP4 de 30 frames/1 s; Completa/RAW/Overlays × 180×320/288×360, h264,
+  AAC 48 kHz estéreo. Seis JSON limitados al rango validados; dos SRT de la versión con captions.
+  Frames reales confirman filtrado; captions HyperFrames y parámetros siguen en las copias.
+- npm audit --omit=dev: 0 avisos conocidos. Build conserva aviso de chunk principal grande.
+  Evidencia local: visualizaciones/quality-20261022 (captura, menús, salidas y sidecars).
+
+### Límites que quedan para la prueba con Lino
+- Revisar un anuncio completo con material real: escucha, subtítulos, reencuadre y export final.
+- Rendimiento sostenido, muchos clips/escenas y sesiones largas; el lote de un segundo no lo prueba.
+- Combinaciones físicas Alt/Ctrl + rueda: lógica/configuración probadas, pero la herramienta de
+  QA no combina teclas sostenidas y rueda. Rueda normal/zoom sí probados en navegador real.
+- Arrastre OS entre ventanas y reconexión física de pantallas; están fuera del alcance validado.
+- No se consumieron servicios de IA ni se repitieron autenticación, captura de micrófono o
+  Whisper. Siguen sus pruebas previas y pendientes; esta revisión no los certifica de nuevo.
+- HDR, tracking continuo, automatización de mezcla y capacidades Adobe pendientes mantienen
+  el alcance de EXPORTACION.md/MOTORES.md. No se añadieron botones ficticios para cubrirlas.
+
 ## Secuencias y exportación por entregas — 2026-10-21
 
 **Alcance:** parámetros de secuencia, varios pares I/O, adaptación y exportación por matriz.

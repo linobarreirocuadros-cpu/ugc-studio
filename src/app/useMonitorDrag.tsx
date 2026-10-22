@@ -28,7 +28,7 @@ export function useMonitorDrag(options:Options){
     node.focus({preventScroll:true});node.setPointerCapture(event.pointerId);
     const session=latest.current.session,origin={x:event.clientX,y:event.clientY};let point=origin,moved=false,animation=0,bypass=bypassSnap(event,latest.current.gestures);
     const target=()=>{
-      const viewport=latest.current.root()?.querySelector<HTMLElement>(".timeline-scroll");if(!viewport||viewport.ownerDocument!==doc)return null;
+      const viewport=[...latest.current.root()?.querySelectorAll<HTMLElement>(".timeline-scroll")??[]].find(v=>{const r=v.getBoundingClientRect();return v.ownerDocument===doc&&point.x>=r.left&&point.x<r.right&&point.y>=r.top&&point.y<r.bottom;});if(!viewport)return null;
       const r=viewport.getBoundingClientRect();if(point.x<r.left||point.x>=r.right||point.y<r.top||point.y>=r.bottom)return null;
       // Capturar el puntero cambia event.target; la geometría real de pistas sigue siendo válida.
       const track=[...viewport.querySelectorAll<HTMLElement>("[data-track-id]")].find(t=>{const b=t.getBoundingClientRect();return point.y>=b.top&&point.y<b.bottom;});

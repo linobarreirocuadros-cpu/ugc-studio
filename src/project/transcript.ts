@@ -1,4 +1,7 @@
-import type { Word } from "./types";
+import type { Word,AudioClip,VideoClip } from "./types";
+
+/** Derivados de canales y limpieza conservan el reloj del diálogo original. */
+export const transcriptSource=(clip:VideoClip|AudioClip)=>clip.kind==="audio"?clip.derivedFrom?.src??clip.channelSource??clip.src:clip.src;
 
 /** Whisper.cpp entrega subtokens: los espacios iniciales delimitan palabras reales. */
 export function wordsFromWhisperTokens(tokens: { text: string; startMs: number; endMs: number; confidence?: number | null }[], fps: number): Word[] {

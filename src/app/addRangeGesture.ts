@@ -27,7 +27,7 @@ export function createAddRangeGesture(read:()=>AddRangeOptions,setRange:(range:A
     suppress.current=false;
     const target=e.target as Element,trackNode=target.closest<HTMLElement>(".track[data-track-id]"),trackId=trackNode?.dataset.trackId;
     if(!trackId||target.closest(".clip,button,input,select,textarea,[role=separator]"))return;
-    const track=project.tracks.find(t=>t.id===trackId),scroll=viewport.current;
+    const track=project.tracks.find(t=>t.id===trackId),scroll=target.closest<HTMLDivElement>(".timeline-scroll")??viewport.current;
     if(!track||track.locked||!scroll)return;
     const rect=scroll.getBoundingClientRect();
     if(e.clientX<rect.left||e.clientX>rect.left+scroll.clientWidth||e.clientY<rect.top||e.clientY>rect.top+scroll.clientHeight)return;

@@ -1,5 +1,15 @@
 # Roadmap
 
+## Estabilización de edición — 2026-10-22
+
+- [x] Seleccionar diálogo en Texto y arrastrar tramo audiovisual editable con preview y Undo.
+- [x] Scroll independiente Video/Audio, captions fijados y alturas individuales con Alt en cabecera.
+- [x] Huellas de pareja A/V, subdivisiones de regla por zoom y control directo de disolución.
+- [x] Zoom de monitores sin redimensionar el reproductor; coherencia de transcripción tras canales.
+- [x] QA: 169 tests, UI de rutas críticas y lote real de seis versiones/formato con JSON/SRT.
+- [ ] Validar anuncio completo con Lino: escucha, encuadre, duración/rendimiento y entrega real.
+- [ ] Validación física de modificadores de rueda y arrastre/recuperación entre monitores.
+
 ## Dirección del producto — investigación del 2026-10-19
 
 **Intención confirmada por Lino:** editor UGC dirigido por chat y voz; comprensión de imagen,

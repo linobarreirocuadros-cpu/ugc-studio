@@ -342,3 +342,23 @@ Así otro agente (Claude, ChatGPT, etc.) puede continuar exactamente donde queda
   y sin sobrescribir ajustes cambiados durante la espera. No es tracking ni validación editorial.
 - `EXPORTACION.md` documenta uso y parámetros Adobe compatibles/pendientes. Mantener este alcance
   explícito; no presentar la integración como réplica de toda la cola de After Effects.
+
+## Fiscalización de edición (2026-10-22)
+- Timeline presenta tres zonas: captions fijados, video y audio. Conservar índices de proyecto
+  para ops, geometría real para drag y scroll Y independiente; X/regla/cabeceras sincronizadas.
+  Una pista genérica con captions se fija completa, sin duplicar clips ni cambiar su render.
+  useMonitorDrag/addRangeGesture deben resolver el viewport bajo el puntero, no el primero.
+- trackHeights se guarda por contexto de documento/secuencia e ID (24–180 px), fuera de JSON.
+  Alt+rueda en cabeceras cambia esa altura; en lienzo sigue zoom. headerHeight es editable en
+  gestos. timelineWheelAction es la decisión común; altura global restablece sobrescrituras.
+- transcriptSelection crea copia del diálogo y parejas. Seleccionar primero y volver a arrastrar
+  selección/botón; no iniciar HTML drag al seleccionar ni reflow de su barra. Document epoch,
+  histéresis/huella y Undo son los mismos del monitor. No copiar overlays ajenos por selección.
+- transcriptSource resuelve derivedFrom/channelSource antes de src para audio; usarlo en Texto,
+  Buscar, generación y solicitudes. WAV de canales conserva reloj y transcripción del original.
+- Disolución directa: setClipDissolve por ops; end en corte contiguo edita next.transitionIn.
+  Preview de duración no aplica historial hasta soltar. Clic añade/quita y Escape cancela.
+- MonitorViewer mantiene width/height nativos en monitor-image y aplica scale por transform.
+  No volver a redimensionar Player al mover rueda: causaba un salto visual de un frame.
+- QA de 169 tests/UI/6 exportaciones cortas está documentada en QUALITY_AUDIT.md. Prueba física
+  de Alt/Ctrl+rueda, OS multiventana y anuncio largo/editorial no se declaran verificadas.

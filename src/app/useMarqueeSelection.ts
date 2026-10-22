@@ -28,10 +28,10 @@ export function useMarqueeSelection(options: Options) {
   };
   useEffect(() => {
     if (!active) return;
-    const node = ref.current!;
+    const node = ref.current!,doc=node.ownerDocument,win=doc.defaultView!;
     const scrollers: HTMLElement[] = [];
-    for (let element: HTMLElement | null = node; element && element !== document.body; element = element.parentElement) {
-      const style = getComputedStyle(element);
+    for (let element: HTMLElement | null = node; element && element !== doc.body; element = element.parentElement) {
+      const style = win.getComputedStyle(element);
       if (/(auto|scroll)/.test(style.overflowX + style.overflowY)) scrollers.push(element);
     }
     const update = () => {
@@ -70,21 +70,21 @@ export function useMarqueeSelection(options: Options) {
         for (const element of scrollers) {
           const rect = element.getBoundingClientRect();
           const speed = (value: number, low: number, high: number) => value < low + 22 ? -10 : value > high - 22 ? 10 : 0;
-          const style = getComputedStyle(element);
+          const style = win.getComputedStyle(element);
           if (/(auto|scroll)/.test(style.overflowX) && current.client.y >= rect.top - 22 && current.client.y <= rect.bottom + 22) element.scrollLeft += speed(current.client.x, rect.left, rect.right);
           if (/(auto|scroll)/.test(style.overflowY) && current.client.x >= rect.left - 22 && current.client.x <= rect.right + 22) element.scrollTop += speed(current.client.y, rect.top, rect.bottom);
         }
         update();
       }
-      animation = requestAnimationFrame(scroll);
+      animation = win.requestAnimationFrame(scroll);
     };
-    animation = requestAnimationFrame(scroll);
-    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
-    window.addEventListener("keydown", key, true); window.addEventListener("blur", blur);
+    animation = win.requestAnimationFrame(scroll);
+    win.addEventListener("mousemove", move); win.addEventListener("mouseup", up);
+    win.addEventListener("keydown", key, true); win.addEventListener("blur", blur);
     return () => {
-      cancelAnimationFrame(animation);
-      window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
-      window.removeEventListener("keydown", key, true); window.removeEventListener("blur", blur);
+      win.cancelAnimationFrame(animation);
+      win.removeEventListener("mousemove", move); win.removeEventListener("mouseup", up);
+      win.removeEventListener("keydown", key, true); win.removeEventListener("blur", blur);
     };
   }, [active]);
   return { ref, onMouseDown, box };

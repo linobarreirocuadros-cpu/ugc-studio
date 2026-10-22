@@ -37,7 +37,7 @@ type Dialog={type:"delete";keys:string[];stamp:string}|{type:"rename";key:string
 
 export const ProjectPanel=forwardRef<ProjectPanelHandle,Props>(function ProjectPanel({onPointerMediaDrag,onMediaDrag,project,epoch,editingSequenceId,missing,view,onView,onApply,onImport,onImportFiles,uploading,onOpenMedia,onPlaceItems,onOpenSequence,onLocate,hint},ref){
   const uiDoc=useUiDocument(),uiWindow=uiDoc.defaultView??window;
-  const suppressClick=useRef(false);
+  const suppressClick=useRef(false),lastPointerClick=useRef({key:"",time:0,x:0,y:0});
   const library=projectLibrary(project),all=useMemo(()=>projectItems(project),[project]);
   const [sequenceSettings,setSequenceSettings]=useState<SequenceSettings>({width:project.width,height:project.height,fps:project.fps,audioSampleRate:project.audioSampleRate});
   const [selected,setSelected]=useState<string[]>([]),[folderId,setFolderId]=useState<string|undefined>(),[query,setQuery]=useState(""),[typeFilter,setTypeFilter]=useState("all");
@@ -107,7 +107,7 @@ export const ProjectPanel=forwardRef<ProjectPanelHandle,Props>(function ProjectP
     if(event.button!==0||(event.target as Element).closest("input,button,select,textarea"))return;
     const {keys,payload}=dragItems(item);if(!payload)return;
     const modifiers={shiftKey:event.shiftKey,ctrlKey:event.ctrlKey,metaKey:event.metaKey};
-    onPointerMediaDrag(event,payload,(x,y)=>{const hit=uiDoc.elementFromPoint(x,y);if(!hit||!root.current?.contains(hit)||!hit.closest(".project-items"))return;const folder=hit.closest<HTMLElement>("[data-project-folder]")?.dataset.projectFolder??folderId;commit(p=>ops.moveProjectItems(p,keys,folder));},()=>{suppressClick.current=true;},()=>{suppressClick.current=true;choose(item,modifiers);});
+    onPointerMediaDrag(event,payload,(x,y)=>{const hit=uiDoc.elementFromPoint(x,y);if(!hit||!root.current?.contains(hit)||!hit.closest(".project-items"))return;const folder=hit.closest<HTMLElement>("[data-project-folder]")?.dataset.projectFolder??folderId;commit(p=>ops.moveProjectItems(p,keys,folder));},()=>{suppressClick.current=true;lastPointerClick.current={key:"",time:0,x:0,y:0};},()=>{suppressClick.current=true;choose(item,modifiers);const previous=lastPointerClick.current,now=performance.now();if(!modifiers.ctrlKey&&!modifiers.metaKey&&!modifiers.shiftKey&&previous.key===item.key&&now-previous.time<500&&Math.hypot(event.clientX-previous.x,event.clientY-previous.y)<5){lastPointerClick.current={key:"",time:0,x:0,y:0};open(item);}else lastPointerClick.current={key:item.key,time:now,x:event.clientX,y:event.clientY};});
   };
   const drop=(e:DragEvent,target?:string)=>{if(!e.dataTransfer.types.includes(DRAG_ITEMS))return;e.preventDefault();e.stopPropagation();try{const ids=JSON.parse(e.dataTransfer.getData(DRAG_ITEMS));if(Array.isArray(ids)&&ids.every(id=>typeof id==="string"))commit(p=>ops.moveProjectItems(p,ids,target));}catch(err){setError(err instanceof Error?err.message:String(err));}};
   const thumbnail=(item:ProjectItem)=>item.kind==="video"?<video src={library.media.find(m=>m.src===item.src)?.proxySrc??item.src} muted preload="metadata" draggable={false}/>:<span className={`project-type-icon type-${item.kind}`} style={item.kind==="element"?{background:(()=>{const c=library.elements.find(e=>`element:${e.id}`===item.key)?.clip;return c?.kind==="graphic"&&c.shape!=="adjustment"?c.color:undefined;})()}:undefined}>{item.kind==="folder"?"▰":item.kind==="sequence"?"▤":item.kind==="audio"?"♫":"◇"}</span>;

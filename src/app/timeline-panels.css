@@ -53,3 +53,32 @@
 .ruler-playhead { position:absolute; top:0; bottom:0; width:1px; background:var(--playhead); pointer-events:none; z-index:4; }
 .ruler-playhead::before { content:""; position:absolute; top:0; left:-5px; border:5px solid transparent; border-top-color:var(--playhead); }
 .timeline-ruler-viewport { margin-right:var(--timeline-vertical-scrollbar,0px); }
+
+/* Tres zonas sincronizadas en X; solo la zona bajo el puntero se desplaza en Y. */
+.timeline-headers {padding-bottom:0;}
+.timeline .timeline-scroll {overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable;flex:1 1 0;}
+.timeline .zone-audio {border-top:1px solid #b0c8ea28;}
+.timeline .zone-captions {border-bottom:1px solid #b0c8ea24;}
+.timeline-ruler-viewport {margin-right:12px;}
+.timeline-horizontal-scroll {flex:0 0 12px;height:12px;overflow-x:scroll;overflow-y:hidden;margin-right:12px;}
+.timeline-horizontal-spacer {flex:0 0 12px;}
+.timeline-scroll .track {box-sizing:border-box;}
+.track-header.compact-track {display:flex!important;gap:1px;justify-content:flex-start;overflow:hidden;}
+.track-header.compact-track button {height:20px;min-width:16px;}
+.track-header.compact-track .track-name {min-width:32px;width:40px;}
+.track-header.compact-track button:nth-child(3) {display:none;}
+.tick.minor-tick {top:auto;bottom:0;height:5px;border-color:#b4cee52b;padding:0;pointer-events:none;}
+.tick.major-tick {border-color:#b4cee550;pointer-events:none;}
+.clip .clip-dissolve-handle {position:absolute;top:1px;width:10px;height:10px;min-height:0;min-width:0;padding:0;border:1px solid #bcd9f460;border-radius:2px;font-size:8px;line-height:8px;z-index:5;opacity:.6;cursor:ew-resize;background:#17283ea8;touch-action:none;}
+.clip-dissolve-handle.start {left:1px;}
+.clip-dissolve-handle.end {right:1px;}
+.clip .clip-dissolve-handle:hover,.clip .clip-dissolve-handle:focus-visible {opacity:1;}
+.clip .clip-dissolve-handle.applied {background:linear-gradient(110deg,#d3b77855,#7bb4e055);border-color:#d8c98b88;opacity:1;}
+
+@container trackheaders (max-width:164px) {
+ .track-header.compact-track {display:grid!important;grid-template-columns:14px minmax(0,1fr) 14px;grid-template-rows:1fr;gap:0 1px;}
+ .track-header.compact-track:has(button:nth-child(5)) {grid-template-rows:repeat(2,minmax(0,1fr));}
+ .track-header.compact-track button {height:100%;min-height:0;min-width:0;padding:0;font-size:8px;line-height:10px;}
+ .track-header.compact-track .track-name {min-width:0;width:auto;}
+ .track-header.compact-track button svg {width:9px;height:9px;}
+}

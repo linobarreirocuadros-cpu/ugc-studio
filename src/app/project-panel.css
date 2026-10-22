@@ -63,3 +63,12 @@
 
 @container project-browser (max-height:220px) {.project-summary {display:none}.project-items {min-height:16px}}
 @container project-browser (max-height:140px) {.project-breadcrumb {display:none}.project-footer input[type=range],.project-footer>button:nth-child(4) {display:none}.project-search {padding:2px 5px}.project-footer {padding:2px 5px}}
+
+@container project-browser (max-height:220px) {
+ .project-items {min-height:54px;}
+}
+@container project-browser (max-width:230px) and (max-height:180px) {
+ .project-footer {flex-wrap:nowrap;gap:1px;padding:2px 4px;overflow-x:auto;}
+ .project-footer button {width:20px;min-width:18px;}
+ .project-footer input[type=range],.project-footer .project-columns,.project-footer button[aria-label^="Previsualizar"] {display:none;}
+}
