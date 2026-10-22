@@ -34,6 +34,7 @@ type Drag = {
 };
 
 export type MediaDrag = {
+  frameBase?:number;
   documentEpoch?: number;
   src: string;
   kind: "video" | "audio";
@@ -48,6 +49,7 @@ export type MediaDrag = {
 export const MEDIA_DRAG_TYPE = "application/x-ugc-source";
 
 type Props = {
+  onExportRanges?:(ids:string[])=>void;
   project: Project;
   onContextMenu:(x:number,y:number,ids:string[],at:number,trackId?:string,isolated?:boolean)=>void;
   onAddRange:(start:number,duration:number,trackId:string)=>void;
@@ -86,7 +88,7 @@ type Props = {
 
 const SNAP_PX = 8;
 
-export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onAddRange, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
+export function Timeline({ onExportRanges,effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHover,onMediaLeave,placementOptions,project, onContextMenu, onAddRange, onVolume, onOpenSequence, revealTrackId, frame, selectedIds, pxPerFrame, tool, snapping, preferences, gestures, markRange, onTrackHeight, onSeek, onScrubStart, isolatedSelection, onSelect, onDuplicate, onMove, onTrim, onSlip, onSplit, onAddText, onZoom, onDropMedia, onTrackChange, onRecord, recordingTrack, waveforms }: Props) {
   const headerPane = useTimelinePanelWidth<HTMLDivElement>("headers", "Ancho de cabeceras de pistas");
   const TRACK_H = preferences.trackHeight;
   const [volumePreview,setVolumePreview]=useState<Record<string,number>>({});
@@ -301,6 +303,7 @@ export function Timeline({ effectTarget,dragWheel,mediaDrag,mediaHover,onMediaHo
             data-no-marquee
             onPointerDown={scrubStart} onPointerMove={scrubMove} onPointerUp={scrubEnd} onPointerCancel={scrubEnd}
           >
+            {project.exportRanges?.map(range=><span key={range.id} className="timeline-export-band" title={`${range.name} · Clic derecho para exportar`} style={{left:range.start*pxPerFrame,width:Math.max(5,(range.end-range.start)*pxPerFrame)}} onPointerDown={e=>{e.stopPropagation();if(e.button===0)onSeek(range.start);}} onContextMenu={e=>{e.preventDefault();e.stopPropagation();onExportRanges?.([range.id]);}}>{`{ ${range.name} }`}</span>)}
             {(markRange.start!==null||markRange.end!==null)&&<span className="timeline-mark-range" aria-label="Rango de entrada y salida" style={{left:(markRange.start??0)*pxPerFrame,width:Math.max(0,(markRange.end??duration)-(markRange.start??0))*pxPerFrame}}/>}
             {ticks.map(t=><span key={t.second} className="tick" style={{left:t.x}}>{formatTime(t.second)}</span>)}
             {preferences.showMarkers && (project.markers ?? []).map((marker) => <button key={marker.id} className="timeline-marker" style={{ left: marker.frame * pxPerFrame, color: marker.color }} title={`${marker.label} · ${formatTimecode(marker.frame, project.fps)}`} aria-label={`Ir al marcador ${marker.label}`} onMouseDown={(e) => e.stopPropagation()} onClick={() => onSeek(marker.frame)}>◆</button>)}
@@ -444,6 +447,7 @@ export const formatTime = (seconds: number) => {
 };
 
 export const formatTimecode = (frame: number, fps: number) => {
+  fps=Math.round(fps);
   const totalSeconds = Math.floor(frame / fps);
   const f = frame % fps;
   const h = Math.floor(totalSeconds / 3600);

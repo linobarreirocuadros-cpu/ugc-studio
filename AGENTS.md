@@ -312,3 +312,33 @@ como requisito. Si algo no tiene alternativa gratis, avisar al usuario antes de 
 2. Marca en `ROADMAP.md` las tareas completadas.
 3. Corre `npm run typecheck` y haz commit con un mensaje claro.
 Así otro agente (Claude, ChatGPT, etc.) puede continuar exactamente donde quedaste.
+
+
+## Secuencias y entregas (2026-10-21)
+- `SequenceSettingsFields` comparte presets/tamaño/FPS/audio entre creación y ajustes. FPS puede
+  ser fraccionario; el timecode es NDF. `sequenceSettings.ts` conserva segundos al retimar.
+- `LibraryMedia.frameBase` y `LibraryElement.frameBase` expresan las unidades de su duración; no es el FPS nativo del archivo.
+  `ensureProjectLibrary` migra datos antiguos con FPS raíz. Normalizar al colocar en otra base,
+  sin reinterpretar la duración ni cambiar velocidad; la metainformación original viene de FFprobe.
+- El primer video en una secuencia sin video pregunta conservar/igualar. Capturar raíz y epoch,
+  nunca comparar por identidad la vista de `history.current()` de una secuencia: se reconstruye.
+- `Project.exportRanges` contiene pares persistentes start/end exclusivo, administrados por ops;
+  las marcas I/O de sesión se pueden guardar como rangos. La regla sigue fuera del scroll Y.
+- `exportPlan.ts` produce copias de entrega; no mutar el montaje al filtrar/retimar/reencuadrar.
+  Versiones confirmadas: Completa; RAW sin captions/textos/gráficos; Overlays con video y sin
+  captions. Combinar rangos × variantes × formatos; el usuario revisa nombres y encuadre.
+- `ExportPanel` captura snapshot al abrir, `/api/export-queue` clona al recibir. Cola serial en
+  datos locales, manifiestos y recuperación; cerrar panel no cancela. Drenar por próximo lote
+  pendiente, incluyendo reintentos anteriores al cursor. Validar ajustes al encolar/reintentar,
+  pero no invalidar un archivo terminado por cambios posteriores de capacidades del codificador.
+- Remotion conserva composición/reloj y genera video nativo + PCM separado (`separateAudioTo`).
+  FFmpeg codifica audio una vez/copia video, aplicando mono/estéreo reales. No usar MKV intermedio
+  para MP4: cuantiza timestamps de segmentos cortos. No aplicar perfiles al copiar video ni dar
+  por aplicados valores de la interfaz: comprobar tamaño/FPS/canales/frecuencia mediante FFprobe.
+- H.264/HEVC del FFmpeg incluido son de 8 bits; VP9 soporta 10, ProRes su profundidad nativa.
+  Compositor SDR 8 bits; mezcla/exportación PCM real 16 bits. No prometer HDR o PCM24 por convertir.
+- Reencuadre: proporcional/márgenes y foco `VideoClip.reframeFocus`, editable en Controles de
+  efectos. Sugerencia local con tres muestras por clip (máximo 20 originales del rango), cancelable
+  y sin sobrescribir ajustes cambiados durante la espera. No es tracking ni validación editorial.
+- `EXPORTACION.md` documenta uso y parámetros Adobe compatibles/pendientes. Mantener este alcance
+  explícito; no presentar la integración como réplica de toda la cola de After Effects.

@@ -329,3 +329,21 @@ a estar validado para entregas de agencia.
 - [ ] Higgsfield (generación de video/imagen)
 - [ ] Métricas de Meta Ads por marca para mejorar hooks
 - [ ] Empaquetar como app de escritorio (Electron o Tauri)
+
+
+## Entregas y secuencias — 2026-10-21
+
+- [x] Crear secuencias con lienzo, FPS fraccionarios y frecuencia de audio; editar sus ajustes
+- [x] Conservar segundos al cambiar FPS; biblioteca con base temporal y anidación entre formatos
+- [x] Aviso conservar/igualar al colocar primer video y Deshacer atómico
+- [x] Reordenar pestañas de proyectos/secuencias con persistencia local
+- [x] Varios pares I/O editables/reversibles, clic derecho y exportación independiente por rango
+- [x] Matriz de versiones Completa/RAW/Overlays × 9:16/4:5 y tamaños personalizados
+- [x] Panel de codificación, presets, cola persistida, cancelar/reintentar, descargas y manifiestos
+- [x] JSON editable del rango y SRT adicionales; conservar motores, fuentes y animación
+- [x] Adaptación proporcional/márgenes y foco manual por clip; sugerencia opcional con visión local
+- [x] Verificar salidas reales y comprobar metadatos antes de marcar como terminadas
+- [ ] Validación editorial de reencuadre con un anuncio real y sujetos en movimiento
+- [ ] Tracking continuo y revisión de sujetos dentro de anidaciones
+- [ ] HDR/ICC/lineal 16–32 bits, PCM24 real/multicanal, VBR dos pasadas y aceleración GPU
+- [ ] PNG/EXR/GIF, recorte global de salida, empaquetado de medios y acciones posteriores

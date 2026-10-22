@@ -1,3 +1,4 @@
+import {registerExportQueue} from "./exportQueue";
 import {registerAudioMix,prepareAudioMix} from "./audioMix";
 // Servidor local: guarda los archivos importados y renderiza la exportación con Remotion.
 import express from "express";
@@ -297,6 +298,8 @@ const getBundle = () => {
   }
   return bundlePromise;
 };
+
+registerExportQueue(app,DATA_DIR,BASE_URL,getBundle);
 
 app.post("/api/render", async (req, res) => {
   const project = req.body.project as Project;

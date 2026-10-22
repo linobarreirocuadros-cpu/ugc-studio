@@ -14,7 +14,7 @@ export function assertProject(value:unknown):asserts value is Project {
   requireValue(object(value),"falta el proyecto");
   const check=(p:Record<string,unknown>)=>{
     requireValue(p.version===1&&typeof p.name==="string","formato o versión desconocidos");
-    requireValue(integer(p.fps,1)&&p.fps<=120&&integer(p.width,1)&&integer(p.height,1),"FPS o dimensiones incorrectos");
+    requireValue(number(p.fps)&&p.fps>=1&&p.fps<=120&&integer(p.width,1)&&integer(p.height,1),"FPS o dimensiones incorrectos");
     requireValue(Array.isArray(p.tracks),"faltan las pistas");
     if(p.masterVolume!==undefined)requireValue(number(p.masterVolume)&&p.masterVolume>=0&&p.masterVolume<=4,"mezcla maestra inválida");
     const tracks=new Set<string>(),clips=new Set<string>();
@@ -26,6 +26,7 @@ export function assertProject(value:unknown):asserts value is Project {
         requireValue(object(c)&&typeof c.id==="string"&&!clips.has(c.id)&&["video","audio","text","caption","graphic"].includes(String(c.kind))&&(c.kind==="audio")===(t.kind==="audio")&&integer(c.from)&&integer(c.durationInFrames,1),"clip incorrecto, duplicado o con tiempos inválidos");clips.add(c.id);
         if(c.renderEngine!==undefined)requireValue(["remotion","hyperframes"].includes(String(c.renderEngine))&&(c.renderEngine!=="hyperframes"||hyperframesSupported(c as unknown as import("./types").Clip)),"motor de clip inválido");
         if(c.motion!==undefined)requireValue(motionSupported(c as unknown as import("./types").Clip)&&validMotion(c.motion),"animación inválida");
+        if(c.reframeFocus!==undefined)requireValue(c.kind==="video"&&object(c.reframeFocus)&&[c.reframeFocus.x,c.reframeFocus.y].every(n=>number(n)&&n>=0&&n<=1),"encuadre inválido");
         if(c.effects!==undefined)requireValue(c.kind!=="audio"&&validEffects(c.effects),"efectos inválidos");
         for(const key of ["transitionIn","transitionOut"]){const v=c[key];if(v!==undefined)requireValue(c.kind!=="audio"&&object(v)&&["dissolve","dipBlack","dipWhite","wipe"].includes(String(v.type))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de video inválida");}
         if(c.crossfadeIn!==undefined){const v=c.crossfadeIn;requireValue(c.kind==="audio"&&object(v)&&["linear","equalPower"].includes(String(v.curve))&&integer(v.frames,1)&&v.frames<=Number(p.fps)*10,"transición de audio inválida");}
@@ -53,6 +54,8 @@ export function assertProject(value:unknown):asserts value is Project {
         }
       }
     }
+    if(p.audioSampleRate!==undefined)requireValue([44100,48000,96000].includes(Number(p.audioSampleRate)),"frecuencia de audio inválida");
+    if(p.exportRanges!==undefined){const ids=new Set<string>();requireValue(Array.isArray(p.exportRanges)&&p.exportRanges.length<=500&&p.exportRanges.every(r=>{if(!object(r)||typeof r.id!=="string"||ids.has(r.id)||typeof r.name!=="string"||!r.name.trim()||!integer(r.start)||!integer(r.end,1)||r.end<=r.start)return false;ids.add(r.id);return true;}),"rangos de exportación inválidos");}
     if(p.markers!==undefined)requireValue(Array.isArray(p.markers)&&p.markers.every(m=>object(m)&&typeof m.id==="string"&&integer(m.frame)&&typeof m.label==="string"&&typeof m.color==="string"),"marcadores incorrectos");
     if(p.transcripts!==undefined)requireValue(object(p.transcripts)&&Object.values(p.transcripts).every(words=>Array.isArray(words)&&words.every(w=>object(w)&&typeof w.text==="string"&&integer(w.start)&&integer(w.end)&&w.end>=w.start)),"transcripción incorrecta");
   };
@@ -71,9 +74,9 @@ export function assertProject(value:unknown):asserts value is Project {
       while(parent!==undefined){requireValue(typeof parent==="string"&&folders.has(parent)&&!seen.has(parent),"carpeta ausente o circular");seen.add(parent);parent=folders.get(parent)!.parentId;}
     }
     const media=new Set<string>();
-    for(const m of l.media){requireValue(object(m)&&typeof m.src==="string"&&!media.has(m.src)&&typeof m.name==="string"&&integer(m.durationInFrames,1)&&(m.kind===undefined||m.kind==="audio"||m.kind==="video")&&(m.proxySrc===undefined||typeof m.proxySrc==="string")&&(m.originalName===undefined||typeof m.originalName==="string"),"medio de biblioteca incorrecto o duplicado");media.add(m.src);meta(m);}
+    for(const m of l.media){if(object(m)&&m.frameBase!==undefined)requireValue(number(m.frameBase)&&m.frameBase>=1&&m.frameBase<=120,"base temporal de medio inválida");requireValue(object(m)&&typeof m.src==="string"&&!media.has(m.src)&&typeof m.name==="string"&&integer(m.durationInFrames,1)&&(m.kind===undefined||m.kind==="audio"||m.kind==="video")&&(m.proxySrc===undefined||typeof m.proxySrc==="string")&&(m.originalName===undefined||typeof m.originalName==="string"),"medio de biblioteca incorrecto o duplicado");media.add(m.src);meta(m);}
     const elements=new Set<string>();
-    for(const e of l.elements){requireValue(object(e)&&typeof e.id==="string"&&!elements.has(e.id)&&typeof e.name==="string"&&object(e.clip)&&(e.clip.kind==="text"||e.clip.kind==="graphic"),"elemento de biblioteca incorrecto o duplicado");elements.add(e.id);meta(e);check({...value,tracks:[{id:"asset",name:"Elemento",kind:e.clip.kind,clips:[e.clip]}]});}
+    for(const e of l.elements){if(object(e)&&e.frameBase!==undefined)requireValue(number(e.frameBase)&&e.frameBase>=1&&e.frameBase<=120,"base temporal de plantilla inválida");requireValue(object(e)&&typeof e.id==="string"&&!elements.has(e.id)&&typeof e.name==="string"&&object(e.clip)&&(e.clip.kind==="text"||e.clip.kind==="graphic"),"elemento de biblioteca incorrecto o duplicado");elements.add(e.id);meta(e);check({...value,tracks:[{id:"asset",name:"Elemento",kind:e.clip.kind,clips:[e.clip]}]});}
     for(const [id,m] of Object.entries(l.sequenceMeta)){requireValue(object(m)&&object(value.sequences)&&Boolean(value.sequences[id]),"metadatos de secuencia ausente");meta(m);}
   }
   if(value.sequences!==undefined){requireValue(object(value.sequences),"secuencias incorrectas");for(const s of Object.values(value.sequences)){requireValue(object(s)&&integer(s.durationInFrames,1),"secuencia incorrecta");check(s);}}

@@ -17,7 +17,7 @@ export function useMonitorDrag(options:Options){
   const cancel=()=>{cleanup.current?.();setActive(null);clearHover();};
   useEffect(()=>cancel(),[options.session]);
   useEffect(()=>()=>cleanup.current?.(),[]);
-  const resolve=(payload:MediaDrag,trackId:string,raw:number,bypass=false)=>{const o=latest.current;return snapTimeline(o.project,raw,o.pxPerFrame,o.snapping&&!bypass,{duration:dropDuration(payload),playhead:o.playhead,previous:hoverRef.current?.trackId===trackId?hoverRef.current.snap:null});};
+  const resolve=(payload:MediaDrag,trackId:string,raw:number,bypass=false)=>{const o=latest.current;return snapTimeline(o.project,raw,o.pxPerFrame,o.snapping&&!bypass,{duration:dropDuration(payload,o.project.fps),playhead:o.playhead,previous:hoverRef.current?.trackId===trackId?hoverRef.current.snap:null});};
   const update=(payload:MediaDrag,trackId:string,raw:number,bypass=false)=>{const snap=resolve(payload,trackId,raw,bypass),next={payload,trackId,at:snap.frame,snap};const old=hoverRef.current;hoverRef.current=next;if(!old||old.payload!==payload||old.trackId!==trackId||old.at!==next.at||old.snap.point!==snap.point)setHover(next);return next;};
   const beginNative=(payload:MediaDrag)=>{cleanup.current?.();clearHover();setActive(payload);};
   const dropNative=(payload:MediaDrag,track:string,raw:number,bypass=false)=>{const hit=resolve(payload,track,raw,bypass);cancel();const target=[...latest.current.root()?.querySelectorAll<HTMLElement>("[data-track-id]")??[]].find(e=>e.dataset.trackId===track);if(target)latest.current.onActivate(target);latest.current.onDrop(payload,track,hit.frame);};

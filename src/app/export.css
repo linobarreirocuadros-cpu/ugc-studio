@@ -1,0 +1,411 @@
+.command-dialog:has(.export-panel) {
+  width: min(1180px, 96vw);
+  max-width: 96vw;
+  height: min(880px, 94vh);
+  max-height: 94vh;
+  padding: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    125deg,
+    rgba(11, 23, 40, 0.97),
+    rgba(24, 17, 40, 0.97)
+  );
+  border: 1px solid #9ab8db24;
+  border-radius: 16px;
+  backdrop-filter: blur(28px);
+}
+.command-dialog:has(.export-panel) > h2 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.export-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 9px;
+}
+.delivery-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #bdd6ff14;
+  padding-bottom: 8px;
+}
+.delivery-nav [aria-pressed="true"] {
+  background: #5ba6ee25;
+  box-shadow: inset 0 0 0 1px #92c5ff2a;
+}
+.delivery-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(280px, 1.15fr);
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+.delivery-settings,
+.delivery-preview {
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 7px 10px 2px;
+  scrollbar-width: thin;
+}
+.delivery-settings h3 {
+  font-size: 11px;
+  margin: 3px 0 10px;
+}
+.export-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 7px 0;
+  font-size: 9px;
+}
+.export-panel input,
+.export-panel select {
+  font: inherit;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.export-panel input[type="number"] {
+  width: 100%;
+}
+.export-panel small {
+  display: block;
+  font-size: 8px;
+  color: #aabbd0;
+  line-height: 1.6;
+}
+.export-panel fieldset {
+  border: 1px solid #abc7ea18;
+  border-radius: 10px;
+  padding: 9px;
+  margin: 12px 0;
+}
+.export-panel legend {
+  font-size: 9px;
+  color: #b7cce6;
+  padding: 0 5px;
+}
+.export-panel details {
+  margin: 7px 0;
+  padding: 7px;
+  background: #91add208;
+  border-radius: 8px;
+}
+.export-panel summary {
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.export-panel details > summary .delivery-check {
+  display: inline-flex;
+  margin: 0 5px;
+}
+.export-panel .delivery-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+}
+.export-panel input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #8cb9f3;
+}
+.export-panel button {
+  font-size: 9px;
+  min-height: 22px;
+}
+.export-panel p {
+  font-size: 9px;
+  line-height: 1.7;
+}
+.sequence-settings-row {
+  display: flex;
+  gap: 8px;
+}
+.sequence-settings-row > label {
+  flex: 1;
+  min-width: 0;
+}
+.sequence-settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sequence-settings-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sequence-settings-fields input,
+.sequence-settings-fields select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.delivery-range {
+  border-top: 1px solid #aac6e714;
+  padding-top: 5px;
+}
+.delivery-format {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.delivery-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.delivery-preview-selectors {
+  display: flex;
+  gap: 7px;
+}
+.delivery-preview-selectors label {
+  flex: 1;
+  min-width: 0;
+}
+.delivery-player {
+  min-height: 150px;
+  height: 40vh;
+  max-height: 400px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  overflow: hidden;
+  background: repeating-conic-gradient(#142033 0% 25%, #101a2a 0% 50%) 0 0/20px
+    20px;
+}
+.delivery-player > div {
+  max-height: 100%;
+}
+.delivery-preview .delivery-reframe {
+  flex: 0 0 auto;
+}
+.delivery-file-list {
+  font-family: monospace;
+  overflow-wrap: anywhere;
+}
+.delivery-file-list > div {
+  padding: 3px;
+  color: #b1c4dd;
+  font-size: 8px;
+}
+.delivery-job {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 0;
+  border-top: 1px solid #aac6e714;
+}
+.delivery-job strong {
+  width: 100%;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.delivery-job progress {
+  width: 100%;
+  height: 4px;
+  accent-color: #8cbfff;
+}
+.delivery-job a {
+  margin-right: 8px;
+}
+.delivery-path {
+  overflow-wrap: anywhere;
+}
+.delivery-error {
+  color: #ffc8b8;
+  padding: 5px;
+  background: #d4533a18;
+  margin: 0;
+}
+.export-panel footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  border-top: 1px solid #abc7ea18;
+  padding-top: 8px;
+}
+.export-panel footer > span {
+  margin-right: auto;
+  color: #9cb1cb;
+  font-size: 8px;
+}
+.export-range-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 3px 6px;
+  border-bottom: 1px solid #bdd6ff10;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+.export-range-controls button {
+  font-size: 8px !important;
+  min-height: 18px !important;
+  padding: 1px 5px !important;
+}
+.export-range-controls .export-range-chip {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  color: #b5c9e2;
+}
+.export-range-controls input[type="checkbox"] {
+  width: 10px;
+  height: 10px;
+  margin: 0;
+}
+.export-range-controls .range-selected {
+  background: #55aeef22;
+}
+.timeline-export-band {
+  position: absolute;
+  bottom: 0;
+  height: 11px;
+  border: 1px solid #82c7ff77;
+  border-radius: 3px;
+  background: #58aff130;
+  color: #d5eaff;
+  font-size: 7px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: context-menu;
+  z-index: 6;
+  box-sizing: border-box;
+}
+.timeline-ruler-viewport:has(.timeline-export-band),
+.timeline-ruler-viewport:has(.timeline-export-band) .ruler {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.timeline-area:has(.timeline-export-band) .ruler-spacer {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.timeline-document-tabs .document-tab[draggable="true"] {
+  cursor: grab;
+}
+.timeline-document-tabs .document-tab[draggable="true"]:active {
+  cursor: grabbing;
+}
+@media (max-width: 650px) {
+  .delivery-layout {
+    grid-template-columns: 1fr;
+  }
+  .delivery-preview {
+    display: none;
+  }
+  .command-dialog:has(.export-panel) {
+    width: 96vw;
+  }
+  .export-panel footer > span {
+    width: 100%;
+  }
+}
+
+.export-panel label {
+  text-align: left;
+  align-items: stretch;
+}
+.export-panel input:not([type]),
+.export-panel input[type="text"],
+.export-panel select {
+  width: 100%;
+  max-width: none;
+}
+.export-panel .delivery-check {
+  align-items: center;
+}
+.export-panel .delivery-preview label {
+  margin: 3px 0;
+}
+
+.command-dialog .export-panel label {
+  text-align: left;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+.command-dialog .export-panel .delivery-check {
+  align-items: center;
+}
+.command-dialog .export-panel input:not([type]),
+.command-dialog .export-panel input[type="text"],
+.command-dialog .export-panel input[type="number"],
+.command-dialog .export-panel select {
+  width: 100%;
+  max-width: none;
+}
+.delivery-preview-nav {
+  display: none;
+}
+@media (max-width: 650px) {
+  .delivery-preview-nav {
+    display: inline-flex;
+  }
+  .export-panel[data-view="preview"] .delivery-settings {
+    display: none;
+  }
+  .export-panel[data-view="preview"] .delivery-preview {
+    display: flex;
+  }
+  .delivery-player {
+    height: 32vh;
+  }
+  .delivery-preview-selectors {
+    flex-wrap: wrap;
+  }
+  .delivery-preview-selectors label {
+    min-width: 90px;
+  }
+}
+
+.delivery-job pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 8px;
+}
+.delivery-job details {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.export-range-controls {
+  max-height: 68px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.delivery-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  padding: 1px 0;
+  flex-shrink: 0;
+}
+.delivery-preview-controls input[type="range"] {
+  flex: 1;
+  min-width: 35px;
+  accent-color: #8cbcf6;
+}
+.delivery-preview-controls span {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-preview-controls button {
+  padding: 2px 5px;
+}

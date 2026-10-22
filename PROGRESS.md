@@ -1,5 +1,45 @@
 # Progreso
 
+## 2026-10-21 — Secuencias configurables y exportación de entregas
+
+Lino confirmó Completa (con captions/overlays), RAW (cortes/audio, sin captions/overlays) y
+Overlays (montaje con overlays, sin captions), combinables con 9:16 y 4:5. Pidió adaptación
+coherente de encuadres/textos, varios pares I/O persistentes y una cola de todas las variantes.
+
+- Nuevo panel Exportar: revisión, matriz rangos × versiones × formatos, nombres, presets,
+  codecs/bitrate/GOP/color/audio/metadatos y cola serial persistida con cancelación/reintento.
+  Los parámetros de Adobe sin equivalente real están identificados como pendientes; catálogo
+  y uso en `EXPORTACION.md`. Originales al render; calidad del monitor permanece independiente.
+- `exportRanges`/ops/validación y franja de regla; selección, renombrado y borrado reversibles.
+  Clic derecho abre exportación; cada entrega guarda opcionalmente JSON del rango y SRT.
+- Secuencias con lienzo/FPS/audio propios, presets 720p–4K y personalizados. FPS fraccionarios
+  hasta 120; retiming conserva segundos, fuentes, palabras y claves. `frameBase` identifica
+  las unidades de la biblioteca. Colocación/anidación y dibujo admiten FPS/lienzos distintos.
+- Aviso de primer video incompatible: conservar/igualar/cancelar, una transacción. QA corrigió
+  la guarda que comparaba vistas temporales de secuencia por identidad; ahora captura raíz/epoch.
+  La colocación de un medio desde su menú comparte el mismo flujo. Pestañas reordenables localmente.
+- Recomposición proporcional, márgenes y separación inicial de textos/captions. Foco por clip
+  editable; sugerencia local Ollama con tres muestras, cancelable y revisable. No es tracking
+  continuo ni aprobación editorial. Las anidaciones se adaptan, sin aplanarlas.
+- Codificación verificada por FFprobe antes de terminar cada archivo. QA detectó perfiles/canales
+  ignorados en mux, HEVC incluido de 8 bits y deriva del reloj al pasar por MKV en segmentos
+  mínimos. Ahora Remotion genera video en su contenedor nativo y PCM separado; FFmpeg codifica
+  el sonido una vez y copia el video. HEVC/H.264 8 bits, VP9 10 y ProRes; PCM real 16 bits.
+- Corregida la espera de un lote antiguo reintentado mientras avanzaba otro: drenar por próximo
+  pendiente, sin depender del índice de iteración. Recuperación aísla entradas inválidas, conserva
+  copia del estado dañado y mantiene históricos cuyos ajustes ya no soporta el motor actual.
+
+Verificación: 160 tests (15 nuevos), typecheck/build y QA real de UI en puerto 5175 aislado.
+Matriz de 12 archivos pequeños; cuatro salidas Full HD desde UI, SRT recortados por palabras y
+JSON de cada rango válidos. H.264, HEVC 23.976, VP9 10 bits, ProRes y WAV con mono/frecuencias
+verificados; 4K de tres frames a 30 fps. Cancelar/reintentar y descarga después de reiniciar;
+visión local devolvió foco validado. Esto no certifica rendimiento de 4K largo ni coherencia
+editorial de un reencuadre real. Build conserva aviso conocido de chunks grandes.
+
+Pendientes: HDR/ICC, PCM24 real y multicanal, más formatos, VBR dos pasadas/GPU, motion blur y
+frame blending de salida, recorte global, empaquetado de medios y tracking de sujetos. Revisar
+con Lino un anuncio real con overlays y movimiento antes de aprobar adaptación automática.
+
 ## 2026-10-21 — Remotion principal e integración editable de HyperFrames
 
 Lino autorizó usar ambos motores conservando las capas y todos los parámetros generados.

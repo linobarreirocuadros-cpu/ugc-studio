@@ -39,8 +39,8 @@ export function TimelineToolbar({ project, frame, preferences, onPreferences, on
     if (time === null) return;
     const parts = time.trim().split(":").map(Number);
     const [h, m, s, f] = parts;
-    if (!/^\d+:\d{2}:\d{2}:\d{2}$/.test(time.trim()) || parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0) || m >= 60 || s >= 60 || f >= project.fps) { setTimeError("Usa HH:MM:SS:FF, con frames válidos."); return; }
-    const at = ((h * 60 + m) * 60 + s) * project.fps + f;
+    if (!/^\d+:\d{2}:\d{2}:\d{2,3}$/.test(time.trim()) || parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0) || m >= 60 || s >= 60 || f >= Math.round(project.fps)) { setTimeError("Usa HH:MM:SS:FF, con frames válidos."); return; }
+    const at = ((h * 60 + m) * 60 + s) * Math.round(project.fps) + f;
     if (at >= getProjectDuration(project)) { setTimeError("Ese tiempo está fuera del montaje."); return; }
     onSeek(at); setTime(null); setTimeError("");
   };

@@ -1,3 +1,4 @@
+import {retimeStandaloneClip,retimeProject,validSequenceSettings,type SequenceSettings} from "./sequenceSettings";
 import {assertProject} from "./projectFile";
 import {DEFAULT_MOTION,validMotion,sliceMotion,motionSupported,hyperframesSupported,type ClipMotion,type RenderEngine} from "./motion";
 import {bakeTrackMix} from "./audioMix";
@@ -31,7 +32,7 @@ import { emptyLibrary, projectLibrary, projectItems, expandProjectItems, project
 export const newId = () => Math.random().toString(36).slice(2, 10);
 
 /** Migración del archivo antiguo: biblioteca global dentro del mismo JSON e historial. */
-export const ensureProjectLibrary = (p:Project,legacyMedia:LibraryMedia[]=[]):Project => p.library?p:{...p,library:{...emptyLibrary(),media:legacyMedia}};
+export const ensureProjectLibrary = (p:Project,legacyMedia:LibraryMedia[]=[]):Project => p.library?p.library.media.every(m=>m.frameBase!==undefined)&&p.library.elements.every(e=>e.frameBase!==undefined)?p:{...p,library:{...p.library,media:p.library.media.map(m=>({...m,frameBase:m.frameBase??p.fps})),elements:p.library.elements.map(e=>({...e,frameBase:e.frameBase??p.fps}))}}:{...p,library:{...emptyLibrary(),media:legacyMedia.map(m=>({...m,frameBase:m.frameBase??p.fps}))}};
 export const setLibraryMedia = (p:Project,media:LibraryMedia[]):Project => {
   const library=projectLibrary(p);return media===library.media||JSON.stringify(media)===JSON.stringify(library.media)?p:{...p,library:{...library,media}};
 };
@@ -75,12 +76,12 @@ export const addProjectElement = (p:Project,type:LibraryElementType,name:string,
   const l=projectLibrary(p);if(folderId&&!l.folders.some(f=>f.id===folderId))throw new Error("La carpeta de destino ya no existe.");
   name=name.trim().slice(0,160)||"Elemento";
   const clip:GraphicClip|import("./types").TextClip=type==="text"?{id,kind:"text",text:name,from:0,durationInFrames:duration,style:{...DEFAULT_TEXT_STYLE}}:{id,kind:"graphic",shape:type==="adjustment"?"adjustment":type==="rectangle"?"rectangle":"solid",name,from:0,durationInFrames:duration,color:type==="black"?"#000000":color,x:.5,y:.5,width:.3,height:Math.min(1,.3*p.width/p.height),opacity:type==="transparent"?0:1,brightness:1,contrast:1,saturation:1};
-  return {...p,library:{...l,elements:[...l.elements,{id,name,folderId,clip}]}};
+  return {...p,library:{...l,elements:[...l.elements,{id,name,folderId,clip,frameBase:p.fps}]}};
 };
 export const placeProjectElement = (p:Project,id:string,at:number,hostId?:string,trackId?:string,duration?:number):Project => {
   if(duration!==undefined&&(!Number.isSafeInteger(duration)||duration<1))return p;
   const item=projectLibrary(p).elements.find(e=>e.id===id);if(!item)return p;
-  const clip={...item.clip,durationInFrames:duration??item.clip.durationInFrames,projectItemId:id,labelColor:item.labelColor};
+  const template=retimeStandaloneClip(item.clip,item.frameBase??p.fps,p.fps);const clip={...template,durationInFrames:duration??template.durationInFrames,projectItemId:id,labelColor:item.labelColor};
   if(trackId){const target=p.tracks.find(t=>t.id===trackId);if(!target||target.locked||!trackAcceptsClip(target,clip)||!Number.isSafeInteger(at)||at<0)return p;const placed={...clip,id:newId(),from:at};return overwritePlaced(p,mapTracks(p,t=>t.id===trackId?{...t,clips:[...t.clips,placed]}:t),[placed.id],true);}
   const track:Track={id:clip.kind==="text"?"T1":`G-item-${id}`,kind:clip.kind,name:item.name,clips:[clip]};
   return pasteClips(p,{...p,tracks:[track]},at,hostId);
@@ -98,11 +99,11 @@ export const placeProjectItems = (p:Project,keys:string[],at:number,hostId?:stri
   if(!Number.isSafeInteger(at)||at<0)return p;
   let next=p,cursor=at;const library=projectLibrary(p);
   for(const key of keys){
-    const m=library.media.find(m=>m.src===key),s=key.startsWith("sequence:")?p.sequences?.[key.slice(9)]:undefined,e=key.startsWith("element:")?library.elements.find(e=>e.id===key.slice(8)):undefined;
+    const original=library.media.find(m=>m.src===key),m=original?{...original,durationInFrames:Math.max(1,Math.round(original.durationInFrames*p.fps/(original.frameBase??p.fps))),frameBase:p.fps}:undefined,s=key.startsWith("sequence:")?p.sequences?.[key.slice(9)]:undefined,e=key.startsWith("element:")?library.elements.find(e=>e.id===key.slice(8)):undefined;
     const before=next;
     if(m){const target=destinationTrack(next,m.kind==="audio"?"audio":"video");if(!target)return p;next=addSourceRange(next,m,target,cursor);cursor+=m.durationInFrames;}
-    else if(s){const target=destinationTrack(next,"video");if(!target)return p;next=placeSequence(next,s.id,target,cursor,nested,hostId);cursor+=s.durationInFrames;}
-    else if(e){next=placeProjectElement(next,e.id,cursor,hostId);cursor+=e.clip.durationInFrames;}
+    else if(s){const target=destinationTrack(next,"video");if(!target)return p;next=placeSequence(next,s.id,target,cursor,nested,hostId);cursor+=Math.max(1,Math.round(s.durationInFrames*p.fps/s.fps));}
+    else if(e){next=placeProjectElement(next,e.id,cursor,hostId);cursor+=Math.max(1,Math.round(e.clip.durationInFrames*p.fps/(e.frameBase??p.fps)));}
     else return p;
     if(next===before)return p;
   }
@@ -154,9 +155,10 @@ export const setClipVolume = (p: Project, ids: string[], value: number, relative
   if([...audio].every(id=>{const c=findClip(p,id)!.clip as AudioClip|VideoClip;return c.volume===Math.max(0,Math.min(4,relative?c.volume*value:value));}))return p;
   return mapTracks(p, t => ({ ...t, clips: t.clips.map(c => audio.has(c.id) && (c.kind === "audio" || c.kind === "video") ? { ...c, volume: Math.max(0, Math.min(4, relative ? c.volume * value : value)) } : c) }));
 };
-export const createEmptySequence = (p: Project, name: string): Project => {
+export const createEmptySequence = (p: Project, name: string,settings?:SequenceSettings): Project => {
+  if(settings&&!validSequenceSettings(settings))throw new Error("Parámetros de secuencia inválidos");
   const id = newId(), empty = createEmptyProject();
-  return { ...p, sequences: { ...p.sequences, [id]: { ...empty, id, name: name.trim().slice(0,100) || "Secuencia", fps: p.fps, width: p.width, height: p.height, durationInFrames: p.fps } } };
+  return { ...p, sequences: { ...p.sequences, [id]: { ...empty, id, name: name.trim().slice(0,100) || "Secuencia", fps: p.fps, width: p.width, height: p.height,...(settings?{width:settings.width,height:settings.height,fps:settings.fps,audioSampleRate:settings.audioSampleRate??48000}:{}), durationInFrames: Math.ceil(settings?.fps??p.fps) } } };
 };
 /** Anidar sustituye la selección por una referencia editable; crear subsecuencia solo copia. */
 export const nestClips = (p: Project, ids: string[], name: string, hostId?: string): Project => {
@@ -274,7 +276,7 @@ export const createSequence = (project: Project, ids: string[], name: string): P
   if (!clips.length) return project;
   const start = Math.min(...clips.map((c) => c.from)), end = Math.max(...clips.map((c) => c.from + c.durationInFrames));
   const id = newId();
-  const { sequences: _, library: _library, ...base } = project;
+  const { sequences: _, library: _library,exportRanges:_exportRanges, ...base } = project;
   const sequence = { ...base, masterVolume:undefined, id, name: name.trim().slice(0, 100) || "Secuencia", durationInFrames: end - start,
     tracks: project.tracks.map((t) => ({ ...t, locked: false, targeted: false, clips: t.clips.filter((c) => selected.has(c.id)).map((c) => ({ ...c, from: c.from - start })) })),
     markers: (project.markers ?? []).filter((m) => m.frame >= start && m.frame < end).map((m) => ({ ...m, frame: m.frame - start })),
@@ -286,9 +288,9 @@ export const updateSequence = (project: Project, id: string, contents: Project):
   if (!project.sequences?.[id]) return project;
   const { sequences, library, ...sequence } = contents;
   const end = Math.max(1, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.from + c.durationInFrames)));
-  const refresh = (tracks: Track[]) => tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: end, trimStart: Math.min(c.trimStart,end-1), durationInFrames: Math.min(c.durationInFrames,end-Math.min(c.trimStart,end-1)) } : c) }));
+  const refresh = (tracks: Track[],hostFps:number) => {const frames=Math.max(1,Math.round(end*hostFps/sequence.fps));return tracks.map((t) => ({ ...t, clips: t.clips.map((c) => (c.kind === "video" || c.kind === "audio") && c.sequenceId === id ? { ...c, name: sequence.name, sourceDurationInFrames: frames, trimStart: Math.min(c.trimStart,frames-1), durationInFrames: Math.min(c.durationInFrames,frames-Math.min(c.trimStart,frames-1)) } : c) }));};
   const next = { ...sequences, [id]: { ...sequence, id, durationInFrames: end } };
-  return { ...project, ...(library ? {library} : {}), tracks: refresh(project.tracks), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks) }])) };
+  return { ...project, ...(library ? {library} : {}), tracks: refresh(project.tracks,project.fps), sequences: Object.fromEntries(Object.entries(next).map(([key, value]) => [key, { ...value, tracks: refresh(value.tracks,value.fps) }])) };
 };
 
 const containsSequence = (project: Project, id: string, sought: string, visited = new Set<string>()): boolean => {
@@ -301,8 +303,8 @@ const containsSequence = (project: Project, id: string, sought: string, visited 
 export const placeSequence = (project: Project, sequenceId: string, trackId: string, at: number, nested: boolean, hostId?: string,maximumDuration?:number): Project => {
   if(maximumDuration!==undefined&&(!Number.isSafeInteger(maximumDuration)||maximumDuration<1||!nested))return project;
   if (hostId && containsSequence(project, sequenceId, hostId)) return project;
-  const sequence = project.sequences?.[sequenceId], target = project.tracks.find((t) => t.id === trackId);
-  if (!sequence || !target || trackFamily(target.kind) !== "video"&&!(nested&&target.kind==="audio") || target.locked || sequence.fps !== project.fps || !Number.isFinite(at)) return project;
+  const originalSequence=project.sequences?.[sequenceId],sequence=originalSequence?retimeProject(originalSequence,project.fps):undefined, target = project.tracks.find((t) => t.id === trackId);
+  if (!sequence || !target || trackFamily(target.kind) !== "video"&&!(nested&&target.kind==="audio") || target.locked || !Number.isFinite(at)) return project;
   const from = Math.max(0, Math.round(at));
   if (nested) {
     const videoId = newId(), audioId = newId(), audioOnly=target.kind==="audio", audioTrack = audioOnly?target.id:destinationTrack(project, "audio");
@@ -687,7 +689,7 @@ export const insertSourceRange = (project: Project, media: Parameters<typeof add
 
 export const addTextClip = (project:Project,opts:{text:string;from:number;durationInFrames:number;style?:Partial<TextStyle>;id?:string},trackId="T1"):Project=>{
   const target=project.tracks.find(t=>t.id===trackId);if(!target||target.locked||target.kind==="audio")return project;
-  const clip:import("./types").TextClip={id:opts.id??newId(),kind:"text",text:opts.text,from:opts.from,durationInFrames:opts.durationInFrames,style:{...DEFAULT_TEXT_STYLE,...opts.style}};
+  const clip:import("./types").TextClip={id:opts.id??newId(),kind:"text",text:opts.text,from:opts.from,durationInFrames:Math.max(1,Math.round(opts.durationInFrames)),style:{...DEFAULT_TEXT_STYLE,...opts.style}};
   return overwritePlaced(project,mapTracks(project,t=>t.id===trackId?{...t,clips:[...t.clips,clip]}:t),[clip.id],true);
 };
 
@@ -1227,4 +1229,16 @@ export function addMotionScene(p:Project,elements:MotionSceneElement[],engine:Re
   return {trackId:e.trackId??layers.get(e.layer??0)!,clip};
  });
  const next=addEditableScene(base,items);return next===base?p:next;
+}
+
+/** Los pares de llaves de entrega pertenecen a la secuencia y comparten Deshacer. */
+export const setExportRange=(p:Project,r:import("./types").ExportRange):Project=>{
+ if(!r.id||!r.name.trim()||!Number.isSafeInteger(r.start)||!Number.isSafeInteger(r.end)||r.start<0||r.end<=r.start||(p.exportRanges?.length??0)>=500&&!p.exportRanges?.some(x=>x.id===r.id))return p;
+ return {...p,exportRanges:[...(p.exportRanges??[]).filter(x=>x.id!==r.id),{...r,name:r.name.trim().slice(0,120)}].sort((a,b)=>a.start-b.start)};
+};
+export const deleteExportRange=(p:Project,id:string):Project=>({...p,exportRanges:p.exportRanges?.filter(r=>r.id!==id)});
+export function setSequenceSettings(p:Project,settings:SequenceSettings,libraryFps=p.fps):Project{
+ if(!validSequenceSettings(settings))throw new Error("Tamaño o FPS fuera de rango");
+ if(p.tracks.some(t=>t.locked&&t.clips.length)&&p.fps!==settings.fps)throw new Error("Desbloquea las pistas antes de cambiar la base temporal");
+ return {...retimeProject(p,settings.fps),...(p.library?{library:{...p.library,media:p.library.media.map(m=>({...m,frameBase:m.frameBase??libraryFps})),elements:p.library.elements.map(e=>({...e,frameBase:e.frameBase??libraryFps}))}}:{}),width:settings.width,height:settings.height,audioSampleRate:settings.audioSampleRate??p.audioSampleRate??48000,...(settings.name?.trim()?{name:settings.name.trim().slice(0,100)}:{})};
 }

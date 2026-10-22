@@ -18,6 +18,7 @@ export type VideoClip = ClipMetadata & MediaTiming & {
   sourceDurationInFrames: number; // duración total del archivo
   volume: number; // 0..4; 1 = 0 dB
   linkedClipId?: string;
+  reframeFocus?:{x:number;y:number};
   freezeFrame?: number; // fotograma absoluto del archivo; no congela el audio enlazado
   audioMode?: "embedded" | "separate" | "none";
   sequenceId?: string;
@@ -115,10 +116,12 @@ export const trackFamily = (kind: Track["kind"]): "audio" | "video" => kind === 
 export const trackAcceptsClip = (track: Track, clip: Clip): boolean => (track.kind === "audio") === (clip.kind === "audio");
 
 export type LibraryMetadata = {folderId?:string;labelColor?:string;notes?:string};
-export type LibraryMedia = LibraryMetadata & {src:string;name:string;originalName?:string;durationInFrames:number;proxySrc?:string;kind?:"video"|"audio";hasAudio?:boolean};
+export type LibraryMedia = LibraryMetadata & {src:string;name:string;originalName?:string;durationInFrames:number;frameBase?:number;proxySrc?:string;kind?:"video"|"audio";hasAudio?:boolean};
 export type ProjectFolder = {id:string;name:string;parentId?:string;labelColor?:string;notes?:string};
-export type LibraryElement = LibraryMetadata & {id:string;name:string;clip:GraphicClip|TextClip};
+export type LibraryElement = LibraryMetadata & {id:string;name:string;frameBase?:number;clip:GraphicClip|TextClip};
 export type ProjectLibrary = {media:LibraryMedia[];folders:ProjectFolder[];elements:LibraryElement[];sequenceMeta:Record<string,LibraryMetadata>};
+
+export type ExportRange={id:string;name:string;start:number;end:number};
 
 export type Project = {
   version: 1;
@@ -130,6 +133,8 @@ export type Project = {
   transcripts?: Record<string, Word[]>; // por archivo (clave = src)
   transcriptInfo?: Record<string, { engine: string; model: string; language: string; vocabulary?: string }>;
   markers?: TimelineMarker[];
+  exportRanges?:ExportRange[];
+  audioSampleRate?:number;
   sequences?: Record<string, SequenceProject>;
   masterVolume?:number;
   library?: ProjectLibrary; // biblioteca global; comparte el historial del montaje
@@ -233,7 +238,7 @@ export const getProjectDuration = (project: Project): number => {
       .flatMap((t) => t.clips)
       .reduce((end, c) => Math.max(end, c.from + c.durationInFrames), 0);
   const end = endOf(false) || endOf(true);
-  return Math.max(end, project.fps); // Remotion necesita al menos 1 frame; usamos 1 s
+  return Math.max(end, Math.ceil(project.fps)); // Remotion necesita al menos 1 frame; usamos 1 s
 };
 
 export const clipLabel = (clip: Clip): string =>

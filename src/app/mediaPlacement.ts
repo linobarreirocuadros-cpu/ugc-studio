@@ -1,14 +1,15 @@
+import {retimeProject} from "../project/sequenceSettings";
 import type {Project,LibraryMedia,Clip} from "../project/types";
 import {trackAcceptsClip} from "../project/types";
 import * as ops from "../project/ops";
 import type {MediaDrag} from "./Timeline";
 
-export type PlacementOptions={media:LibraryMedia[];hostId?:string;nested:boolean};
+export type PlacementOptions={media:LibraryMedia[];mediaFps?:number;hostId?:string;nested:boolean};
 /** Misma operación pura para la silueta y para soltar; nunca escribe historial aquí. */
 export function placeMedia(project:Project,payload:MediaDrag,trackId:string,at:number,options:PlacementOptions):Project{
   const target=project.tracks.find(t=>t.id===trackId);
   if(!target||target.locked||!Number.isSafeInteger(at)||at<0)return project;
-  if(payload.timelineRange)return ops.placeTimelineRange(project,payload.timelineRange.project,trackId,at,payload.mode,options.hostId);
+  if(payload.timelineRange)return ops.placeTimelineRange(project,retimeProject(payload.timelineRange.project,project.fps),trackId,at,payload.mode,options.hostId);
   let next=project,cursor=at;
   for(const item of payload.items??[payload]){
     if(item.outFrame<=item.inFrame)return project;
@@ -16,15 +17,15 @@ export function placeMedia(project:Project,payload:MediaDrag,trackId:string,at:n
     if(item.elementId)placed=ops.placeProjectElement(next,item.elementId,cursor,options.hostId,trackId);
     else if(item.sequenceId)placed=ops.placeSequence(next,item.sequenceId,trackId,cursor,options.nested,options.hostId);
     else{
-      const media=options.media.find(m=>m.src===item.src);if(!media||target.kind!=="audio"&&(item.kind==="audio"||item.mode==="audio")||target.kind==="audio"&&item.mode==="video")return project;
-      placed=ops.addSourceRange(next,media,trackId,cursor,item.inFrame,item.outFrame,item.mode==="video",item.mode!=="auto"||target.kind==="audio");
+      const original=options.media.find(m=>m.src===item.src),media=original?{...original,durationInFrames:Math.max(1,Math.round(original.durationInFrames*project.fps/(original.frameBase??options.mediaFps??project.fps)))}:undefined;if(!media||target.kind!=="audio"&&(item.kind==="audio"||item.mode==="audio")||target.kind==="audio"&&item.mode==="video")return project;
+      placed=ops.addSourceRange(next,media,trackId,cursor,Math.round(item.inFrame*project.fps/(item.frameBase??project.fps)),Math.round(item.outFrame*project.fps/(item.frameBase??project.fps)),item.mode==="video",item.mode!=="auto"||target.kind==="audio");
     }
     if(placed===next)return project;
-    next=placed;cursor+=item.outFrame-item.inFrame;
+    next=placed;cursor+=Math.max(1,Math.round((item.outFrame-item.inFrame)*project.fps/(item.frameBase??project.fps)));
   }
   return next;
 }
-export function dropDuration(payload:MediaDrag):number{return(payload.items??[payload]).reduce((sum,item)=>sum+Math.max(0,item.outFrame-item.inFrame),0);}
+export function dropDuration(payload:MediaDrag,fps?:number):number{return(payload.items??[payload]).reduce((sum,item)=>sum+Math.max(0,Math.round((item.outFrame-item.inFrame)*(fps??item.frameBase??1)/(item.frameBase??fps??1))),0);}
 export type DropShape={trackId:string;clip:Clip};
 export function placedMediaIds(before:Project,next:Project,shapes:DropShape[]):string[]{
   const old=new Set(before.tracks.flatMap(t=>t.clips.map(c=>c.id)));

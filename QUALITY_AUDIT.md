@@ -1,5 +1,40 @@
 # Control de calidad — actualizado 2026-10-21
 
+## Secuencias y exportación por entregas — 2026-10-21
+
+**Alcance:** parámetros de secuencia, varios pares I/O, adaptación y exportación por matriz.
+Prueba de estas funciones y sus rutas relacionadas; no certificación completa del software.
+
+- 160 tests: 15 nuevos cubren matriz/filtrado anidado, FPS fraccionarios y fuentes/parejas,
+  biblioteca de medios y plantillas con otra base temporal, proporción física de gráficos,
+  SRT/rangos, rutas y recuperación de cola, además de reintentar un lote previo durante otro.
+- UI real en puerto 5175 aislado: secuencia 1280×720/24, aviso de video 640×360/30;
+  conservar/igualar y Deshacer de parámetros+inserción. Reordenar pestañas por arrastre.
+  Guardar un tercer rango con llaves, exportarlo con clic derecho y recuperarlo con Deshacer.
+- Matriz de 12 MP4: dos rangos × Completa/RAW/Overlays × 9:16/4:5. 30 frames y 1 s por archivo,
+  dimensiones verificadas. Inspección de frames confirma las diferencias entre versiones.
+- Cuatro archivos Full HD enviados desde UI: 1080×1920 y 1080×1350, dos rangos. JSON de cada
+  tramo validado, desplazado a cero; SRT contiene solo Hola o editable según el rango.
+- H.264, HEVC a 24000/1001, VP9 10 bits, ProRes HQ y WAV: FFprobe verifica canales mono y
+  frecuencias elegidas. ProRes 4444 sin audio tiene alpha real (extremos 0 y 255), no un fondo
+  negro opaco. MP4 sin audio probado. 4K 3840×2160: tres frames, 30 fps, 0,100 s.
+- Cola: cancelar, reintentar y rechazar cancelación de un lote terminado; reiniciar y descargar
+  una salida terminada. Estado dañado se respalda y aísla sin ocultar entradas válidas.
+- Visión Ollama local real: tres muestras de un clip sintético → foco JSON validado. No es una
+  validación editorial de encuadres sobre personas/productos reales ni de tracking continuo.
+- Typecheck y build correctos. Persiste aviso conocido de chunks grandes.
+
+**Errores corregidos durante QA:** identidad efímera de vistas de secuencia impedía terminar
+la lectura de metadatos; etapas de mux ignoraban canales/perfiles o reinterpretaban FPS;
+HEVC del binario no admite 10 bits; Opus mono tiene límite de bitrate; pedir audio separado
+con mute activo era incompatible; reintento de un lote antiguo quedaba detrás del cursor.
+Video ahora usa su contenedor nativo + PCM separado cuando procede, y valida el archivo real.
+
+**Pendientes:** anuncio UGC real largo, escucha/editorial y seguimiento de sujetos; HDR/ICC,
+PCM24 real/multicanal, formatos adicionales, GPU/dos pasadas y funciones avanzadas documentadas
+como pendientes en `EXPORTACION.md`. Una prueba sintética de tres frames no acredita rendimiento
+sostenido de 4K. Mantener esta distinción al informar al usuario.
+
 ## Motores editables — 2026-10-21
 
 **Alcance:** primera integración oficial local HyperFrames 0.8.185 para texto, captions,

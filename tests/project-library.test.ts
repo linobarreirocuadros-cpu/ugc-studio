@@ -12,8 +12,8 @@ function fixture(){let p=ops.ensureProjectLibrary(createEmptyProject(),[source,o
 
 test("biblioteca antigua migra al JSON y guardar/abrir da prioridad a su biblioteca canónica",()=>{
   const old=createEmptyProject(),parsed=parseProjectFile(JSON.stringify({project:old,media:[source]}));const p=ops.ensureProjectLibrary(parsed.project,parsed.media);
-  assert.deepEqual(p.library!.media,[source]);assert.equal(old.library,undefined);assertProject(p);
-  const roundtrip=parseProjectFile(JSON.stringify({project:p,media:[other]}));assert.deepEqual(roundtrip.media,[source]);assert.deepEqual(roundtrip.project,JSON.parse(JSON.stringify(p)));
+  assert.deepEqual(p.library!.media,[{...source,frameBase:old.fps}]);assert.equal(old.library,undefined);assertProject(p);
+  const roundtrip=parseProjectFile(JSON.stringify({project:p,media:[other]}));assert.deepEqual(roundtrip.media,[{...source,frameBase:old.fps}]);assert.deepEqual(roundtrip.project,JSON.parse(JSON.stringify(p)));
 });
 test("eliminar sin usos no toca el montaje y conserva la instantánea necesaria para Deshacer",()=>{
   const {p}=fixture(),snapshot=JSON.stringify(p),removed=ops.removeProjectItems(p,[other.src]);

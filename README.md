@@ -38,7 +38,8 @@ npm run dev   # http://localhost:5173
   En el timeline puedes mover el grupo o borrarlo con Supr; Ctrl/Cmd+Z deshace el conjunto.
   La regla de tiempo sigue sirviendo para mover el cabezal. Arrastrar desde un clip lo mueve;
   arrastrar desde un archivo de Proyecto lo lleva al timeline.
-- **Exportar**: elige calidad arriba a la derecha → Exportar.
+- **Exportar**: abre el panel superior para combinar rangos, versiones y tamaños en una cola.
+  Puedes generar Completa/RAW/Overlays y 9:16/4:5 en una sola acción. [Guía de entregas y secuencias](EXPORTACION.md).
 
 Tus videos importados y exportaciones se guardan en la carpeta **`UGC Studio`** dentro de tu
 carpeta de usuario (ej. `C:\Users\TuNombre\UGC Studio` o `/Users/TuNombre/UGC Studio`).

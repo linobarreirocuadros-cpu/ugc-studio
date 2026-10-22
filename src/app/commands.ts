@@ -5,6 +5,7 @@ export type Command = { id: string; label: string; category: string; scope: Comm
 const c = (id: string, label: string, category: string, keys: string, scope: CommandScope = "app", pending?: string, repeat = false): Command => ({ id, label, category, scope, defaults: keys ? keys.split("|") : [], pending, repeat });
 const feature = "Esta función todavía no está implementada en UGC Studio.";
 export const COMMANDS: Command[] = [
+  c("sequenceSettings","Ajustes de la secuencia…","Secuencia",""),
   c("newProject", "Nuevo proyecto", "Archivo", "Ctrl+Alt+KeyN"),
   c("newSequence", "Nueva secuencia", "Archivo", "Ctrl+KeyN", "app"),
   c("open", "Abrir proyecto…", "Archivo", "Ctrl+KeyO"),

@@ -5,8 +5,8 @@ import {hyperframesHtml} from "./hyperframesHtml";
 import {fontSources} from "./fonts";
 
 /** Remotion conserva el reloj y la composición final; espera el ACK del runtime oficial. */
-export function HyperframesLayer({clip,preview}:{clip:CaptionClip|TextClip|GraphicClip;preview:boolean}){
-  const frame=useCurrentFrame(),config=useVideoConfig(),iframe=useRef<HTMLIFrameElement>(null);
+export function HyperframesLayer({clip,preview,canvas}:{clip:CaptionClip|TextClip|GraphicClip;preview:boolean;canvas?:{width:number;height:number}}){
+  const frame=useCurrentFrame(),rootConfig=useVideoConfig(),config={...rootConfig,...canvas},iframe=useRef<HTMLIFrameElement>(null);
   const [error,setError]=useState("");
   const serialized=JSON.stringify(clip);
   const html=useMemo(()=>hyperframesHtml(clip,config,clip.kind==="graphic"?[]:fontSources(clip.style.fontFamily,clip.kind==="caption"?900:800).map(f=>({...f,src:new URL(f.src,window.location.href).href}))),[serialized,config.width,config.height,config.fps]);
